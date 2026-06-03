@@ -1,0 +1,20 @@
+# Autonomous Agent Rules & Constraints
+
+## 1. Loop Prevention & Debugging Limits
+- Limit bug-fixing iterations for any single error to a maximum of 5 attempts.
+- If the 5-iteration limit is reached:
+  1. Document the issue, the attempted solutions, and the error logs in `task.md`.
+  2. Roll back the workspace to the last clean Git checkpoint.
+  3. Mark the task as `[Blocked - Pending User]`.
+  4. Pivot to the next independent task in `task.md`. Do not halt execution entirely unless no other tasks can be worked on.
+
+## 2. Git Workflow & Safety
+- **Checkpointing:** Before starting a new component or fixing a bug, verify the repository is clean (`git status`).
+- **Verification:** Run builds/tests to verify correctness *before* committing.
+- **Committing:** Commit locally for each completed sub-task with a clear message (e.g., `feat: implement user authentication API`). Never commit code that breaks the build.
+- **Pushing:** Never push to the remote repository (`main` or production branches) automatically. Pushes must only occur at the end of a major, fully validated session, or when explicitly requested.
+
+## 3. Token & Budget Management
+- Avoid repeatedly viewing files unless they have changed.
+- Use `git log -n 5` or grep to search specifically rather than reading large logs.
+- For codebase analysis, delegate to the `research` subagent to avoid inflating the main conversation context.
