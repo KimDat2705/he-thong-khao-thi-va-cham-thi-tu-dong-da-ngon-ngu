@@ -3,13 +3,19 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.config import settings
 
 # Create database engine
-# PostgreSQL connection pooling settings can be optimized for concurrent load
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_size=20,          # Standard pool size
-    max_overflow=10,       # Allow burst connections
-    pool_pre_ping=True,     # Verify connection health
-)
+# SQLite does not support connection pooling (pool_size/max_overflow) like PostgreSQL
+if settings.DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        settings.DATABASE_URL,
+        connect_args={"check_same_thread": False}  # Required for SQLite in multi-threaded FastAPI
+    )
+else:
+    engine = create_engine(
+        settings.DATABASE_URL,
+        pool_size=20,          # Standard pool size
+        max_overflow=10,       # Allow burst connections
+        pool_pre_ping=True,     # Verify connection health
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

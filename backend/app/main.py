@@ -1,5 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.database import Base, engine
+# Import models to register them on Base metadata
+from app.models.user import User
+from app.models.exam import Exam
+from app.models.question import Question
+from app.models.submission import Submission, SubmissionDetail
+from app.models.grade import Grade
+
+# Auto-create tables (SQLite will create file grading_db.db if it doesn't exist)
+Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(
     title="Multi-language Automated Examination and Grading System API",
