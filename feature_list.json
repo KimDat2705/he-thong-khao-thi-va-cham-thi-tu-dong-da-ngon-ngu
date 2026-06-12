@@ -1,0 +1,78 @@
+{
+  "project": "HeThongKhaoThiVaChamThiTuDongDaNgonNgu(AI-Powered)",
+  "description": "Multi-language automated exam generation and grading system",
+  "features": [
+    {
+      "id": "auth-api",
+      "name": "Authentication & Session Management API",
+      "description": "Provides user registration, login, role verification, and secure JWT session management.",
+      "status": "not_started",
+      "evidence": "",
+      "testedAt": ""
+    },
+    {
+      "id": "db-migration",
+      "name": "Database Migrations Engine",
+      "description": "Uses Alembic migrations to automatically apply and rollback database schema changes.",
+      "status": "not_started",
+      "evidence": "",
+      "testedAt": ""
+    },
+    {
+      "id": "exam-admin-api",
+      "name": "Exam & Question Bank CRUD API",
+      "description": "Enables teachers to manage exams, view question banks, and approve imported questions.",
+      "status": "not_started",
+      "evidence": "",
+      "testedAt": ""
+    },
+    {
+      "id": "exam-room-ui",
+      "name": "Candidate Exam Room Front-end",
+      "description": "Provides webcam proctoring hooks, tab visibility checking, and compressed Opus/WebM audio recording.",
+      "status": "not_started",
+      "evidence": "",
+      "testedAt": ""
+    },
+    {
+      "id": "ai-grading",
+      "name": "Gemini AI Grading Service",
+      "description": "Connects to Gemini API to grade writing essays and speaking audio recordings based on rubrics.",
+      "status": "active",
+      "evidence": "backend/app/services/ai_grading.py — grade_writing()/grade_speaking() with safe mock fallback; verified by tests/test_specs_grading.py::test_SPEC_GRADE_004_ai_grading_degrades_safely (SPEC-GRADE-004 active).",
+      "testedAt": "2026-06-12T09:00:00Z"
+    },
+    {
+      "id": "celery-worker",
+      "name": "Background Task Grading Queue",
+      "description": "Celery workers consume submitted candidate exams from Redis queue and trigger asynchronous grading.",
+      "status": "in_progress",
+      "evidence": "app/core/celery.py configured; app/workers/tasks.py defines grade_submission_task — NOT yet wired to the submit API (grading runs synchronously; SPEC-GRADE-003 planned, no test yet).",
+      "testedAt": ""
+    },
+    {
+      "id": "docx-parser",
+      "name": "English Exam Ingestion Engine",
+      "description": "Parses Word/Excel/MP3 data, extracts sections, maps audio files, and runs UTF-8 formatting validators.",
+      "status": "not_started",
+      "evidence": "",
+      "testedAt": ""
+    },
+    {
+      "id": "exam-generator",
+      "name": "TOEIC & B1 Exam Generator",
+      "description": "Retrieves questions from the approved question bank and matches exam blueprints dynamically.",
+      "status": "in_progress",
+      "evidence": "backend/app/services/toeic_generator.py — TOEIC core works (verified by test_toeic_generator.py + test_specs_generation.py: per-part matrix, group isolation, bank immutability). Known gaps tracked as xfail/skip: SPEC-GEN-001/002/003/005/006, BANK-001 (see specs/specs.json); B1 + blueprint-as-data not implemented.",
+      "testedAt": "2026-06-12T09:00:00Z"
+    },
+    {
+      "id": "exam-validator",
+      "name": "Automated Exam Validator Gate",
+      "description": "Checks generated exams against constraints, question overlap limits (<40%), and content completeness.",
+      "status": "not_started",
+      "evidence": "",
+      "testedAt": ""
+    }
+  ]
+}

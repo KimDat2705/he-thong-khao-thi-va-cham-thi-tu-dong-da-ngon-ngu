@@ -1,0 +1,6 @@
+# Local agent settings (Claude Code)
+.claude/
+
+# OS junk
+Thumbs.db
+.DS_Store

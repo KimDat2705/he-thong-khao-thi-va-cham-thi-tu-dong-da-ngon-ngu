@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiến trúc Phân hệ Ra đề — Tiếng Anh (TOEIC &amp; B1 VSTEP)</title>
+<style>
+:root[data-theme="dark"]{
+  --bg:#0b1220; --bg-2:#111a2e; --bg-3:#1a2540; --text:#e6ecf7; --muted:#93a3c0;
+  --border:#26334f; --primary:#5b8cff; --accent:#a78bfa; --success:#34d399;
+  --warning:#fbbf24; --danger:#f87171; --info:#38bdf8; --code-bg:#0d1526;
+}
+:root[data-theme="light"]{
+  --bg:#f6f8fc; --bg-2:#ffffff; --bg-3:#eef2fa; --text:#16213a; --muted:#5b6b8c;
+  --border:#d7dfee; --primary:#2563eb; --accent:#7c3aed; --success:#059669;
+  --warning:#b45309; --danger:#dc2626; --info:#0284c7; --code-bg:#eef2fa;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:15px/1.65 system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+a{color:var(--primary); text-decoration:none}
+a:hover{text-decoration:underline}
+code{background:var(--code-bg); border:1px solid var(--border); border-radius:4px; padding:1px 5px; font-size:.88em}
+pre{background:var(--code-bg); border:1px solid var(--border); border-radius:8px; padding:14px; overflow-x:auto; font-size:.85em; line-height:1.5}
+pre code{background:none; border:none; padding:0}
+.sidebar{
+  position:fixed; top:0; left:0; bottom:0; width:264px; overflow-y:auto;
+  background:var(--bg-2); border-right:1px solid var(--border); padding:18px 14px; z-index:50;
+}
+.sidebar .logo{font-weight:700; font-size:.95em; margin-bottom:4px}
+.sidebar .ver{color:var(--muted); font-size:.78em; margin-bottom:14px}
+.sidebar nav a{
+  display:block; padding:7px 10px; margin:2px 0; border-radius:6px;
+  color:var(--muted); font-size:.88em;
+}
+.sidebar nav a:hover{background:var(--bg-3); color:var(--text); text-decoration:none}
+.sidebar nav a.active{background:var(--bg-3); color:var(--primary); font-weight:600}
+main{margin-left:264px; padding:34px 44px 90px; max-width:1060px}
+section{margin-bottom:64px; scroll-margin-top:20px}
+h1{font-size:1.7em; line-height:1.3; margin:0 0 6px}
+h2{font-size:1.35em; border-bottom:2px solid var(--border); padding-bottom:8px; margin-top:0}
+h3{font-size:1.08em; margin-top:28px}
+h4{font-size:1em; margin-top:22px}
+h2 .no{color:var(--accent); margin-right:8px}
+.badge{display:inline-block; border-radius:99px; padding:2px 11px; font-size:.74em; font-weight:600; border:1px solid var(--border)}
+.b-blue{color:var(--primary); border-color:var(--primary)}
+.b-green{color:var(--success); border-color:var(--success)}
+.b-amber{color:var(--warning); border-color:var(--warning)}
+.b-gray{color:var(--muted)}
+.b-red{color:var(--danger); border-color:var(--danger)}
+.tbl{width:100%; border-collapse:collapse; margin:14px 0; font-size:.9em}
+.tbl th,.tbl td{border:1px solid var(--border); padding:8px 11px; text-align:left; vertical-align:top}
+.tbl th{background:var(--bg-3); font-size:.92em}
+.tbl tr:nth-child(even) td{background:color-mix(in srgb, var(--bg-3) 35%, transparent)}
+.note,.warn,.ok,.bad{border-left:4px solid; border-radius:0 8px 8px 0; padding:12px 16px; margin:16px 0; background:var(--bg-2)}
+.note{border-color:var(--info)} .warn{border-color:var(--warning)}
+.ok{border-color:var(--success)} .bad{border-color:var(--danger)}
+.kvs{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:16px 0}
+.kv{background:var(--bg-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px}
+.kv .k{color:var(--muted); font-size:.78em; text-transform:uppercase; letter-spacing:.04em}
+.kv .v{font-weight:700; font-size:1.02em; margin-top:3px}
+figure{margin:20px 0; background:var(--bg-2); border:1px solid var(--border); border-radius:12px; padding:16px}
+figcaption{color:var(--muted); font-size:.82em; margin-top:10px; text-align:center}
+svg{width:100%; height:auto; display:block}
+svg text{font-family:system-ui,"Segoe UI",Roboto,sans-serif}
+.theme-btn{
+  position:fixed; top:14px; right:18px; z-index:60; cursor:pointer;
+  background:var(--bg-2); color:var(--text); border:1px solid var(--border);
+  border-radius:99px; padding:7px 15px; font-size:.84em;
+}
+.menu-btn{display:none; position:fixed; top:14px; left:14px; z-index:60; cursor:pointer;
+  background:var(--bg-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:7px 12px}
+.doc-head{margin-bottom:44px}
+.doc-head .meta{color:var(--muted); font-size:.88em; margin-top:8px}
+@media (max-width:900px){
+  .sidebar{transform:translateX(-100%); transition:transform .2s}
+  .sidebar.open{transform:none}
+  .menu-btn{display:block}
+  main{margin-left:0; padding:64px 18px 70px}
+}
+@media print{
+  .sidebar,.theme-btn,.menu-btn{display:none !important}
+  main{margin:0; max-width:none; padding:0}
+  section{page-break-before:always}
+  section:first-of-type{page-break-before:avoid}
+  :root[data-theme="dark"]{
+    --bg:#fff; --bg-2:#fff; --bg-3:#f1f4fa; --text:#111; --muted:#444;
+    --border:#bbb; --primary:#1d4ed8; --accent:#6d28d9; --success:#047857;
+    --warning:#92400e; --danger:#b91c1c; --info:#0369a1; --code-bg:#f1f4fa;
+  }
+  body{font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<button class="menu-btn" id="menuBtn">☰ Mục lục</button>
+<button class="theme-btn" id="themeBtn">🌙 / ☀️</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">Phân hệ Ra đề — Tiếng Anh</div>
+  <div class="ver">TOEIC (2 kỹ năng) · B1 VSTEP (4 kỹ năng)</div>
+  <nav id="nav">
+    <a href="#phamvi">1. Phạm vi &amp; vị trí</a>
+    <a href="#pipeline">2. Pipeline tổng quan</a>
+    <a href="#parser">3. GĐ1: Dữ liệu nguồn &amp; Parser</a>
+    <a href="#bank">4. GĐ2: Ngân hàng câu hỏi</a>
+    <a href="#blueprint">5. Blueprint TOEIC &amp; B1</a>
+    <a href="#thuattoan">6. GĐ3: Thuật toán sinh đề</a>
+    <a href="#api">7. API phân hệ</a>
+    <a href="#harness">8. Specs &amp; Tests (16 spec)</a>
+    <a href="#lotrinh">9. Kế hoạch &amp; DoD</a>
+  </nav>
+</aside>
+
+<main>
+
+<div class="doc-head">
+  <h1>Kiến trúc Phân hệ Ra đề — Tiếng Anh (TOEIC &amp; B1 VSTEP)</h1>
+  <div>
+    <span class="badge b-blue">Phiên bản 1.0</span>
+    <span class="badge b-gray">Cập nhật: 11/06/2026</span>
+    <span class="badge b-amber">Tài liệu con của kien_truc_he_thong_v2.html (mục 5)</span>
+  </div>
+  <div class="meta">
+    Đặc tả chi tiết phân hệ Ra đề cho ngôn ngữ tiếng Anh — từ file Word/Excel/MP3 thô đến 100 bộ đề TOEIC
+    + 100 bộ đề B1 VSTEP đã qua kiểm định tự động. Spec liên quan: <code>specs/specs.json</code> ·
+    test: <code>backend/tests/test_specs_*.py</code>.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<section id="phamvi">
+<h2><span class="no">1.</span>Phạm vi &amp; vị trí trong kiến trúc tổng thể</h2>
+
+<p><b>Phạm vi tài liệu này:</b> chỉ phân hệ <b>Ra đề</b> (exam generation), chỉ <b>tiếng Anh</b>.
+Phân hệ Thi (phòng thi, proctoring) và Chấm AI nằm ngoài phạm vi — xem mục 6 của tài liệu tổng thể.
+Dù phạm vi là tiếng Anh, mọi thiết kế dưới đây <b>trung lập ngôn ngữ</b> (blueprint-as-data): khi làm tiếng Trung/HSK,
+chỉ thêm dữ liệu, không sửa các thành phần mô tả ở đây.</p>
+
+<div class="kvs">
+  <div class="kv"><div class="k">Sản phẩm đầu ra</div><div class="v">100 đề TOEIC + 100 đề B1 VSTEP</div></div>
+  <div class="kv"><div class="k">Dữ liệu đầu vào</div><div class="v">~15 bộ TOEIC + 30 bộ B1 (Word/Excel/MP3)</div></div>
+  <div class="kv"><div class="k">Tiêu chí nghiệm thu</div><div class="v">100% đề qua validator tự động</div></div>
+  <div class="kv"><div class="k">Spec bao phủ</div><div class="v">16 spec (mục 8)</div></div>
+</div>
+
+<h3>Vị trí trong tổng thể</h3>
+<p>Phân hệ Ra đề là <b>nhà cung cấp dữ liệu</b> cho toàn hệ thống: phòng thi đọc đề từ bảng <code>exams</code>,
+bộ chấm đọc <code>reference_answer</code> từ các bản ghi do phân hệ này sinh ra. Mọi thành phần chạy trong
+FastAPI backend (không service riêng), dùng chung PostgreSQL — đúng nguyên tắc stateless của tổng thể.</p>
+
+<table class="tbl">
+  <tr><th style="width:30%">Nguyên tắc kế thừa từ tổng thể</th><th>Áp dụng trong phân hệ Ra đề</th></tr>
+  <tr><td>Blueprint-as-data</td><td>Cấu trúc TOEIC/B1 là bản ghi dữ liệu (mục 5) — generator là code chung, không biết gì về "TOEIC" hay "B1".</td></tr>
+  <tr><td>Bank là nguồn sự thật, đề là bản clone</td><td><code>exam_id IS NULL</code> = ngân hàng; sinh đề chỉ CLONE kèm <code>source_question_id</code>, không bao giờ sửa bank (SPEC-BANK-002 ✓).</td></tr>
+  <tr><td>Harness Engineering</td><td>Mỗi ràng buộc nghiệp vụ = 1 spec + test; validator sau sinh đề dùng chung code với test harness.</td></tr>
+  <tr><td>Cấu hình từ env</td><td>Đường dẫn storage audio, DB đều từ <code>.env</code> — pipeline chạy y hệt trên MVP lẫn Production.</td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<section id="pipeline">
+<h2><span class="no">2.</span>Pipeline tổng quan: 3 giai đoạn + cổng kiểm định</h2>
+
+<figure>
+<svg viewBox="0 0 900 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pipeline ra đề end-to-end">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <!-- Row 1: ingestion -->
+  <rect x="15" y="30" width="180" height="110" rx="10" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="105" y="52" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="700">Dữ liệu nguồn</text>
+  <text x="105" y="74" text-anchor="middle" fill="var(--muted)" font-size="10.5">TOEIC: LT*.docx · RT*.doc</text>
+  <text x="105" y="90" text-anchor="middle" fill="var(--muted)" font-size="10.5">B1: LB1/EB1*.docx · cards</text>
+  <text x="105" y="106" text-anchor="middle" fill="var(--muted)" font-size="10.5">Excel đáp án · MP3</text>
+
+  <rect x="245" y="42" width="170" height="86" rx="10" fill="var(--bg-3)" stroke="var(--primary)" stroke-width="1.5"/>
+  <text x="330" y="68" text-anchor="middle" fill="var(--primary)" font-size="12" font-weight="700">GĐ1 · PARSER</text>
+  <text x="330" y="88" text-anchor="middle" fill="var(--muted)" font-size="10.5">convert .doc → parse docx/xlsx</text>
+  <text x="330" y="104" text-anchor="middle" fill="var(--muted)" font-size="10.5">nối MP3 · validation gates</text>
+
+  <rect x="465" y="42" width="170" height="86" rx="10" fill="var(--bg-3)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="550" y="68" text-anchor="middle" fill="var(--accent)" font-size="12" font-weight="700">GĐ2 · NGÂN HÀNG</text>
+  <text x="550" y="88" text-anchor="middle" fill="var(--muted)" font-size="10.5">draft → duyệt → approved</text>
+  <text x="550" y="104" text-anchor="middle" fill="var(--muted)" font-size="10.5">thống kê tồn kho theo blueprint</text>
+
+  <rect x="685" y="42" width="200" height="86" rx="10" fill="var(--bg-3)" stroke="var(--success)" stroke-width="1.5"/>
+  <text x="785" y="68" text-anchor="middle" fill="var(--success)" font-size="12" font-weight="700">GĐ3 · GENERATOR</text>
+  <text x="785" y="88" text-anchor="middle" fill="var(--muted)" font-size="10.5">đọc blueprint · chọn · cân bằng</text>
+  <text x="785" y="104" text-anchor="middle" fill="var(--muted)" font-size="10.5">clone kèm source_question_id</text>
+
+  <line x1="195" y1="85" x2="243" y2="85" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="415" y1="85" x2="463" y2="85" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="635" y1="85" x2="683" y2="85" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- validator -->
+  <rect x="465" y="190" width="420" height="96" rx="10" fill="var(--bg-3)" stroke="var(--warning)" stroke-width="1.8"/>
+  <text x="675" y="214" text-anchor="middle" fill="var(--warning)" font-size="12" font-weight="700">CỔNG KIỂM ĐỊNH · exam_validator (dùng chung với test harness)</text>
+  <text x="675" y="236" text-anchor="middle" fill="var(--muted)" font-size="10.5">đúng blueprint số câu · ma trận độ khó ±2 · cách ly nhóm · cân bằng đáp án 20–28%</text>
+  <text x="675" y="252" text-anchor="middle" fill="var(--muted)" font-size="10.5">đa dạng chủ đề ≤20% · trùng lặp lô ≤40% · UTF-8 sạch</text>
+  <text x="675" y="274" text-anchor="middle" fill="var(--muted)" font-size="10.5">SPEC-GEN-001..006 · MATRIX-002 · ISOLATE-003 · COLLATE-004</text>
+  <line x1="785" y1="128" x2="785" y2="188" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- outputs -->
+  <rect x="685" y="340" width="200" height="76" rx="10" fill="var(--bg-3)" stroke="var(--success)"/>
+  <text x="785" y="366" text-anchor="middle" fill="var(--success)" font-size="12" font-weight="700">ĐẠT → commit</text>
+  <text x="785" y="386" text-anchor="middle" fill="var(--muted)" font-size="10.5">đề is_active + báo cáo validate</text>
+  <text x="785" y="402" text-anchor="middle" fill="var(--muted)" font-size="10.5">100 đề TOEIC · 100 đề B1</text>
+  <line x1="785" y1="286" x2="785" y2="338" stroke="var(--success)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="465" y="340" width="180" height="76" rx="10" fill="none" stroke="var(--danger)" stroke-dasharray="5 4"/>
+  <text x="555" y="366" text-anchor="middle" fill="var(--danger)" font-size="12" font-weight="700">HỎNG → rollback</text>
+  <text x="555" y="386" text-anchor="middle" fill="var(--muted)" font-size="10.5">không ghi DB, log lý do,</text>
+  <text x="555" y="402" text-anchor="middle" fill="var(--muted)" font-size="10.5">thử tổ hợp khác (tối đa N lần)</text>
+  <line x1="600" y1="286" x2="565" y2="338" stroke="var(--danger)" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arr)"/>
+
+  <!-- feedback loop -->
+  <path d="M 463 380 C 300 380, 300 150, 380 132" fill="none" stroke="var(--danger)" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arr)"/>
+  <text x="285" y="300" text-anchor="middle" fill="var(--muted)" font-size="10">file nguồn lỗi → trả về sửa, import lại (idempotent)</text>
+</svg>
+<figcaption>D1 — Pipeline Ra đề: mọi đề chỉ được phát hành sau khi qua cổng kiểm định; lỗi ở bất kỳ khâu nào đều rollback sạch.</figcaption>
+</figure>
+
+<table class="tbl">
+  <tr><th>Giai đoạn</th><th>Trạng thái code</th><th>Module</th></tr>
+  <tr><td>GĐ1 — Parser/Ingestion</td><td><span class="badge b-red">chưa có</span> — đặc tả ở mục 3</td><td><code>app/services/parser/</code> (đề xuất)</td></tr>
+  <tr><td>GĐ2 — Ngân hàng câu hỏi</td><td><span class="badge b-amber">một phần</span> — model có, thiếu API quản trị + lọc duyệt</td><td><code>app/models/question*.py</code> · <code>app/api/bank.py</code> (đề xuất)</td></tr>
+  <tr><td>GĐ3 — Generator</td><td><span class="badge b-amber">bản đầu chạy được</span> — TOEIC hardcode, còn 6 gap (mục 6)</td><td><code>app/services/toeic_generator.py</code> → tổng quát hóa thành <code>exam_generator.py</code></td></tr>
+  <tr><td>Cổng kiểm định</td><td><span class="badge b-red">chưa có</span> — hiện chỉ tồn tại dưới dạng test</td><td><code>app/services/exam_validator.py</code> (đề xuất, dùng chung với test)</td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<section id="parser">
+<h2><span class="no">3.</span>GĐ1 — Dữ liệu nguồn &amp; Parser Engine</h2>
+
+<h3>3.1 Kiểm kê dữ liệu nguồn (đúng theo bộ dữ liệu đối tác bàn giao)</h3>
+<table class="tbl">
+  <tr><th>Bộ</th><th>File</th><th>Nội dung parser phải bóc tách</th><th>Lưu ý kỹ thuật</th></tr>
+  <tr>
+    <td rowspan="2"><b>TOEIC</b><br>(~15 bộ)</td>
+    <td><code>LT2601.docx</code> → <code>LT2629.docx</code> (chỉ số lẻ) + Excel đáp án + thư mục <i>"File nghe tong hop"</i></td>
+    <td>Part 1–4: câu đơn (P1, P2) + nhóm 3 câu kèm hội thoại/độc thoại (P3, P4); đáp án từ Excel; link MP3</td>
+    <td>Liên kết audio theo <b>quy ước tên file</b> (mục 3.2); P2 chỉ có 3 phương án A/B/C</td>
+  </tr>
+  <tr>
+    <td><code>CDR TOEIC - RT2601.doc</code> → <code>RT2615.doc</code> + Excel đáp án</td>
+    <td>P5: câu đơn điền từ; P6: nhóm 4 câu/đoạn; P7: nhóm 2–5 câu/đoạn đơn-kép-ba, có ảnh chèn</td>
+    <td><b>.doc nhị phân</b> — python-docx không đọc được → bước convert sang .docx bằng LibreOffice headless trước</td>
+  </tr>
+  <tr>
+    <td rowspan="3"><b>B1 VSTEP</b><br>(30 bộ,<br>mã 2601–2630)</td>
+    <td><code>LB1.XXXX.docx</code> + thư mục <code>FILE NGHE/</code> + <code>Phiếu trả lời Listening B1 - XXXX.doc</code></td>
+    <td>Listening 35 câu: 8 câu đơn (thông báo) + 3 nhóm hội thoại + 3 nhóm bài giảng; đáp án từ phiếu trả lời</td>
+    <td>Phiếu trả lời cũng là .doc → cùng đường convert</td>
+  </tr>
+  <tr>
+    <td><code>EB1 - XXXX.docx</code></td>
+    <td>Reading 40 câu: 4 nhóm (bài đọc 300–500 từ) × 10 câu; Writing: 2 đề tự luận (email ≥120 từ, luận ≥250 từ)</td>
+    <td>Câu writing nạp thành <code>type="writing"</code>, không có options/đáp án trắc nghiệm</td>
+  </tr>
+  <tr>
+    <td><code>SPEAKING CARDS/</code> + <code>Phiếu chấm điểm B1 XXXX.docx</code></td>
+    <td>3 phần thi nói → câu <code>type="speaking"</code>; phiếu chấm → số hóa thành <b>prompt chấm AI</b> (prompt-as-data)</td>
+    <td>Phiếu chấm KHÔNG vào bảng questions — vào <code>prompts/en/vstep_*.json</code> phục vụ phân hệ Chấm</td>
+  </tr>
+</table>
+
+<h3>3.2 Quy ước liên kết audio (SPEC-PARSE-002)</h3>
+<pre><code># Quy ước ánh xạ file nghe → nhóm/câu hỏi (chốt cùng đối tác trước khi code parser)
+LT2601.docx  +  File nghe tong hop/2601_Part1.mp3   → câu đơn Part 1 của bộ 2601
+                File nghe tong hop/2601_Part3_01.mp3 → nhóm hội thoại #1 Part 3 của bộ 2601
+LB1.2601.docx + FILE NGHE/B1_2601_Sec2_Conv1.mp3     → nhóm hội thoại #1 Listening B1 bộ 2601
+
+Quy tắc cứng: parser KHÔNG đoán — tên file không khớp quy ước hoặc file không tồn tại
+→ import FAIL kèm danh sách file thiếu (không nạp "tạm" rồi vá sau).</code></pre>
+<div class="warn"><b>Việc cần chốt sớm với đối tác:</b> quy ước tên MP3 thực tế trong <i>"File nghe tong hop"</i>
+có thể không đồng nhất giữa các bộ. Buổi rà soát 1 giờ trên dữ liệu thật trước khi viết <code>audio_linker</code>
+sẽ tiết kiệm nhiều ngày debug — đây là rủi ro số 1 của GĐ1.</div>
+
+<h3>3.3 Thiết kế module parser (đề xuất)</h3>
+<pre><code>app/services/parser/
+├── __init__.py          # import_file(db, path) — điểm vào duy nhất, giao dịch all-or-nothing
+├── converter.py         # .doc → .docx (LibreOffice headless), cache kết quả convert
+├── docx_reader.py       # bóc câu hỏi/nhóm/đoạn văn/ảnh từ .docx (python-docx)
+├── xlsx_reader.py       # đọc Excel đáp án + độ khó (openpyxl)
+├── audio_linker.py      # ánh xạ MP3 theo quy ước tên, copy vào storage, trả audio_url
+├── validators.py        # validation gates (bảng dưới) — chạy TRƯỚC khi ghi DB
+└── profiles/            # cấu hình nhận dạng từng định dạng nguồn (regex mẫu câu hỏi...)
+    ├── toeic_listening.py · toeic_reading.py · b1_listening.py · b1_reading_writing.py</code></pre>
+<p>Mỗi <b>profile</b> mô tả cách nhận dạng một định dạng file nguồn (mẫu đánh số câu, marker đoạn văn,
+vị trí cột đáp án trong Excel). Thêm định dạng mới (HSK sau này) = thêm profile, không sửa lõi parser.</p>
+
+<h3>3.4 Validation gates — chạy trước khi ghi bất kỳ bản ghi nào</h3>
+<table class="tbl">
+  <tr><th>Gate</th><th>Kiểm tra</th><th>Spec</th></tr>
+  <tr><td>Toàn vẹn câu hỏi</td><td>Câu trắc nghiệm nào cũng có <code>reference_answer</code> khớp một key trong <code>options</code></td><td>SPEC-PARSE-001</td></tr>
+  <tr><td>Audio tồn tại</td><td>Mọi nhóm/câu Listening link tới MP3 có thật theo quy ước tên</td><td>SPEC-PARSE-002</td></tr>
+  <tr><td>Đúng cấu trúc bộ đề</td><td>Số câu/nhóm mỗi part của file nguồn khớp cấu trúc chứng chỉ (vd LT phải có 6+25+39+30 câu)</td><td>(thuộc PARSE-004)</td></tr>
+  <tr><td>UTF-8 sạch</td><td>Không ký tự U+FFFD/mojibake sau khi bóc tách</td><td>SPEC-COLLATE-004</td></tr>
+</table>
+
+<h3>3.5 Giao dịch import &amp; idempotency</h3>
+<ul>
+  <li><b>All-or-nothing theo file</b> (SPEC-PARSE-004): một gate fail → rollback toàn bộ file đó, sinh báo cáo lỗi JSON
+  <code>{file, errors: [{location: "câu 17", type: "missing_answer", message: ...}]}</code> lưu vào <code>import_batches.error_report</code>.</li>
+  <li><b>Idempotent</b> (SPEC-PARSE-003): mỗi câu/nhóm có <code>content_hash</code> (SHA-256 của nội dung chuẩn hóa);
+  import lại cùng file → bỏ qua bản ghi trùng, báo số lượng skip. Cho phép đối tác sửa file lỗi rồi nạp lại thoải mái.</li>
+  <li><b>Mọi item vào bank ở <code>status="draft"</code></b> — bắt buộc qua bước duyệt của GĐ2 trước khi sinh đề được chạm tới.</li>
+  <li>Bảng <code>import_batches</code> (mới, qua Alembic): <code>id · source_file · content_hash · status(pending/imported/failed) · error_report JSON · imported_at</code> — truy vết "câu hỏi này đến từ file nào, đợt nạp nào".</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="bank">
+<h2><span class="no">4.</span>GĐ2 — Ngân hàng câu hỏi</h2>
+
+<figure>
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mô hình bank và clone">
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <rect x="20" y="30" width="380" height="240" rx="12" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="210" y="56" text-anchor="middle" fill="var(--accent)" font-size="13" font-weight="700">NGÂN HÀNG (exam_id IS NULL)</text>
+  <rect x="40" y="76" width="160" height="60" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="120" y="100" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">Question (câu đơn)</text>
+  <text x="120" y="118" text-anchor="middle" fill="var(--muted)" font-size="10">P1/P2/P5 · B1-L Part1 · W/S</text>
+  <rect x="220" y="76" width="160" height="60" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="300" y="100" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">QuestionGroup + câu con</text>
+  <text x="300" y="118" text-anchor="middle" fill="var(--muted)" font-size="10">P3/P4/P6/P7 · B1 hội thoại/bài đọc</text>
+  <rect x="40" y="160" width="340" height="86" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="210" y="184" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">Vòng đời trạng thái</text>
+  <text x="210" y="208" text-anchor="middle" fill="var(--muted)" font-size="10.5">draft (từ parser) → approved (GV duyệt) → retired (lỗi/lộ đề)</text>
+  <text x="210" y="228" text-anchor="middle" fill="var(--warning)" font-size="10.5">chỉ approved được sinh đề chạm tới (SPEC-BANK-001)</text>
+
+  <rect x="500" y="30" width="380" height="240" rx="12" fill="none" stroke="var(--success)" stroke-width="1.5"/>
+  <text x="690" y="56" text-anchor="middle" fill="var(--success)" font-size="13" font-weight="700">ĐỀ THI (exam_id = N)</text>
+  <rect x="520" y="76" width="340" height="60" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="690" y="100" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">Bản CLONE độc lập của câu/nhóm được chọn</text>
+  <text x="690" y="118" text-anchor="middle" fill="var(--muted)" font-size="10">+ source_question_id trỏ về bản gốc trong bank</text>
+  <rect x="520" y="160" width="340" height="86" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="690" y="184" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">Hệ quả thiết kế</text>
+  <text x="690" y="206" text-anchor="middle" fill="var(--muted)" font-size="10.5">sửa/retire bank KHÔNG ảnh hưởng đề đã phát hành</text>
+  <text x="690" y="226" text-anchor="middle" fill="var(--muted)" font-size="10.5">đo trùng lặp giữa các đề qua source_question_id</text>
+
+  <line x1="400" y1="106" x2="498" y2="106" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#arr2)"/>
+  <text x="449" y="96" text-anchor="middle" fill="var(--muted)" font-size="10.5">generator CLONE</text>
+  <text x="449" y="128" text-anchor="middle" fill="var(--danger)" font-size="10">tuyệt đối không move/sửa (BANK-002 ✓)</text>
+</svg>
+<figcaption>D2 — Bank là nguồn sự thật bất biến; đề thi là bản sao độc lập có truy vết nguồn.</figcaption>
+</figure>
+
+<h3>4.1 API quản trị (đề xuất — router <code>/api/v1/bank</code>, role admin/teacher)</h3>
+<table class="tbl">
+  <tr><th>Endpoint</th><th>Chức năng</th></tr>
+  <tr><td><code>POST /bank/import</code> (multipart: file + loại profile)</td><td>Nạp 1 file nguồn qua Parser; trả về batch_id + báo cáo (nạp được gì, lỗi gì)</td></tr>
+  <tr><td><code>GET /bank/imports/{batch_id}</code></td><td>Xem trạng thái + error_report của một đợt nạp</td></tr>
+  <tr><td><code>GET /bank/questions?part=&amp;difficulty=&amp;status=&amp;topic=&amp;exam_type=</code></td><td>Duyệt/lọc ngân hàng theo mọi chiều</td></tr>
+  <tr><td><code>PATCH /bank/questions/{id}</code> · <code>PATCH /bank/groups/{id}</code></td><td>Sửa nội dung, độ khó, topic; chuyển trạng thái đơn lẻ</td></tr>
+  <tr><td><code>POST /bank/approve</code> (theo danh sách id hoặc cả batch)</td><td>Duyệt hàng loạt sau khi giáo viên rà soát</td></tr>
+  <tr><td><code>GET /bank/stats?exam_type=TOEIC</code></td><td>Tồn kho approved theo part × độ khó × topic, <b>đối chiếu thẳng với blueprint</b> — trả về cảnh báo phần nào thiếu trước khi sinh lô</td></tr>
+</table>
+
+<h3>4.2 Năng lực ngân hàng — đủ sinh 100 đề không trùng lặp quá mức?</h3>
+<p>Tính trên dữ liệu nguồn thực tế (~15 bộ TOEIC), tồn kho và mức trùng lặp kỳ vọng giữa 2 đề bất kỳ:</p>
+<table class="tbl">
+  <tr><th>Part</th><th>Cần / đề</th><th>Tồn kho (~15 bộ)</th><th>Trùng lặp kỳ vọng giữa 2 đề*</th></tr>
+  <tr><td>P1 (câu đơn)</td><td>6</td><td>~90 câu</td><td>~0,4 câu</td></tr>
+  <tr><td>P2 (câu đơn)</td><td>25</td><td>~375 câu</td><td>~1,7 câu</td></tr>
+  <tr><td>P3 (nhóm 3 câu)</td><td>13 nhóm</td><td>~195 nhóm</td><td>~0,9 nhóm ≈ 2,6 câu</td></tr>
+  <tr><td>P4 (nhóm 3 câu)</td><td>10 nhóm</td><td>~150 nhóm</td><td>~0,7 nhóm ≈ 2 câu</td></tr>
+  <tr><td>P5 (câu đơn)</td><td>30</td><td>~450 câu</td><td>~2 câu</td></tr>
+  <tr><td>P6 (nhóm 4 câu)</td><td>4 nhóm</td><td>~60 nhóm</td><td>~0,3 nhóm ≈ 1,1 câu</td></tr>
+  <tr><td>P7 (nhóm 2–5 câu)</td><td>~13 nhóm / 54 câu</td><td>~195 nhóm</td><td>~0,9 nhóm ≈ 3,5 câu</td></tr>
+  <tr><td colspan="3"><b>Tổng trùng lặp kỳ vọng giữa 2 đề bất kỳ</b></td><td><b>≈ 13 câu / 200 ≈ 6,6%</b> — dư địa lớn so ngưỡng 40% (SPEC-GEN-004)</td></tr>
+</table>
+<p style="color:var(--muted); font-size:.85em">* Ước lượng chọn ngẫu nhiên đều: trùng kỳ vọng ≈ n²/M mỗi part (n = số chọn/đề, M = tồn kho).
+B1 có 30 bộ nguồn nên còn dư dả hơn. Lưu ý phân bổ <b>theo độ khó</b> mới là chỗ chật: vd P1 cần 1 câu Khó/đề
+mà tồn kho Khó P1 chỉ ~15 câu → 100 đề sẽ tái dùng nhiều ở nhóm Khó — chấp nhận được vì ngưỡng là trùng lặp
+<b>tổng thể từng cặp đề</b>, nhưng <code>/bank/stats</code> phải cảnh báo các ô part×độ khó mỏng.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="blueprint">
+<h2><span class="no">5.</span>Blueprint-as-data: TOEIC &amp; B1 VSTEP</h2>
+
+<p>Mỗi chứng chỉ là <b>một bản ghi</b> trong bảng <code>blueprints</code> (mới, qua Alembic). Generator đọc blueprint và
+thực thi — không một dòng code nào nhắc tên "TOEIC" hay "B1". Đây là điểm quyết định để thêm HSK không cần refactor.</p>
+
+<h3>5.1 Blueprint TOEIC (đúng số liệu kế hoạch nghiệp vụ)</h3>
+<pre><code>{
+  "exam_type": "TOEIC", "language": "EN", "total_questions": 200, "duration_minutes": 120,
+  "difficulty_matrix": { "easy": 50, "medium": 100, "hard": 50, "tolerance_per_part": 2 },
+  "parts": [
+    { "part": 1, "mode": "standalone", "count": 6,  "difficulty": {"easy": 2, "medium": 3,  "hard": 1},  "media": "image+audio" },
+    { "part": 2, "mode": "standalone", "count": 25, "difficulty": {"easy": 6, "medium": 13, "hard": 6},  "options": 3 },
+    { "part": 3, "mode": "group", "groups": 13, "q_per_group": 3, "g_difficulty": {"easy": 3, "medium": 7, "hard": 3}, "media": "audio" },
+    { "part": 4, "mode": "group", "groups": 10, "q_per_group": 3, "g_difficulty": {"easy": 2, "medium": 5, "hard": 3}, "media": "audio" },
+    { "part": 5, "mode": "standalone", "count": 30, "difficulty": {"easy": 8, "medium": 15, "hard": 7} },
+    { "part": 6, "mode": "group", "groups": 4, "q_per_group": 4, "g_difficulty": {"easy": 1, "medium": 2, "hard": 1} },
+    { "part": 7, "mode": "group_variable", "target_questions": 54, "group_sizes": [2,3,4,5],
+      "q_difficulty_target": {"easy": 9, "medium": 28, "hard": 17} }
+  ],
+  "constraints": { "answer_balance_range": [0.20, 0.28], "topic_max_share": 0.20, "cross_exam_overlap_max": 0.40 }
+}</code></pre>
+
+<div class="note"><b>Quy đổi độ khó câu → nhóm (điểm tinh tế cần thống nhất với BA):</b> kế hoạch nghiệp vụ phân bổ
+độ khó theo <b>câu</b> (vd P3: 8 Dễ/21 TB/10 Khó), nhưng ràng buộc cách ly nhóm buộc generator chọn theo <b>nhóm</b>
+(độ khó của nhóm = độ khó các câu con). Phương án nhóm gần nhất: P3 = 3/7/3 nhóm × 3 câu = 9/21/9 câu
+(lệch ±1 câu so kế hoạch), P4 = 2/5/3 = 6/15/9 (lệch ±1), P6 = 1/2/1 = 4/8/4 (lệch ±1) —
+tất cả nằm trong <b>dung sai ±2 câu/phần</b> mà kế hoạch cho phép. SPEC-MATRIX-002 kiểm theo phương án nhóm này.</div>
+
+<h3>5.2 Blueprint B1 VSTEP (4 kỹ năng — trắc nghiệm + tự luận trong cùng một đề)</h3>
+<pre><code>{
+  "exam_type": "VSTEP_B1", "language": "EN",
+  "sections": [
+    { "skill": "listening", "duration_minutes": 40, "total_questions": 35, "parts": [
+        { "part": 1, "mode": "standalone", "count": 8,  "desc": "Thông báo/hướng dẫn ngắn", "media": "audio" },
+        { "part": 2, "mode": "group", "groups": 3, "desc": "Hội thoại ngắn", "media": "audio" },
+        { "part": 3, "mode": "group", "groups": 3, "desc": "Bài thuyết trình/bài giảng", "media": "audio" }
+      ],
+      "note": "8 câu đơn + 6 nhóm; số câu/nhóm lấy theo đề nguồn (4-5 câu/nhóm), validator ép TỔNG = 35" },
+    { "skill": "reading", "duration_minutes": 60, "total_questions": 40, "parts": [
+        { "part": 1, "mode": "group", "groups": 4, "q_per_group": 10, "desc": "Bài đọc dài 300-500 từ" }
+      ] },
+    { "skill": "writing", "duration_minutes": 60, "parts": [
+        { "task": 1, "type": "writing", "desc": "Thư/email xã giao", "min_words": 120 },
+        { "task": 2, "type": "writing", "desc": "Bài luận nghị luận theo chủ đề", "min_words": 250 }
+      ] },
+    { "skill": "speaking", "duration_minutes": 12, "parts": [
+        { "part": 1, "type": "speaking", "desc": "Tương tác xã hội — 3-6 câu hỏi ngắn" },
+        { "part": 2, "type": "speaking", "desc": "Thảo luận giải pháp — chọn 1 trong 3" },
+        { "part": 3, "type": "speaking", "desc": "Phát triển chủ đề từ mindmap" }
+      ] }
+  ],
+  "constraints": { "topic_max_share": 0.20, "cross_exam_overlap_max": 0.40 }
+}</code></pre>
+
+<p>Khác biệt cốt lõi B1 so TOEIC mà generator phải xử lý <b>qua dữ liệu blueprint, không qua if/else</b>:</p>
+<table class="tbl">
+  <tr><th>Khía cạnh</th><th>TOEIC</th><th>B1 VSTEP</th><th>Cách generator xử lý chung</th></tr>
+  <tr><td>Loại câu</td><td>100% trắc nghiệm</td><td>Trắc nghiệm + <code>writing</code> + <code>speaking</code></td><td>Chọn theo <code>type</code> khai trong blueprint; câu tự luận không cần options/đáp án</td></tr>
+  <tr><td>Cấu trúc</td><td>7 part phẳng</td><td>4 section (kỹ năng) × parts</td><td>Blueprint dạng cây section→part; generator đệ quy theo cây</td></tr>
+  <tr><td>Độ khó</td><td>Ma trận 25/50/25 chi tiết</td><td>Kế hoạch chưa định ma trận → mặc định theo đề nguồn</td><td><code>difficulty</code> là trường tùy chọn trong blueprint — thiếu thì bỏ qua ràng buộc</td></tr>
+  <tr><td>Số câu/nhóm</td><td>Cố định (3 hoặc 4) trừ P7</td><td>Linh hoạt theo đề nguồn</td><td><code>q_per_group</code> tùy chọn; validator chỉ ép tổng câu của section</td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<section id="thuattoan">
+<h2><span class="no">6.</span>GĐ3 — Thuật toán sinh đề</h2>
+
+<figure>
+<svg viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Luồng thuật toán 5 bước">
+  <defs>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <g font-size="11">
+    <rect x="40" y="20" width="820" height="56" rx="10" fill="var(--bg-3)" stroke="var(--primary)" stroke-width="1.5"/>
+    <text x="60" y="44" fill="var(--primary)" font-weight="700">① KIỂM TỒN KHO (fail-fast — SPEC-GEN-006)</text>
+    <text x="60" y="62" fill="var(--muted)" font-size="10.5">Đếm bank approved theo từng ô (part × độ khó) so với blueprint — thiếu ô nào → raise nêu rõ part + số thiếu, dừng ngay, không ghi gì</text>
+
+    <rect x="40" y="96" width="820" height="56" rx="10" fill="var(--bg-3)" stroke="var(--primary)" stroke-width="1.5"/>
+    <text x="60" y="120" fill="var(--primary)" font-weight="700">② CHỌN (random.Random(seed) — SPEC-GEN-005 · BANK-001 · GEN-003 · GEN-004)</text>
+    <text x="60" y="138" fill="var(--muted)" font-size="10.5">Chỉ item approved · chọn theo từng ô blueprint · ưu tiên item ít được dùng (usage thấp → giảm trùng lặp lô) · không vượt 20% topic/part</text>
+
+    <rect x="40" y="172" width="820" height="56" rx="10" fill="var(--bg-3)" stroke="var(--primary)" stroke-width="1.5"/>
+    <text x="60" y="196" fill="var(--primary)" font-weight="700">③ CÂN BẰNG ĐÁP ÁN (SPEC-GEN-002)</text>
+    <text x="60" y="214" fill="var(--muted)" font-size="10.5">Hoán vị vị trí options + đổi reference_answer tương ứng trên bản sẽ-clone (không đụng bank) đến khi mỗi đáp án A/B/C/D chiếm 20–28%</text>
+
+    <rect x="40" y="248" width="820" height="56" rx="10" fill="var(--bg-3)" stroke="var(--primary)" stroke-width="1.5"/>
+    <text x="60" y="272" fill="var(--primary)" font-weight="700">④ CLONE TRONG TRANSACTION (SPEC-BANK-002 · ISOLATE-003)</text>
+    <text x="60" y="290" fill="var(--muted)" font-size="10.5">Nhóm clone nguyên khối kèm toàn bộ câu con · mỗi bản sao ghi source_question_id · bank tuyệt đối bất biến</text>
+
+    <rect x="40" y="324" width="820" height="70" rx="10" fill="var(--bg-3)" stroke="var(--warning)" stroke-width="1.8"/>
+    <text x="60" y="348" fill="var(--warning)" font-weight="700">⑤ POST-CHECK: exam_validator (toàn bộ ràng buộc chạy lại trên đề vừa sinh)</text>
+    <text x="60" y="366" fill="var(--muted)" font-size="10.5">Đạt → commit + lưu validation_report. Hỏng → rollback transaction, log lý do, thử lại tổ hợp khác (tối đa N=10 lần rồi báo lỗi bank).</text>
+    <text x="60" y="383" fill="var(--muted)" font-size="10.5">Validator là module dùng chung: chính là code mà test SPEC-GEN-* gọi trong CI — một thước đo duy nhất.</text>
+  </g>
+  <line x1="450" y1="76" x2="450" y2="94" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <line x1="450" y1="152" x2="450" y2="170" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <line x1="450" y1="228" x2="450" y2="246" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <line x1="450" y1="304" x2="450" y2="322" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr3)"/>
+</svg>
+<figcaption>D3 — 5 bước của <code>generate_exam(blueprint, seed)</code>. Mỗi bước gắn với spec kiểm tự động.</figcaption>
+</figure>
+
+<h3>6.1 Riêng Part 7 — bài toán tổ hợp (gap lớn nhất hiện tại, SPEC-GEN-001)</h3>
+<p>P7 gồm nhóm 2–5 câu phải đạt <b>đúng 54 câu</b> + ma trận độ khó 9/28/17. Thuật toán greedy hiện tại dừng ở 52 câu
+khi bank toàn nhóm 4 câu (54 không chia hết cho 4). Phương án thay thế:</p>
+<pre><code># Subset-sum có ràng buộc, không gian nhỏ (≤ 20 nhóm/đề) nên backtracking là đủ:
+1. Gom ứng viên nhóm P7 approved theo (kích thước nhóm, độ khó)
+2. Backtracking chọn tổ hợp nhóm sao cho:  Σ size = 54  VÀ  Σ câu theo độ khó ≈ 9/28/17 (±2)
+3. Trong các tổ hợp đạt → chọn ngẫu nhiên (theo seed) một tổ hợp, ưu tiên nhóm ít dùng
+4. Không tồn tại tổ hợp đạt → fail-fast nêu rõ thiếu nhóm kích thước nào (vd "cần thêm nhóm 2-3 câu")</code></pre>
+<div class="warn"><b>Hệ quả với dữ liệu nguồn:</b> nếu parser cho thấy các bộ TOEIC nguồn chỉ có nhóm 4 câu ở P7,
+phải báo đối tác bổ sung nhóm 2–3 câu (đoạn đơn ngắn) hoặc BA điều chỉnh target 54 — quyết định nghiệp vụ,
+không tự ý "làm tròn" trong code. Đây chính là giá trị của fail-fast.</div>
+
+<h3>6.2 Hiện trạng <code>toeic_generator.py</code> vs mục tiêu</h3>
+<table class="tbl">
+  <tr><th>Khía cạnh</th><th>Hiện trạng</th><th>Mục tiêu</th><th>Spec</th></tr>
+  <tr><td>Blueprint</td><td>Hardcode trong hàm, chỉ TOEIC</td><td>Đọc bảng <code>blueprints</code>; cùng code chạy TOEIC + B1</td><td>—</td></tr>
+  <tr><td>Lọc duyệt</td><td>Không lọc <code>status</code></td><td>Chỉ <code>approved</code></td><td>BANK-001 <span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Part 7</td><td>Greedy → 52/54 câu (đề 198/200)</td><td>Backtracking đạt đúng 54 + độ khó</td><td>GEN-001 <span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Ma trận toàn đề</td><td>Per-part đạt; toàn đề lệch do P7 ngẫu nhiên</td><td>P7 ràng buộc độ khó → toàn đề 25/50/25</td><td>MATRIX-002 <span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Cân bằng đáp án</td><td>Chưa có</td><td>Bước ③ hoán vị options</td><td>GEN-002 <span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Đa dạng topic</td><td>Chưa có</td><td>Ràng buộc trong bước ②</td><td>GEN-003 <span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Bank thiếu</td><td>Âm thầm sinh đề thiếu câu</td><td>Fail-fast bước ①</td><td>GEN-006 <span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Seed</td><td><code>random</code> module-level</td><td>Tham số <code>seed</code>, tái lập được</td><td>GEN-005 <span class="badge b-gray">planned</span></td></tr>
+  <tr><td>Truy vết nguồn</td><td>Không lưu</td><td><code>source_question_id</code> (Alembic)</td><td>GEN-004 <span class="badge b-gray">planned</span></td></tr>
+  <tr><td>Đã đạt</td><td colspan="2">Clone không phá bank · cách ly nhóm chuẩn · per-part difficulty đúng target · sinh 1 đề &lt;10s</td><td>BANK-002 · ISOLATE-003 · SCALE-002 <span class="badge b-green">active</span></td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<section id="api">
+<h2><span class="no">7.</span>API phân hệ Ra đề</h2>
+
+<table class="tbl">
+  <tr><th>Endpoint</th><th>Trạng thái</th><th>Mô tả</th></tr>
+  <tr><td><code>POST /api/v1/bank/import</code> + các endpoint quản trị bank (mục 4.1)</td><td><span class="badge b-gray">đề xuất</span></td><td>GĐ1 + GĐ2</td></tr>
+  <tr><td><code>POST /api/v1/toeic/exams/generate</code></td><td><span class="badge b-green">đã có</span></td><td>Sinh 1 đề TOEIC — sẽ hợp nhất thành <code>POST /api/v1/exams/generate</code> nhận <code>exam_type</code> khi blueprint-as-data xong</td></tr>
+  <tr><td><code>POST /api/v1/exams/generate-batch</code></td><td><span class="badge b-gray">đề xuất</span></td><td>Sinh lô N đề — xem payload dưới</td></tr>
+  <tr><td><code>GET /api/v1/exams/{id}/validation-report</code></td><td><span class="badge b-gray">đề xuất</span></td><td>Báo cáo ràng buộc 1 đề — minh chứng nghiệm thu</td></tr>
+</table>
+
+<h3>Sinh lô 100 đề — request/response đề xuất</h3>
+<pre><code>POST /api/v1/exams/generate-batch
+{ "exam_type": "TOEIC", "count": 100, "seed": 20260611, "title_pattern": "Đề TOEIC chuẩn hóa #{n}" }
+
+→ 202 Accepted (lô lớn chạy nền qua Celery, cùng hạ tầng queue với chấm AI)
+{ "batch_id": "gen_20260611_001", "status": "running", "progress_url": "/api/v1/exams/generate-batch/gen_20260611_001" }
+
+GET /api/v1/exams/generate-batch/gen_20260611_001
+{
+  "status": "completed", "requested": 100, "generated": 100, "failed": 0,
+  "elapsed_seconds": 312, "seed": 20260611,
+  "overlap_report": { "max_pairwise": 0.11, "mean_pairwise": 0.066, "threshold": 0.40, "pass": true },
+  "exams": [ { "exam_id": 12, "validation": "pass", "report_url": "/api/v1/exams/12/validation-report" }, ... ]
+}</code></pre>
+
+<h3>Báo cáo kiểm định 1 đề — response đề xuất</h3>
+<pre><code>GET /api/v1/exams/12/validation-report
+{
+  "exam_id": 12, "exam_type": "TOEIC", "generated_with_seed": 20260611, "validated_at": "2026-06-17T09:30:00+07:00",
+  "checks": [
+    { "spec": "SPEC-GEN-001",    "name": "Blueprint số câu",   "pass": true, "detail": {"p1":6,"p2":25,"p3":39,"p4":30,"p5":30,"p6":16,"p7":54,"total":200} },
+    { "spec": "SPEC-MATRIX-002", "name": "Ma trận độ khó",     "pass": true, "detail": {"easy":50,"medium":99,"hard":51} },
+    { "spec": "SPEC-ISOLATE-003","name": "Cách ly nhóm",       "pass": true, "detail": {"orphans":0} },
+    { "spec": "SPEC-GEN-002",    "name": "Cân bằng đáp án",    "pass": true, "detail": {"A":0.24,"B":0.26,"C":0.25,"D":0.25} },
+    { "spec": "SPEC-GEN-003",    "name": "Đa dạng chủ đề",     "pass": true, "detail": {"max_topic_share":0.14} },
+    { "spec": "SPEC-COLLATE-004","name": "UTF-8 sạch",         "pass": true, "detail": {"replacement_chars":0} }
+  ],
+  "overall": "pass"
+}</code></pre>
+<p>Báo cáo này chính là <b>hồ sơ nghiệm thu</b> nộp đối tác: 100 đề × 1 báo cáo JSON, tổng hợp thành 1 bảng — thay cho việc rà tay từng đề.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="harness">
+<h2><span class="no">8.</span>Specs &amp; Tests của phân hệ (16/23 spec hệ thống)</h2>
+
+<div class="note"><b>Nguồn sự thật:</b> <code>specs/specs.json</code> — bảng dưới là tập con liên quan trực tiếp tới
+Ra đề. Trạng thái suite hôm nay (11/06/2026): <code>15 passed · 7 skipped · 7 xfailed · 0 failed</code>.
+Lệnh chạy: <code>cd backend &amp;&amp; python -m pytest tests -q</code>.</div>
+
+<div class="kvs">
+  <div class="kv"><div class="k">Spec phân hệ Ra đề</div><div class="v">16</div></div>
+  <div class="kv"><div class="k">Active — đang đạt</div><div class="v" style="color:var(--success)">4</div></div>
+  <div class="kv"><div class="k">Gap — code chưa đạt (xfail)</div><div class="v" style="color:var(--warning)">6</div></div>
+  <div class="kv"><div class="k">Planned — chưa có subsystem (skip)</div><div class="v" style="color:var(--muted)">6</div></div>
+</div>
+
+<table class="tbl">
+  <tr><th>ID</th><th>Phát biểu</th><th style="width:11%">Trạng thái</th><th style="width:22%">Việc cần làm để active</th></tr>
+  <tr><td><b>SPEC-PARSE-001</b> †</td><td>Sau import không câu nào thiếu đáp án/options</td><td><span class="badge b-gray">planned</span></td><td rowspan="4">Triển khai Parser Engine (mục 3) + fixtures file mẫu chuẩn/hỏng trong <code>tests/fixtures/parser/</code></td></tr>
+  <tr><td><b>SPEC-PARSE-002</b></td><td>Audio Listening link MP3 tồn tại; thiếu → import fail</td><td><span class="badge b-gray">planned</span></td></tr>
+  <tr><td><b>SPEC-PARSE-003</b></td><td>Re-import idempotent (content-hash)</td><td><span class="badge b-gray">planned</span></td></tr>
+  <tr><td><b>SPEC-PARSE-004</b></td><td>Import all-or-nothing + báo cáo lỗi JSON, item mới = draft</td><td><span class="badge b-gray">planned</span></td></tr>
+  <tr><td><b>SPEC-BANK-001</b></td><td>Chỉ item approved được vào đề</td><td><span class="badge b-amber">gap</span></td><td>Thêm filter <code>status='approved'</code> vào mọi query chọn của generator</td></tr>
+  <tr><td><b>SPEC-BANK-002</b></td><td>Sinh đề không thay đổi bank</td><td><span class="badge b-green">active</span></td><td>— (giữ khi refactor)</td></tr>
+  <tr><td><b>SPEC-GEN-001</b></td><td>Đúng blueprint 6/25/39/30/30/16/54 = 200</td><td><span class="badge b-amber">gap</span></td><td>Backtracking Part 7 (mục 6.1)</td></tr>
+  <tr><td><b>SPEC-MATRIX-002</b> †</td><td>Ma trận độ khó per-part + toàn đề 25/50/25</td><td><span class="badge b-amber">gap</span> <small>per-part ✓</small></td><td>Ràng buộc độ khó khi chọn nhóm P7</td></tr>
+  <tr><td><b>SPEC-ISOLATE-003</b> †</td><td>Cách ly nhóm, không câu mồ côi</td><td><span class="badge b-green">active</span></td><td>—</td></tr>
+  <tr><td><b>SPEC-GEN-002</b></td><td>Đáp án A/B/C/D mỗi loại 20–28%</td><td><span class="badge b-amber">gap</span></td><td>Bước ③ hoán vị options trên bản clone</td></tr>
+  <tr><td><b>SPEC-GEN-003</b></td><td>Không topic &gt;20% câu một part</td><td><span class="badge b-amber">gap</span></td><td>Ràng buộc topic trong bước ② + parser phải nạp topic từ file nguồn</td></tr>
+  <tr><td><b>SPEC-GEN-004</b></td><td>Lô 100 đề: cặp bất kỳ trùng ≤40% câu nguồn</td><td><span class="badge b-gray">planned</span></td><td>Alembic thêm <code>source_question_id</code> + ưu tiên ít dùng ở bước ②</td></tr>
+  <tr><td><b>SPEC-GEN-005</b></td><td>Cùng seed + cùng bank → đề giống hệt</td><td><span class="badge b-gray">planned</span></td><td>Tham số <code>seed</code>, thay random module-level bằng <code>random.Random(seed)</code></td></tr>
+  <tr><td><b>SPEC-GEN-006</b></td><td>Bank thiếu → raise rõ ràng, không sinh đề thiếu câu</td><td><span class="badge b-amber">gap</span></td><td>Bước ① kiểm tồn kho fail-fast</td></tr>
+  <tr><td><b>SPEC-COLLATE-004</b> †</td><td>UTF-8 sạch toàn bộ văn bản đề/bank</td><td><span class="badge b-green">active</span></td><td>— (gate parser phải giữ khi nạp dữ liệu thật)</td></tr>
+  <tr><td><b>SPEC-SCALE-002</b></td><td>Sinh 1 đề &lt;10s</td><td><span class="badge b-green">active</span></td><td>— (đo lại sau khi thêm backtracking P7 + validator)</td></tr>
+</table>
+<p style="color:var(--muted); font-size:.85em">† = ID legacy giữ nguyên từ tài liệu v1. 7 spec còn lại của hệ thống
+(GRADE-001..004, I18N-001, SCALE-001, SCALE-003) thuộc phân hệ Chấm/đa ngôn ngữ/hạ tầng — xem tài liệu tổng thể mục 9.</p>
+
+<div class="ok"><b>Nguyên tắc khi triển khai:</b> mỗi gap được sửa xong, test tương ứng tự chuyển XPASS
+(marker <code>xfail strict=False</code>) → gỡ marker, đổi <code>status</code> trong <code>specs/specs.json</code> thành
+<code>active</code> trong cùng commit. Tiến độ phân hệ = số spec active, không phải cảm tính.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="lotrinh">
+<h2><span class="no">9.</span>Kế hoạch triển khai phân hệ &amp; Definition of Done</h2>
+
+<p>Phân hệ Ra đề nằm trọn trong <b>Giai đoạn 2</b> của kế hoạch 30 ngày (ngày 8–14, deadline 17/06/2026 — mốc thanh toán 30%).
+Thứ tự việc dưới đây xếp theo phụ thuộc kỹ thuật:</p>
+
+<table class="tbl">
+  <tr><th style="width:6%">#</th><th>Việc</th><th>Phụ thuộc</th><th>Spec chuyển trạng thái</th></tr>
+  <tr><td>1</td><td><b>Alembic init</b> + migration: bảng <code>blueprints</code>, <code>import_batches</code>; cột <code>questions.source_question_id</code>, <code>content_hash</code></td><td>—</td><td>(mở khóa GEN-004/005, PARSE-003)</td></tr>
+  <tr><td>2</td><td>Rà soát quy ước tên MP3 trên dữ liệu thật với đối tác (mục 3.2)</td><td>—</td><td>(chốt spec con cho PARSE-002)</td></tr>
+  <tr><td>3</td><td>Parser TOEIC Listening (docx + xlsx + audio_linker) + fixtures test</td><td>1, 2</td><td>PARSE-001..004 → <b>active</b> (chạy trên profile đầu tiên)</td></tr>
+  <tr><td>4</td><td>Converter .doc + parser TOEIC Reading; rồi profiles B1 (LB1/EB1)</td><td>3</td><td>(mở rộng coverage PARSE trên 4 profiles)</td></tr>
+  <tr><td>5</td><td>API quản trị bank + màn duyệt draft→approved + <code>/bank/stats</code></td><td>3</td><td>BANK-001 → <b>active</b> (kèm việc 6)</td></tr>
+  <tr><td>6</td><td><b>Vá generator</b>: lọc approved, fail-fast, seed, backtracking P7, cân bằng đáp án, ràng buộc topic; tách <code>exam_validator.py</code> dùng chung</td><td>1</td><td>GEN-001/002/003/006 + MATRIX-002 hết xfail; GEN-005 → active</td></tr>
+  <tr><td>7</td><td>Tổng quát hóa theo blueprint-as-data; thêm bản ghi blueprint B1</td><td>6</td><td>(cùng code sinh được cả TOEIC lẫn B1)</td></tr>
+  <tr><td>8</td><td><code>generate-batch</code> qua Celery + validation-report; chạy lô 100 đề TOEIC + 100 đề B1 thật</td><td>5, 6, 7</td><td>GEN-004 → <b>active</b>; xuất hồ sơ nghiệm thu</td></tr>
+</table>
+
+<h3>Definition of Done của phân hệ</h3>
+<ul>
+  <li>✅ 16/16 spec ở bảng mục 8 đạt trạng thái <b>active</b> — suite pytest <b>0 failed, 0 xfailed</b> trong nhóm spec Ra đề.</li>
+  <li>✅ <b>100 đề TOEIC + 100 đề B1</b> sinh từ dữ liệu nguồn thật, 100% qua validator, kèm <code>overlap_report</code> đạt ngưỡng ≤40%.</li>
+  <li>✅ Sinh lại lô với cùng seed cho kết quả giống hệt (minh chứng kiểm định được).</li>
+  <li>✅ Hồ sơ nghiệm thu: bảng tổng hợp 200 validation-report + thống kê tồn kho bank đã duyệt.</li>
+</ul>
+
+<div class="note"><b>Sau phân hệ này:</b> phòng thi (GĐ2 phần còn lại) tiêu thụ đề qua <code>GET /exams/{id}/take</code>
+đã có sẵn; phân hệ Chấm (GĐ3) đọc <code>reference_answer</code> từ chính các bản ghi đề mà pipeline này sinh ra —
+không cần thêm tầng tích hợp nào.</div>
+</section>
+
+</main>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem('theme'); } catch(e) {}
+  if (saved === 'light' || saved === 'dark') {
+    root.setAttribute('data-theme', saved);
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+    root.setAttribute('data-theme', 'light');
+  }
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch(e) {}
+  });
+
+  var sidebar = document.getElementById('sidebar');
+  document.getElementById('menuBtn').addEventListener('click', function(){
+    sidebar.classList.toggle('open');
+  });
+  sidebar.addEventListener('click', function(e){
+    if (e.target.tagName === 'A') sidebar.classList.remove('open');
+  });
+
+  var links = Array.prototype.slice.call(document.querySelectorAll('#nav a'));
+  var byId = {};
+  links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+  var observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting) {
+        links.forEach(function(a){ a.classList.remove('active'); });
+        var link = byId[entry.target.id];
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  document.querySelectorAll('main section').forEach(function(el){ observer.observe(el); });
+})();
+</script>
+</body>
+</html>

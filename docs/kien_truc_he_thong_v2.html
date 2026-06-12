@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiến trúc Hệ thống Khảo thí &amp; Chấm thi Tự động Đa ngôn ngữ — v2.0</title>
+<style>
+:root[data-theme="dark"]{
+  --bg:#0b1220; --bg-2:#111a2e; --bg-3:#1a2540; --text:#e6ecf7; --muted:#93a3c0;
+  --border:#26334f; --primary:#5b8cff; --accent:#a78bfa; --success:#34d399;
+  --warning:#fbbf24; --danger:#f87171; --info:#38bdf8; --code-bg:#0d1526;
+}
+:root[data-theme="light"]{
+  --bg:#f6f8fc; --bg-2:#ffffff; --bg-3:#eef2fa; --text:#16213a; --muted:#5b6b8c;
+  --border:#d7dfee; --primary:#2563eb; --accent:#7c3aed; --success:#059669;
+  --warning:#b45309; --danger:#dc2626; --info:#0284c7; --code-bg:#eef2fa;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:15px/1.65 system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+a{color:var(--primary); text-decoration:none}
+a:hover{text-decoration:underline}
+code{background:var(--code-bg); border:1px solid var(--border); border-radius:4px; padding:1px 5px; font-size:.88em}
+pre{background:var(--code-bg); border:1px solid var(--border); border-radius:8px; padding:14px; overflow-x:auto; font-size:.85em; line-height:1.5}
+pre code{background:none; border:none; padding:0}
+
+/* ====== Layout ====== */
+.sidebar{
+  position:fixed; top:0; left:0; bottom:0; width:264px; overflow-y:auto;
+  background:var(--bg-2); border-right:1px solid var(--border); padding:18px 14px; z-index:50;
+}
+.sidebar .logo{font-weight:700; font-size:.95em; margin-bottom:4px}
+.sidebar .ver{color:var(--muted); font-size:.78em; margin-bottom:14px}
+.sidebar nav a{
+  display:block; padding:7px 10px; margin:2px 0; border-radius:6px;
+  color:var(--muted); font-size:.88em;
+}
+.sidebar nav a:hover{background:var(--bg-3); color:var(--text); text-decoration:none}
+.sidebar nav a.active{background:var(--bg-3); color:var(--primary); font-weight:600}
+.sidebar nav a.sub{padding-left:24px; font-size:.82em}
+main{margin-left:264px; padding:34px 44px 90px; max-width:1060px}
+section{margin-bottom:64px; scroll-margin-top:20px}
+h1{font-size:1.7em; line-height:1.3; margin:0 0 6px}
+h2{font-size:1.35em; border-bottom:2px solid var(--border); padding-bottom:8px; margin-top:0}
+h3{font-size:1.08em; margin-top:28px}
+h2 .no{color:var(--accent); margin-right:8px}
+
+/* ====== Components ====== */
+.badge{display:inline-block; border-radius:99px; padding:2px 11px; font-size:.74em; font-weight:600; border:1px solid var(--border)}
+.b-blue{color:var(--primary); border-color:var(--primary)}
+.b-green{color:var(--success); border-color:var(--success)}
+.b-amber{color:var(--warning); border-color:var(--warning)}
+.b-gray{color:var(--muted)}
+.b-red{color:var(--danger); border-color:var(--danger)}
+.tbl{width:100%; border-collapse:collapse; margin:14px 0; font-size:.9em}
+.tbl th,.tbl td{border:1px solid var(--border); padding:8px 11px; text-align:left; vertical-align:top}
+.tbl th{background:var(--bg-3); font-size:.92em}
+.tbl tr:nth-child(even) td{background:color-mix(in srgb, var(--bg-3) 35%, transparent)}
+.note,.warn,.ok,.bad{border-left:4px solid; border-radius:0 8px 8px 0; padding:12px 16px; margin:16px 0; background:var(--bg-2)}
+.note{border-color:var(--info)} .warn{border-color:var(--warning)}
+.ok{border-color:var(--success)} .bad{border-color:var(--danger)}
+.note b:first-child,.warn b:first-child,.ok b:first-child,.bad b:first-child{display:block; margin-bottom:4px}
+.kvs{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:16px 0}
+.kv{background:var(--bg-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px}
+.kv .k{color:var(--muted); font-size:.78em; text-transform:uppercase; letter-spacing:.04em}
+.kv .v{font-weight:700; font-size:1.02em; margin-top:3px}
+figure{margin:20px 0; background:var(--bg-2); border:1px solid var(--border); border-radius:12px; padding:16px}
+figcaption{color:var(--muted); font-size:.82em; margin-top:10px; text-align:center}
+svg{width:100%; height:auto; display:block}
+svg text{font-family:system-ui,"Segoe UI",Roboto,sans-serif}
+.theme-btn{
+  position:fixed; top:14px; right:18px; z-index:60; cursor:pointer;
+  background:var(--bg-2); color:var(--text); border:1px solid var(--border);
+  border-radius:99px; padding:7px 15px; font-size:.84em;
+}
+.menu-btn{display:none; position:fixed; top:14px; left:14px; z-index:60; cursor:pointer;
+  background:var(--bg-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:7px 12px}
+.doc-head{margin-bottom:44px}
+.doc-head .meta{color:var(--muted); font-size:.88em; margin-top:8px}
+.toc-card{background:var(--bg-2); border:1px solid var(--border); border-radius:12px; padding:6px 20px; margin-top:18px}
+
+@media (max-width:900px){
+  .sidebar{transform:translateX(-100%); transition:transform .2s}
+  .sidebar.open{transform:none}
+  .menu-btn{display:block}
+  main{margin-left:0; padding:64px 18px 70px}
+}
+@media print{
+  .sidebar,.theme-btn,.menu-btn{display:none !important}
+  main{margin:0; max-width:none; padding:0}
+  section{page-break-before:always}
+  section:first-of-type{page-break-before:avoid}
+  :root[data-theme="dark"]{
+    --bg:#fff; --bg-2:#fff; --bg-3:#f1f4fa; --text:#111; --muted:#444;
+    --border:#bbb; --primary:#1d4ed8; --accent:#6d28d9; --success:#047857;
+    --warning:#92400e; --danger:#b91c1c; --info:#0369a1; --code-bg:#f1f4fa;
+  }
+  body{font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<button class="menu-btn" id="menuBtn">☰ Mục lục</button>
+<button class="theme-btn" id="themeBtn">🌙 / ☀️</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">Kiến trúc Hệ thống v2.0</div>
+  <div class="ver">Khảo thí &amp; Chấm thi AI Đa ngôn ngữ</div>
+  <nav id="nav">
+    <a href="#tomtat">1. Tóm tắt điều hành</a>
+    <a href="#congnghe">2. Đánh giá Tech Stack</a>
+    <a href="#kientructongthe">3. Kiến trúc tổng thể</a>
+    <a href="#database">4. CSDL &amp; Đa ngôn ngữ</a>
+    <a href="#rade">5. Deep dive: Phân hệ Ra đề</a>
+    <a class="sub" href="#rade-parser">5.1 Parser Engine</a>
+    <a class="sub" href="#rade-bank">5.2 Ngân hàng câu hỏi</a>
+    <a class="sub" href="#rade-thuattoan">5.3 Thuật toán sinh đề</a>
+    <a class="sub" href="#rade-api">5.4 API Ra đề</a>
+    <a href="#thivacham">6. Thi &amp; Chấm AI</a>
+    <a href="#dangonngu">7. Playbook tiếng Trung</a>
+    <a href="#mvpproduction">8. MVP → Production</a>
+    <a href="#harness">9. Harness: Specs &amp; Tests</a>
+    <a href="#lotrinh">10. Lộ trình &amp; DoD</a>
+  </nav>
+</aside>
+
+<main>
+
+<div class="doc-head">
+  <h1>Kiến trúc Hệ thống Khảo thí &amp; Chấm thi Tự động Đa ngôn ngữ</h1>
+  <div>
+    <span class="badge b-blue">Phiên bản 2.0</span>
+    <span class="badge b-gray">Cập nhật: 11/06/2026</span>
+    <span class="badge b-amber">Thay thế system_architecture.html (v1 giữ làm tham chiếu)</span>
+  </div>
+  <div class="meta">
+    Tài liệu thiết kế kiến trúc kèm catalog Specs &amp; Tests theo chuẩn Harness Engineering.
+    Nguồn sự thật của bảng spec: <code>specs/specs.json</code> — test harness: <code>backend/tests/test_specs_*.py</code>.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<section id="tomtat">
+<h2><span class="no">1.</span>Tóm tắt điều hành</h2>
+
+<p><b>Mục tiêu:</b> xây dựng hệ thống <b>ra đề tự động</b> và <b>chấm thi tự động bằng AI</b> cho chứng chỉ ngoại ngữ:
+sinh 100 bộ đề TOEIC (2 kỹ năng Nghe–Đọc, 200 câu) và 100 bộ đề B1 VSTEP (4 kỹ năng, gồm tự luận Viết–Nói chấm bằng Gemini)
+từ ngân hàng đề thô của đối tác (~30 bộ Word/Excel/MP3 mỗi loại), phục vụ thi trực tuyến có giám sát.</p>
+
+<h3>Hai trục chiến lược — quyết định toàn bộ kiến trúc</h3>
+<table class="tbl">
+  <tr><th style="width:30%">Trục</th><th>Quyết định kiến trúc</th></tr>
+  <tr>
+    <td><b>2 ngôn ngữ</b><br><span class="badge b-blue">EN trước</span> <span class="badge b-gray">CN sau</span></td>
+    <td>Tiếng Anh (TOEIC + B1 VSTEP) triển khai trước, tiếng Trung (HSK) bổ sung sau —
+    nhưng base phải <b>đa ngôn ngữ từ ngày 0</b>: cột <code>language</code>/<code>exam_type</code> là dữ liệu,
+    blueprint đề thi là dữ liệu (blueprint-as-data), prompt chấm AI là dữ liệu (prompt-as-data).
+    Thêm tiếng Trung = <b>thêm DATA, không refactor</b> (chi tiết: <a href="#dangonngu">mục 7</a>, bảo chứng: SPEC-I18N-001).</td>
+  </tr>
+  <tr>
+    <td><b>2 giai đoạn</b><br><span class="badge b-blue">MVP 50–100 CCU</span> <span class="badge b-gray">Prod 500–1000 CCU</span></td>
+    <td>MVP xây <b>như bản chính thức</b>: cùng codebase, cùng công nghệ. Khác biệt duy nhất là hạ tầng,
+    chuyển đổi 100% qua biến môi trường <code>.env</code> — không sửa code, không đổi công nghệ
+    (chi tiết: <a href="#mvpproduction">mục 8</a>, bảo chứng: SPEC-SCALE-001).</td>
+  </tr>
+</table>
+
+<p><b>Trọng tâm hiện tại:</b> trong 2 trụ cột của tiếng Anh (<b>Ra đề</b> và <b>Chấm đề AI</b>), dự án đang tập trung vào
+<b>phân hệ Ra đề</b> — được đào sâu ở <a href="#rade">mục 5</a> (Parser nạp liệu → Ngân hàng câu hỏi → Thuật toán sinh đề).
+Chấm AI được phủ ở mức kiến trúc tại <a href="#thivacham">mục 6</a>.</p>
+
+<h3>Nguyên tắc Harness Engineering</h3>
+<div class="note"><b>Mỗi bảo chứng kiến trúc = 1 mã SPEC + tiêu chí chấp nhận + test tự động.</b>
+Tài liệu này không chỉ mô tả thiết kế mà <b>cam kết</b> thiết kế: 23 spec trong <a href="#harness">mục 9</a> được đối chiếu
+tự động với bộ test pytest (truy vết 2 chiều). Trạng thái hôm nay: <b>8 active</b> (đang đạt),
+<b>7 gap</b> (đã đặc tả, code chưa đạt — test xfail tự phát hiện khi sửa xong), <b>8 planned</b> (subsystem chưa triển khai).</div>
+
+<h3>Bản đồ tài liệu</h3>
+<div class="toc-card">
+<table class="tbl">
+  <tr><th style="width:26%">Mục</th><th>Trả lời câu hỏi</th></tr>
+  <tr><td><a href="#congnghe">2. Tech Stack</a></td><td>Công nghệ đã chọn có ổn không? Cần bổ sung gì?</td></tr>
+  <tr><td><a href="#kientructongthe">3. Kiến trúc tổng thể</a></td><td>Các thành phần nói chuyện với nhau thế nào?</td></tr>
+  <tr><td><a href="#database">4. CSDL</a></td><td>Dữ liệu được tổ chức ra sao để gánh được cả 2 ngôn ngữ?</td></tr>
+  <tr><td><a href="#rade">5. Ra đề (deep dive)</a></td><td>Từ file Word/Excel thô đến 100 bộ đề chuẩn như thế nào?</td></tr>
+  <tr><td><a href="#thivacham">6. Thi &amp; Chấm</a></td><td>Phòng thi, giám sát và chấm AI bất đồng bộ hoạt động ra sao?</td></tr>
+  <tr><td><a href="#dangonngu">7. Playbook HSK</a></td><td>Thêm tiếng Trung cần chạm vào đúng những gì?</td></tr>
+  <tr><td><a href="#mvpproduction">8. MVP → Prod</a></td><td>Nâng từ 100 lên 1000 thí sinh đồng thời cần đổi gì?</td></tr>
+  <tr><td><a href="#harness">9. Specs &amp; Tests</a></td><td>Cam kết nào đang được kiểm chứng tự động? Gap ở đâu?</td></tr>
+  <tr><td><a href="#lotrinh">10. Lộ trình</a></td><td>Mốc nào xong khi nào, "xong" nghĩa là gì (DoD)?</td></tr>
+</table>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="congnghe">
+<h2><span class="no">2.</span>Đánh giá Tech Stack (trung thực)</h2>
+
+<p>Stack đã chọn <b>đúng hướng</b> cho bài toán: API bất đồng bộ + hàng đợi chấm AI + frontend tách rời là mô hình chuẩn
+cho hệ thống khảo thí. Bảng dưới là đánh giá trung thực từng lớp, đối chiếu với <b>hiện trạng code thật</b> trong repo
+(không phải mô tả lý tưởng):</p>
+
+<table class="tbl">
+  <tr><th>Lớp</th><th>Lựa chọn</th><th style="width:13%">Phán quyết</th><th style="width:45%">Ghi chú trung thực (hiện trạng repo)</th></tr>
+  <tr>
+    <td>Frontend</td><td>Next.js + TypeScript + Tailwind v4</td>
+    <td><span class="badge b-green">Giữ + bổ sung</span></td>
+    <td>Repo thực tế đang ở <b>Next.js 16.2.7 / React 19</b> (kế hoạch ghi 15 — cập nhật tài liệu, không cần hạ cấp).
+    Trang phòng thi TOEIC + hooks proctoring/ghi âm đã chạy. <b>Thiếu:</b> lớp API client dùng chung (đang <code>fetch</code> thô,
+    hardcode <code>localhost:8000</code>) và i18n (chuỗi UI đang hardcode tiếng Việt).</td>
+  </tr>
+  <tr>
+    <td>Backend</td><td>FastAPI + Pydantic v2</td>
+    <td><span class="badge b-green">Giữ</span></td>
+    <td>Khung API, models, services sinh đề/chấm đề TOEIC đã có. <b>Thiếu:</b> JWT auth
+    (<code>SECRET_KEY</code> đã khai trong config nhưng chưa có endpoint đăng nhập/middleware phân quyền).</td>
+  </tr>
+  <tr>
+    <td>Database</td><td>PostgreSQL + SQLAlchemy 2</td>
+    <td><span class="badge b-green">Giữ + bổ sung</span></td>
+    <td>Đúng lựa chọn (UTF-8, JSON/JSONB, connection pool). <b>Thiếu Alembic migration</b> — hiện dùng
+    <code>create_all()</code> tự tạo bảng, sẽ bế tắc ngay khi cần thêm cột (<code>source_question_id</code>, <code>meta</code>…)
+    trên DB có dữ liệu. SQLite fallback chỉ dùng cho dev/test; lưu ý hành vi JSON và concurrency lệch so PostgreSQL.</td>
+  </tr>
+  <tr>
+    <td>Hàng đợi</td><td>Celery + Redis</td>
+    <td><span class="badge b-amber">Giữ + nối dây</span></td>
+    <td>Đã cấu hình (<code>app/core/celery.py</code>) và đã có task <code>grade_submission_task</code>
+    (<code>app/workers/tasks.py</code>) — <b>nhưng API chưa gọi</b>: endpoint submit đang chấm <b>đồng bộ</b>.
+    Phải nối queue trước khi có bài Viết/Nói thật (bảo chứng SPEC-GRADE-003).</td>
+  </tr>
+  <tr>
+    <td>AI</td><td>Gemini 3.1 Pro (chấm) + 3.5 Flash (phụ trợ)</td>
+    <td><span class="badge b-amber">Giữ + cảnh báo</span></td>
+    <td>Tích hợp đã có kèm <b>mock fallback an toàn</b> khi thiếu key (SPEC-GRADE-004 ✓). Hai cảnh báo:
+    (1) SDK <code>google-generativeai</code> <b>đã ngừng hỗ trợ</b> — lên kế hoạch chuyển sang <code>google-genai</code>;
+    (2) rate limit 429 khi 500–1000 bài dồn cùng lúc → bắt buộc đi qua hàng đợi có điều tốc + retry, không gọi trực tiếp từ API.</td>
+  </tr>
+  <tr>
+    <td>Storage file</td><td>(chưa chọn rõ)</td>
+    <td><span class="badge b-red">Bổ sung</span></td>
+    <td>Audio MP3 đề thi + file ghi âm bài nói cần <b>storage abstraction</b>: local FS (MVP) ↔ Google Cloud Storage (Prod),
+    chọn qua <code>STORAGE_BACKEND</code> trong <code>.env</code>. Hiện <code>audio_url</code> là chuỗi tự do, chưa có lớp lưu trữ.</td>
+  </tr>
+  <tr>
+    <td>Runtime</td><td>Python 3.10 (máy dev hiện tại)</td>
+    <td><span class="badge b-amber">Nâng cấp</span></td>
+    <td>Thư viện Google ngừng hỗ trợ Python 3.10 từ 10/2026 — chuẩn hóa <b>Python 3.11+</b> trong Docker image ngay từ MVP.</td>
+  </tr>
+</table>
+
+<div class="ok"><b>Kết luận:</b> không đổi công nghệ nào. Bốn việc bổ sung bắt buộc trước khi lên Production:
+①&nbsp;Alembic migration, ②&nbsp;JWT auth, ③&nbsp;nối Celery vào API submit, ④&nbsp;storage abstraction.
+Cả bốn đều đã có spec tương ứng ở <a href="#harness">mục 9</a> để theo dõi.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="kientructongthe">
+<h2><span class="no">3.</span>Kiến trúc tổng thể</h2>
+
+<p>Mô hình <b>Decoupled + Stateless</b>: frontend và backend tách rời hoàn toàn; API không giữ trạng thái phiên thi trong
+RAM — mọi trạng thái nằm trong PostgreSQL, nên có thể nhân bản API/worker theo chiều ngang mà không sửa code.</p>
+
+<figure>
+<svg viewBox="0 0 900 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sơ đồ kiến trúc tổng thể">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <!-- Client -->
+  <rect x="20" y="30" width="240" height="220" rx="12" fill="none" stroke="var(--primary)" stroke-width="1.5"/>
+  <text x="140" y="56" text-anchor="middle" fill="var(--primary)" font-size="14" font-weight="700">TẦNG CLIENT</text>
+  <rect x="40" y="72" width="200" height="44" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="140" y="91" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Next.js 16 (TS + Tailwind)</text>
+  <text x="140" y="107" text-anchor="middle" fill="var(--muted)" font-size="10.5">Phòng thi · Quản trị đề</text>
+  <rect x="40" y="126" width="200" height="36" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="140" y="148" text-anchor="middle" fill="var(--muted)" font-size="11">useProctoring (tab/webcam/fullscreen)</text>
+  <rect x="40" y="172" width="200" height="36" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="140" y="194" text-anchor="middle" fill="var(--muted)" font-size="11">useMediaRecorder (Opus/WebM ~1.5MB)</text>
+  <text x="140" y="236" text-anchor="middle" fill="var(--muted)" font-size="10.5">MVP: VPS · Prod: Static Export + CDN</text>
+
+  <!-- Backend -->
+  <rect x="330" y="30" width="240" height="290" rx="12" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="450" y="56" text-anchor="middle" fill="var(--accent)" font-size="14" font-weight="700">TẦNG BACKEND</text>
+  <rect x="350" y="72" width="200" height="52" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="450" y="93" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">FastAPI (stateless)</text>
+  <text x="450" y="110" text-anchor="middle" fill="var(--muted)" font-size="10.5">/api/v1/* · JWT · sinh đề · chấm MCQ</text>
+  <rect x="350" y="140" width="200" height="48" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="450" y="160" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">PostgreSQL</text>
+  <text x="450" y="176" text-anchor="middle" fill="var(--muted)" font-size="10.5">bank · đề · bài làm · điểm · log giám sát</text>
+  <rect x="350" y="204" width="200" height="44" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="450" y="222" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Redis (broker)</text>
+  <text x="450" y="238" text-anchor="middle" fill="var(--muted)" font-size="10.5">hàng đợi chấm Viết/Nói</text>
+  <rect x="350" y="262" width="200" height="44" rx="8" fill="none" stroke="var(--muted)" stroke-dasharray="5 4"/>
+  <text x="450" y="280" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">Storage (abstraction)</text>
+  <text x="450" y="296" text-anchor="middle" fill="var(--muted)" font-size="10.5">MVP: local FS · Prod: GCS + CDN</text>
+
+  <!-- Worker & AI -->
+  <rect x="640" y="30" width="240" height="220" rx="12" fill="none" stroke="var(--success)" stroke-width="1.5"/>
+  <text x="760" y="56" text-anchor="middle" fill="var(--success)" font-size="14" font-weight="700">TẦNG WORKER &amp; AI</text>
+  <rect x="660" y="72" width="200" height="52" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="760" y="93" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Celery Workers (1 → N)</text>
+  <text x="760" y="110" text-anchor="middle" fill="var(--muted)" font-size="10.5">điều tốc · retry · idempotent</text>
+  <rect x="660" y="140" width="200" height="52" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="760" y="161" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Gemini 3.1 Pro / 3.5 Flash</text>
+  <text x="760" y="178" text-anchor="middle" fill="var(--muted)" font-size="10.5">chấm Viết/Nói · transcribe</text>
+  <text x="760" y="226" text-anchor="middle" fill="var(--muted)" font-size="10.5">Lỗi/thiếu key → mock fallback an toàn</text>
+
+  <!-- Arrows -->
+  <line x1="260" y1="98" x2="348" y2="98" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="304" y="90" text-anchor="middle" fill="var(--muted)" font-size="10">HTTPS/JSON</text>
+  <line x1="450" y1="124" x2="450" y2="138" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="450" y1="188" x2="450" y2="202" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="550" y1="226" x2="658" y2="98" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="608" y="155" text-anchor="middle" fill="var(--muted)" font-size="10">lấy task</text>
+  <line x1="760" y1="124" x2="760" y2="138" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path d="M 660 110 C 600 160, 580 160, 552 162" fill="none" stroke="var(--success)" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arr)"/>
+  <text x="608" y="196" text-anchor="middle" fill="var(--success)" font-size="10">ghi điểm về DB</text>
+
+  <!-- Caption row -->
+  <rect x="20" y="350" width="860" height="56" rx="10" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="450" y="373" text-anchor="middle" fill="var(--text)" font-size="11.5" font-weight="600">MVP và Production dùng CÙNG sơ đồ này — chỉ khác hộp hạ tầng bên dưới mỗi thành phần</text>
+  <text x="450" y="392" text-anchor="middle" fill="var(--muted)" font-size="10.5">VPS đơn / Docker Compose  ⟶  Cloud Run autoscale · Cloud SQL + PgBouncer · Memorystore · GCS (đổi qua .env)</text>
+</svg>
+<figcaption>D1 — Kiến trúc tổng thể 3 tầng. Đường nét đứt xanh: worker ghi kết quả chấm về DB.</figcaption>
+</figure>
+
+<h3>Nguyên tắc bất biến</h3>
+<table class="tbl">
+  <tr><th style="width:28%">Nguyên tắc</th><th>Ý nghĩa thực tế</th></tr>
+  <tr><td><b>API stateless</b></td><td>Không session trong RAM; JWT mang danh tính, DB giữ trạng thái bài thi → nhân bản N instance API không cần sticky session.</td></tr>
+  <tr><td><b>Trạng thái thi trong DB</b></td><td>Auto-save 30s ghi thẳng vào DB → thí sinh rớt mạng/đổi máy vẫn khôi phục được; không mất bài khi 1 instance API chết.</td></tr>
+  <tr><td><b>Worker idempotent</b></td><td>Task chấm chạy lại không nhân đôi điểm (upsert theo <code>submission_id</code>); retry an toàn khi Gemini lỗi 429/5xx.</td></tr>
+  <tr><td><b>Cấu hình từ env</b></td><td>SPEC-SCALE-001: mọi URL hạ tầng từ <code>.env</code> — nền tảng của chiến lược MVP → Prod không sửa code.</td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<section id="database">
+<h2><span class="no">4.</span>Thiết kế CSDL &amp; quyết định đa ngôn ngữ</h2>
+
+<figure>
+<svg viewBox="0 0 920 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sơ đồ quan hệ thực thể">
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <!-- users -->
+  <rect x="20" y="20" width="190" height="96" rx="8" fill="var(--bg-3)" stroke="var(--primary)"/>
+  <text x="115" y="42" text-anchor="middle" fill="var(--primary)" font-size="13" font-weight="700">users</text>
+  <text x="32" y="62" fill="var(--muted)" font-size="10.5">id · username · hashed_password</text>
+  <text x="32" y="78" fill="var(--muted)" font-size="10.5">role: admin | teacher | candidate</text>
+  <text x="32" y="94" fill="var(--muted)" font-size="10.5">is_active · created_at</text>
+
+  <!-- exams -->
+  <rect x="280" y="20" width="220" height="112" rx="8" fill="var(--bg-3)" stroke="var(--primary)"/>
+  <text x="390" y="42" text-anchor="middle" fill="var(--primary)" font-size="13" font-weight="700">exams</text>
+  <text x="292" y="62" fill="var(--muted)" font-size="10.5">id · title · duration_minutes · is_active</text>
+  <text x="292" y="78" fill="var(--text)" font-size="10.5" font-weight="600">language: EN | CN</text>
+  <text x="292" y="94" fill="var(--text)" font-size="10.5" font-weight="600">exam_type: TOEIC | VSTEP | HSK</text>
+  <text x="292" y="110" fill="var(--muted)" font-size="10.5">created_at</text>
+
+  <!-- question_groups -->
+  <rect x="20" y="180" width="230" height="128" rx="8" fill="var(--bg-3)" stroke="var(--accent)"/>
+  <text x="135" y="202" text-anchor="middle" fill="var(--accent)" font-size="13" font-weight="700">question_groups</text>
+  <text x="32" y="222" fill="var(--muted)" font-size="10.5">id · exam_id (NULL = bank) · part</text>
+  <text x="32" y="238" fill="var(--muted)" font-size="10.5">passage_text · audio_url · image_url</text>
+  <text x="32" y="254" fill="var(--muted)" font-size="10.5">topic · passage_type · accent</text>
+  <text x="32" y="270" fill="var(--muted)" font-size="10.5">speaker_count · speech_rate</text>
+  <text x="32" y="286" fill="var(--muted)" font-size="10.5">difficulty · status: draft|approved</text>
+
+  <!-- questions -->
+  <rect x="300" y="180" width="250" height="160" rx="8" fill="var(--bg-3)" stroke="var(--accent)"/>
+  <text x="425" y="202" text-anchor="middle" fill="var(--accent)" font-size="13" font-weight="700">questions</text>
+  <text x="312" y="222" fill="var(--muted)" font-size="10.5">id · exam_id (NULL = bank) · group_id</text>
+  <text x="312" y="238" fill="var(--muted)" font-size="10.5">part 1-7 · type: choice|writing|speaking</text>
+  <text x="312" y="254" fill="var(--muted)" font-size="10.5">content · options JSON · reference_answer</text>
+  <text x="312" y="270" fill="var(--muted)" font-size="10.5">difficulty · topic · clo · explanation</text>
+  <text x="312" y="286" fill="var(--muted)" font-size="10.5">audio_url · image_url · status</text>
+  <text x="312" y="308" fill="var(--warning)" font-size="10.5">+ source_question_id (đề xuất)</text>
+  <text x="312" y="324" fill="var(--warning)" font-size="10.5">+ meta JSON: pinyin, hsk_level… (đề xuất)</text>
+
+  <!-- submissions -->
+  <rect x="620" y="20" width="220" height="100" rx="8" fill="var(--bg-3)" stroke="var(--info)"/>
+  <text x="730" y="42" text-anchor="middle" fill="var(--info)" font-size="13" font-weight="700">submissions</text>
+  <text x="632" y="62" fill="var(--muted)" font-size="10.5">id · exam_id · user_id</text>
+  <text x="632" y="78" fill="var(--muted)" font-size="10.5">started_at · submitted_at</text>
+  <text x="632" y="94" fill="var(--muted)" font-size="10.5">status: pending|grading|completed</text>
+
+  <!-- submission_details -->
+  <rect x="620" y="180" width="220" height="92" rx="8" fill="var(--bg-3)" stroke="var(--info)"/>
+  <text x="730" y="202" text-anchor="middle" fill="var(--info)" font-size="13" font-weight="700">submission_details</text>
+  <text x="632" y="222" fill="var(--muted)" font-size="10.5">id · submission_id · question_id</text>
+  <text x="632" y="238" fill="var(--muted)" font-size="10.5">candidate_text (đáp án / bài luận)</text>
+  <text x="632" y="254" fill="var(--muted)" font-size="10.5">audio_url (file ghi âm bài nói)</text>
+
+  <!-- grades -->
+  <rect x="620" y="330" width="220" height="116" rx="8" fill="var(--bg-3)" stroke="var(--success)"/>
+  <text x="730" y="352" text-anchor="middle" fill="var(--success)" font-size="13" font-weight="700">grades</text>
+  <text x="632" y="372" fill="var(--muted)" font-size="10.5">id · submission_id (unique)</text>
+  <text x="632" y="388" fill="var(--muted)" font-size="10.5">score_total · feedback JSON · graded_at</text>
+  <text x="632" y="406" fill="var(--danger)" font-size="10.5">⚠ score_speaking đang chứa Listening</text>
+  <text x="632" y="422" fill="var(--danger)" font-size="10.5">⚠ score_writing đang chứa Reading</text>
+  <text x="632" y="438" fill="var(--warning)" font-size="10.5">+ score_listening/reading (đề xuất)</text>
+
+  <!-- blueprints (proposed) -->
+  <rect x="20" y="380" width="230" height="100" rx="8" fill="none" stroke="var(--warning)" stroke-dasharray="6 4"/>
+  <text x="135" y="402" text-anchor="middle" fill="var(--warning)" font-size="13" font-weight="700">blueprints (đề xuất)</text>
+  <text x="32" y="422" fill="var(--muted)" font-size="10.5">id · exam_type · language</text>
+  <text x="32" y="438" fill="var(--muted)" font-size="10.5">structure JSON: part → số câu,</text>
+  <text x="32" y="454" fill="var(--muted)" font-size="10.5">ma trận độ khó, ràng buộc cân bằng</text>
+  <text x="32" y="470" fill="var(--muted)" font-size="10.5">→ thêm HSK = thêm 1 bản ghi</text>
+
+  <!-- import_batches (proposed) -->
+  <rect x="300" y="380" width="250" height="100" rx="8" fill="none" stroke="var(--warning)" stroke-dasharray="6 4"/>
+  <text x="425" y="402" text-anchor="middle" fill="var(--warning)" font-size="13" font-weight="700">import_batches (đề xuất)</text>
+  <text x="312" y="422" fill="var(--muted)" font-size="10.5">id · source_file · content_hash</text>
+  <text x="312" y="438" fill="var(--muted)" font-size="10.5">status: pending|imported|failed</text>
+  <text x="312" y="454" fill="var(--muted)" font-size="10.5">error_report JSON · imported_at</text>
+  <text x="312" y="470" fill="var(--muted)" font-size="10.5">→ phục vụ Parser Engine (mục 5.1)</text>
+
+  <!-- relations -->
+  <line x1="390" y1="132" x2="425" y2="178" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arr2)"/>
+  <text x="372" y="162" fill="var(--muted)" font-size="10">1-N</text>
+  <line x1="330" y1="132" x2="180" y2="178" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arr2)"/>
+  <text x="240" y="150" fill="var(--muted)" font-size="10">1-N</text>
+  <line x1="250" y1="250" x2="298" y2="250" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arr2)"/>
+  <text x="266" y="242" fill="var(--muted)" font-size="10">1-N</text>
+  <line x1="500" y1="64" x2="618" y2="64" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arr2)"/>
+  <text x="556" y="56" fill="var(--muted)" font-size="10">1-N</text>
+  <line x1="210" y1="64" x2="278" y2="64" stroke="var(--muted)" stroke-width="1.3"/>
+  <line x1="115" y1="116" x2="115" y2="140" stroke="none"/>
+  <path d="M 115 116 C 115 160, 560 40, 618 56" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arr2)"/>
+  <line x1="730" y1="120" x2="730" y2="178" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arr2)"/>
+  <text x="738" y="152" fill="var(--muted)" font-size="10">1-N</text>
+  <line x1="730" y1="272" x2="730" y2="328" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arr2)"/>
+  <text x="738" y="304" fill="var(--muted)" font-size="10">1-1</text>
+  <line x1="550" y1="226" x2="618" y2="226" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arr2)"/>
+  <text x="572" y="218" fill="var(--muted)" font-size="10">N-1</text>
+</svg>
+<figcaption>D2 — ERD: 7 bảng hiện có (viền liền) + phần tử đề xuất qua Alembic (viền đứt vàng).
+Quy ước then chốt: <code>exam_id IS NULL</code> = bản ghi thuộc <b>ngân hàng</b>; có <code>exam_id</code> = bản clone thuộc một đề cụ thể.</figcaption>
+</figure>
+
+<h3>5 quyết định đa ngôn ngữ (định hình base cho cả EN lẫn CN)</h3>
+<table class="tbl">
+  <tr><th style="width:32%">Quyết định</th><th>Lý do / cách làm</th></tr>
+  <tr><td><b>1. <code>language</code> + <code>exam_type</code> là DỮ LIỆU</b></td>
+      <td>Không nhánh code theo ngôn ngữ. Một hàm sinh đề, một bộ bảng — đề TOEIC, VSTEP hay HSK chỉ khác giá trị cột.</td></tr>
+  <tr><td><b>2. Metadata đặc thù ngôn ngữ nằm trong JSON</b></td>
+      <td>Pinyin, hsk_level (CN) hay vocabulary_level (EN) đặt trong <code>options</code>/<code>meta</code> JSON — không thêm cột riêng cho từng ngôn ngữ. Đã chứng minh round-trip CJK nguyên vẹn bằng test (SPEC-I18N-001 ✓).</td></tr>
+  <tr><td><b>3. UTF-8 toàn trình</b></td>
+      <td>PostgreSQL encoding UTF8; mọi file đọc/ghi <code>encoding="utf-8"</code>; spec quét tự động ký tự lỗi U+FFFD (SPEC-COLLATE-004 ✓).</td></tr>
+  <tr><td><b>4. Blueprint mỗi chứng chỉ là 1 BẢN GHI dữ liệu</b></td>
+      <td>Cấu trúc đề (part → số câu, ma trận độ khó, ràng buộc) lưu ở bảng <code>blueprints</code> — thêm HSK = INSERT 1 dòng, không sửa generator (chi tiết mục 5.3).</td></tr>
+  <tr><td><b>5. Prompt chấm AI là FILE dữ liệu theo ngôn ngữ</b></td>
+      <td><code>prompts/en/vstep_writing.json</code>, <code>prompts/cn/hsk_writing.json</code>… — đổi rubric không cần deploy code.</td></tr>
+</table>
+
+<div class="bad"><b>⚠ Nợ kỹ thuật đã ghi nhận (SPEC-GRADE-002 — gap):</b>
+<code>grades.score_speaking</code> đang chứa điểm <b>Listening</b> và <code>score_writing</code> chứa điểm <b>Reading</b>
+(mượn trường vì TOEIC không có Nói/Viết). Khi B1 VSTEP vào (có Nói/Viết thật) sẽ xung đột ngữ nghĩa.
+Phương án: Alembic thêm <code>score_listening</code>/<code>score_reading</code>, migrate dữ liệu, trả
+<code>score_speaking/writing</code> về đúng nghĩa. Test xfail đã cài sẵn — tự báo khi sửa xong.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="rade">
+<h2><span class="no">5.</span>Deep dive: Phân hệ Ra đề <span class="badge b-blue">TRỌNG TÂM HIỆN TẠI</span></h2>
+
+<p>Phân hệ Ra đề là một <b>pipeline 3 giai đoạn</b>: nạp dữ liệu thô vào ngân hàng (Parser) → quản trị/duyệt ngân hàng (Bank)
+→ sinh đề theo ràng buộc (Generator). Sản phẩm cuối: <b>100 bộ đề TOEIC + 100 bộ đề B1 VSTEP</b> chuẩn hóa, đã qua kiểm định tự động.</p>
+
+<!-- ============ 5.1 ============ -->
+<h3 id="rade-parser">5.1 Giai đoạn 1 — Parser/Ingestion Engine <span class="badge b-gray">chưa triển khai — đặc tả mục tiêu</span></h3>
+
+<figure>
+<svg viewBox="0 0 900 310" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pipeline parser">
+  <defs>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <rect x="15" y="30" width="150" height="120" rx="10" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="90" y="52" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="700">Nguồn dữ liệu</text>
+  <text x="90" y="74" text-anchor="middle" fill="var(--muted)" font-size="10.5">.docx (Listening/B1)</text>
+  <text x="90" y="92" text-anchor="middle" fill="var(--muted)" font-size="10.5">.doc (Reading — nhị phân)</text>
+  <text x="90" y="110" text-anchor="middle" fill="var(--muted)" font-size="10.5">.xlsx (đáp án)</text>
+  <text x="90" y="128" text-anchor="middle" fill="var(--muted)" font-size="10.5">.mp3 (file nghe)</text>
+
+  <rect x="205" y="48" width="120" height="84" rx="10" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="265" y="78" text-anchor="middle" fill="var(--text)" font-size="11.5" font-weight="600">Converter</text>
+  <text x="265" y="96" text-anchor="middle" fill="var(--muted)" font-size="10">.doc → .docx</text>
+  <text x="265" y="112" text-anchor="middle" fill="var(--muted)" font-size="10">(LibreOffice headless)</text>
+
+  <rect x="365" y="48" width="130" height="84" rx="10" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="430" y="78" text-anchor="middle" fill="var(--text)" font-size="11.5" font-weight="600">Parser</text>
+  <text x="430" y="96" text-anchor="middle" fill="var(--muted)" font-size="10">python-docx · openpyxl</text>
+  <text x="430" y="112" text-anchor="middle" fill="var(--muted)" font-size="10">nối MP3 theo quy ước tên</text>
+
+  <rect x="535" y="34" width="160" height="112" rx="10" fill="var(--bg-3)" stroke="var(--warning)" stroke-width="1.5"/>
+  <text x="615" y="56" text-anchor="middle" fill="var(--warning)" font-size="11.5" font-weight="700">Validation Gates</text>
+  <text x="615" y="76" text-anchor="middle" fill="var(--muted)" font-size="10">đủ đáp án + options (PARSE-001)</text>
+  <text x="615" y="92" text-anchor="middle" fill="var(--muted)" font-size="10">MP3 tồn tại (PARSE-002)</text>
+  <text x="615" y="108" text-anchor="middle" fill="var(--muted)" font-size="10">đủ số câu/nhóm theo part</text>
+  <text x="615" y="124" text-anchor="middle" fill="var(--muted)" font-size="10">UTF-8 sạch (COLLATE-004)</text>
+
+  <rect x="735" y="48" width="150" height="84" rx="10" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="810" y="74" text-anchor="middle" fill="var(--text)" font-size="11.5" font-weight="600">import_batches</text>
+  <text x="810" y="92" text-anchor="middle" fill="var(--muted)" font-size="10">bank: status="draft"</text>
+  <text x="810" y="108" text-anchor="middle" fill="var(--muted)" font-size="10">content-hash idempotent</text>
+
+  <line x1="165" y1="90" x2="203" y2="90" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <line x1="325" y1="90" x2="363" y2="90" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <line x1="495" y1="90" x2="533" y2="90" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <line x1="695" y1="90" x2="733" y2="90" stroke="var(--success)" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <text x="714" y="80" text-anchor="middle" fill="var(--success)" font-size="9.5">đạt</text>
+  <path d="M 615 146 C 615 200, 430 210, 430 160" fill="none" stroke="var(--danger)" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arr3)"/>
+  <text x="540" y="206" text-anchor="middle" fill="var(--danger)" font-size="10">fail → rollback toàn file + báo cáo lỗi JSON (PARSE-004)</text>
+
+  <rect x="735" y="180" width="150" height="64" rx="10" fill="var(--bg-3)" stroke="var(--success)"/>
+  <text x="810" y="206" text-anchor="middle" fill="var(--success)" font-size="11.5" font-weight="600">Bank "approved"</text>
+  <text x="810" y="224" text-anchor="middle" fill="var(--muted)" font-size="10">sẵn sàng sinh đề</text>
+  <line x1="810" y1="132" x2="810" y2="178" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <text x="852" y="160" text-anchor="middle" fill="var(--muted)" font-size="9.5">duyệt</text>
+
+  <text x="450" y="290" text-anchor="middle" fill="var(--muted)" font-size="10.5">Import là giao dịch all-or-nothing theo từng file · Re-import không nhân bản (content-hash, PARSE-003)</text>
+</svg>
+<figcaption>D3 — Pipeline nạp liệu: dữ liệu thô → validation → bank nháp → duyệt → bank sẵn sàng sinh đề.</figcaption>
+</figure>
+
+<h3>Kiểm kê dữ liệu đầu vào thực tế</h3>
+<table class="tbl">
+  <tr><th>Bộ dữ liệu</th><th>File nguồn</th><th>Lưu ý kỹ thuật parser</th></tr>
+  <tr>
+    <td><b>TOEIC Listening</b></td>
+    <td><code>LT2601.docx</code> → <code>LT2629.docx</code> (chỉ số lẻ, ~15 bộ) + Excel đáp án + thư mục <i>"File nghe tong hop"</i> (MP3)</td>
+    <td>Liên kết MP3 ↔ nhóm câu theo <b>quy ước tên file</b>; thiếu file nghe → import fail (SPEC-PARSE-002).</td>
+  </tr>
+  <tr>
+    <td><b>TOEIC Reading</b></td>
+    <td><code>CDR TOEIC - RT2601.doc</code> → <code>RT2615.doc</code> (~15 bộ) + Excel đáp án</td>
+    <td><b>.doc là định dạng nhị phân</b> — python-docx không đọc được, bắt buộc bước convert sang .docx (LibreOffice headless) trước khi parse.</td>
+  </tr>
+  <tr>
+    <td><b>B1 VSTEP</b></td>
+    <td>~30 bộ mã 2601–2630: <code>LB1.xxxx.docx</code> (Nghe) + <code>EB1 - xxxx.docx</code> (Đọc &amp; Viết) + Speaking Cards + phiếu tiêu chí chấm</td>
+    <td>Phiếu tiêu chí chấm được số hóa thành <b>prompt chấm AI</b> (prompt-as-data, mục 4); Speaking Cards thành câu hỏi <code>type="speaking"</code>.</td>
+  </tr>
+</table>
+
+<div class="note"><b>Vòng đời dữ liệu nạp vào:</b> mọi item từ parser vào bank ở trạng thái <code>draft</code> →
+giáo viên/admin duyệt trên giao diện quản trị → <code>approved</code> mới đủ điều kiện vào đề (SPEC-BANK-001).
+Điều này chặn lỗi parser "lọt lưới" vào đề thi thật.</div>
+
+<!-- ============ 5.2 ============ -->
+<h3 id="rade-bank">5.2 Giai đoạn 2 — Quản trị Ngân hàng câu hỏi</h3>
+
+<p>Ngân hàng = các bản ghi <code>Question</code>/<code>QuestionGroup</code> có <code>exam_id IS NULL</code>.
+Vòng đời 3 trạng thái:</p>
+
+<table class="tbl">
+  <tr><th>Trạng thái</th><th>Ý nghĩa</th><th>Được vào đề?</th></tr>
+  <tr><td><span class="badge b-gray">draft</span></td><td>Vừa import từ parser, chưa kiểm duyệt</td><td>❌</td></tr>
+  <tr><td><span class="badge b-green">approved</span></td><td>Đã duyệt nội dung + đáp án + audio</td><td>✅</td></tr>
+  <tr><td><span class="badge b-red">retired</span></td><td>Lỗi phát hiện muộn / lộ đề / hết hạn sử dụng</td><td>❌ (đề đã sinh không bị ảnh hưởng vì là bản clone)</td></tr>
+</table>
+
+<p><b>API quản trị đề xuất</b> (router <code>/api/v1/bank</code>, yêu cầu role admin/teacher):</p>
+<table class="tbl">
+  <tr><th>Endpoint</th><th>Chức năng</th></tr>
+  <tr><td><code>GET /bank/questions?part=&amp;difficulty=&amp;status=&amp;topic=</code></td><td>Liệt kê/lọc ngân hàng theo mọi chiều</td></tr>
+  <tr><td><code>PATCH /bank/questions/{id}</code> · <code>PATCH /bank/groups/{id}</code></td><td>Sửa nội dung, đổi độ khó/chủ đề</td></tr>
+  <tr><td><code>POST /bank/approve</code> (bulk theo danh sách id / theo batch import)</td><td>Duyệt hàng loạt sau khi rà soát</td></tr>
+  <tr><td><code>GET /bank/stats</code></td><td>Thống kê tồn kho theo part × độ khó × topic — đối chiếu khả năng đáp ứng blueprint <b>trước khi</b> sinh lô đề</td></tr>
+</table>
+
+<div class="warn"><b>Gap đã ghi nhận (SPEC-BANK-001 — xfail):</b> generator hiện <b>chưa lọc</b> <code>status='approved'</code>
+khi chọn câu từ bank. Vô hại lúc này (bank test toàn approved) nhưng phải vá trước khi parser đổ dữ liệu draft vào.
+Ngược lại, SPEC-BANK-002 ✓ — sinh đề chỉ CLONE, đã chứng minh bank bất biến trước/sau khi sinh.</div>
+
+<!-- ============ 5.3 ============ -->
+<h3 id="rade-thuattoan">5.3 Giai đoạn 3 — Thuật toán sinh đề</h3>
+
+<h4>Blueprint-as-data</h4>
+<p>Cấu trúc mỗi chứng chỉ là <b>một bản ghi dữ liệu</b> trong bảng <code>blueprints</code>, generator chỉ đọc và thực thi.
+Blueprint TOEIC (đúng số liệu kế hoạch nghiệp vụ):</p>
+
+<pre><code>{
+  "exam_type": "TOEIC", "language": "EN", "total": 200, "duration_minutes": 120,
+  "difficulty_matrix": { "easy": 50, "medium": 100, "hard": 50, "tolerance": 2 },
+  "parts": [
+    { "part": 1, "mode": "standalone", "count": 6,  "difficulty": {"easy": 2, "medium": 3,  "hard": 1} },
+    { "part": 2, "mode": "standalone", "count": 25, "difficulty": {"easy": 6, "medium": 13, "hard": 6} },
+    { "part": 3, "mode": "group", "groups": 13, "q_per_group": 3, "g_difficulty": {"easy": 3, "medium": 7, "hard": 3} },
+    { "part": 4, "mode": "group", "groups": 10, "q_per_group": 3, "g_difficulty": {"easy": 2, "medium": 5, "hard": 3} },
+    { "part": 5, "mode": "standalone", "count": 30, "difficulty": {"easy": 8, "medium": 15, "hard": 7} },
+    { "part": 6, "mode": "group", "groups": 4, "q_per_group": 4, "g_difficulty": {"easy": 1, "medium": 2, "hard": 1} },
+    { "part": 7, "mode": "group_variable", "target_questions": 54, "difficulty": {"easy": 9, "medium": 28, "hard": 17} }
+  ],
+  "constraints": { "answer_balance": [0.20, 0.28], "topic_max_share": 0.20, "cross_exam_overlap_max": 0.40 }
+}</code></pre>
+
+<p>Blueprint <b>B1 VSTEP</b> cùng schema: Listening 35 câu (3 phần), Reading 40 câu (4 đoạn × 10),
+Writing 2 task (<code>type="writing"</code>: email 120 từ + luận 250 từ), Speaking 3 phần (<code>type="speaking"</code>).
+Blueprint <b>HSK</b> sau này: thêm 1 bản ghi — generator không đổi một dòng nào.</p>
+
+<h4>Bảng ràng buộc ↔ spec (mỗi ràng buộc một bảo chứng kiểm tự động)</h4>
+<table class="tbl">
+  <tr><th>Ràng buộc nghiệp vụ</th><th>Định lượng</th><th>Spec</th><th>Hôm nay</th></tr>
+  <tr><td>Cách ly nhóm — câu theo đoạn văn/file nghe đi nguyên nhóm</td><td>0 câu mồ côi, nhóm cùng đề + cùng part</td><td>SPEC-ISOLATE-003</td><td><span class="badge b-green">active</span></td></tr>
+  <tr><td>Đúng blueprint số câu từng part</td><td>6/25/39/30/30/16/54 = 200</td><td>SPEC-GEN-001</td><td><span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Ma trận độ khó 25/50/25</td><td>per-part đúng target; toàn đề E[45,55]/M[95,105]/H[45,55]</td><td>SPEC-MATRIX-002</td><td><span class="badge b-amber">gap (per-part ✓)</span></td></tr>
+  <tr><td>Cân bằng đáp án chống đoán mò</td><td>A/B/C/D mỗi loại 20–28%</td><td>SPEC-GEN-002</td><td><span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Đa dạng chủ đề</td><td>không topic nào &gt;20% câu trong một part</td><td>SPEC-GEN-003</td><td><span class="badge b-amber">gap</span></td></tr>
+  <tr><td>Khác biệt giữa 100 đề trong lô</td><td>2 đề bất kỳ trùng ≤40% câu nguồn</td><td>SPEC-GEN-004</td><td><span class="badge b-gray">planned</span></td></tr>
+  <tr><td>Tái lập được (audit/kiểm định)</td><td>cùng seed + cùng bank → đề giống hệt</td><td>SPEC-GEN-005</td><td><span class="badge b-gray">planned</span></td></tr>
+  <tr><td>Fail-fast khi bank thiếu</td><td>raise nêu rõ part thiếu, không sinh đề thiếu câu</td><td>SPEC-GEN-006</td><td><span class="badge b-amber">gap</span></td></tr>
+</table>
+
+<h4>Kiến trúc thuật toán mục tiêu</h4>
+<pre><code>generate_exam(blueprint, seed) →
+  1. KIỂM TỒN KHO   bank đủ approved cho từng (part × độ khó)?  thiếu → raise (GEN-006)
+  2. CHỌN           random.Random(seed) chọn câu/nhóm theo blueprint,
+                    ưu tiên ít dùng (cân bằng overlap GEN-004), ràng buộc topic (GEN-003)
+  3. CÂN BẰNG ĐÁP ÁN hoán vị vị trí options + reference_answer để đạt 20–28% (GEN-002)
+  4. CLONE           ghi bản sao vào đề, kèm source_question_id truy vết nguồn
+  5. POST-CHECK      chạy VALIDATOR trên đề vừa sinh: toàn bộ ràng buộc ở bảng trên
+                     → fail: rollback transaction, báo lỗi; đạt: commit + is_active</code></pre>
+
+<div class="note"><b>Validator dùng chung với test harness:</b> bước 5 và các test SPEC-GEN-* chạy <b>cùng một bộ hàm
+kiểm tra</b> (module <code>app/services/exam_validator.py</code> — đề xuất). Một nguồn logic duy nhất: đề sinh ở
+production được kiểm bằng đúng thước đo mà CI dùng để kiểm generator.</div>
+
+<h4>Hiện trạng vs Mục tiêu (trung thực về <code>toeic_generator.py</code>)</h4>
+<table class="tbl">
+  <tr><th>Khía cạnh</th><th>Hiện trạng code</th><th>Mục tiêu</th></tr>
+  <tr><td>Blueprint</td><td>Hardcode trong hàm, chỉ TOEIC</td><td>Đọc từ bảng <code>blueprints</code> (data)</td></tr>
+  <tr><td>Part 7</td><td>Greedy + shuffle → 52/54 câu với bank nhóm 4 câu (tổng 198/200)</td><td>Tổ hợp đạt đúng 54 câu (nhóm 2–5 câu trộn nhau) + đúng độ khó</td></tr>
+  <tr><td>Lọc duyệt</td><td>Không lọc <code>status</code></td><td>Chỉ chọn <code>approved</code> (BANK-001)</td></tr>
+  <tr><td>Bank thiếu</td><td>Âm thầm sinh đề thiếu câu</td><td>Fail-fast kèm thông điệp part thiếu (GEN-006)</td></tr>
+  <tr><td>Ngẫu nhiên</td><td><code>random</code> module-level, không seed</td><td>Tham số <code>seed</code> → tái lập được (GEN-005)</td></tr>
+  <tr><td>Truy vết</td><td>Không lưu nguồn clone</td><td><code>source_question_id</code> → đo overlap lô 100 đề (GEN-004)</td></tr>
+  <tr><td>Điểm đã tốt</td><td colspan="2">Clone không phá bank (BANK-002 ✓) · cách ly nhóm chuẩn (ISOLATE-003 ✓) · per-part difficulty đúng target (✓) · sinh 1 đề &lt;10s (SCALE-002 ✓)</td></tr>
+</table>
+
+<!-- ============ 5.4 ============ -->
+<h3 id="rade-api">5.4 API Ra đề</h3>
+<table class="tbl">
+  <tr><th>Endpoint</th><th>Trạng thái</th><th>Mô tả</th></tr>
+  <tr><td><code>POST /api/v1/toeic/exams/generate</code></td><td><span class="badge b-green">đã có</span></td><td>Sinh 1 đề TOEIC từ bank (title, duration)</td></tr>
+  <tr><td><code>GET /api/v1/toeic/exams/{id}/take</code></td><td><span class="badge b-green">đã có</span></td><td>Lấy cấu trúc đề cho thí sinh (ẩn đáp án/giải thích)</td></tr>
+  <tr><td><code>POST /api/v1/toeic/exams/{id}/start</code></td><td><span class="badge b-green">đã có</span></td><td>Mở phiên làm bài (submission)</td></tr>
+  <tr><td><code>POST /api/v1/toeic/submissions/{id}/submit</code></td><td><span class="badge b-green">đã có</span></td><td>Nộp bài + chấm trắc nghiệm</td></tr>
+  <tr><td><code>POST /api/v1/exams/generate-batch</code></td><td><span class="badge b-gray">đề xuất</span></td><td>Sinh lô N đề (100) theo blueprint bất kỳ + báo cáo validate từng đề + thống kê overlap</td></tr>
+  <tr><td><code>GET /api/v1/exams/{id}/validation-report</code></td><td><span class="badge b-gray">đề xuất</span></td><td>Báo cáo ràng buộc của 1 đề (ma trận, cân bằng đáp án, topic) — minh chứng kiểm định</td></tr>
+</table>
+<p>Lưu ý đặt tên: router hiện ở prefix <code>/toeic/</code>; khi B1 VSTEP vào, hợp nhất về <code>/api/v1/exams</code>
+với <code>exam_type</code> là tham số — đúng tinh thần "chứng chỉ là dữ liệu".</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="thivacham">
+<h2><span class="no">6.</span>Thi &amp; Chấm AI (mức kiến trúc)</h2>
+
+<h3>Phòng thi trực tuyến (đã có khung chạy)</h3>
+<ul>
+  <li><b>Làm bài:</b> đếm ngược theo <code>duration_minutes</code>, tự nộp khi hết giờ; palette điều hướng câu hỏi; đánh dấu xem lại; audio player cho phần Nghe.</li>
+  <li><b>Auto-save 30 giây:</b> gom trạng thái bài làm POST về backend, upsert theo submission — rớt mạng/đổi máy không mất bài.</li>
+  <li><b>Giám sát (useProctoring):</b> phát hiện chuyển tab + thoát fullscreen (đếm vi phạm), webcam 320×240 hiển thị nổi; log vi phạm kèm timestamp gửi về backend.</li>
+  <li><b>Ghi âm bài nói (useMediaRecorder):</b> nén tại trình duyệt sang Opus/WebM (~1.5MB/bài thay vì ~20MB WAV — giảm 90% băng thông khi 1000 thí sinh nộp cùng lúc), fallback codec đa trình duyệt.</li>
+</ul>
+<div class="warn"><b>Hiện trạng frontend:</b> trang phòng thi đang chạy trên <b>mock data</b> và chấm fallback cục bộ khi API tắt;
+useMediaRecorder đã viết xong nhưng <b>chưa gắn</b> vào màn thi (chờ phần Speaking B1). Cần lớp API client dùng chung + biến môi trường <code>NEXT_PUBLIC_API_URL</code> thay cho hardcode localhost.</div>
+
+<h3>Luồng chấm thi — trắc nghiệm tức thì, tự luận bất đồng bộ</h3>
+<figure>
+<svg viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sequence chấm thi">
+  <defs>
+    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <!-- lifelines -->
+  <g font-size="12" font-weight="700">
+    <text x="80"  y="34" text-anchor="middle" fill="var(--primary)">Thí sinh</text>
+    <text x="270" y="34" text-anchor="middle" fill="var(--accent)">FastAPI</text>
+    <text x="450" y="34" text-anchor="middle" fill="var(--text)">Redis</text>
+    <text x="620" y="34" text-anchor="middle" fill="var(--success)">Celery</text>
+    <text x="790" y="34" text-anchor="middle" fill="var(--info)">Gemini</text>
+  </g>
+  <g stroke="var(--border)" stroke-dasharray="3 4">
+    <line x1="80" y1="44" x2="80" y2="350"/><line x1="270" y1="44" x2="270" y2="350"/>
+    <line x1="450" y1="44" x2="450" y2="350"/><line x1="620" y1="44" x2="620" y2="350"/>
+    <line x1="790" y1="44" x2="790" y2="350"/>
+  </g>
+  <g font-size="10.5" fill="var(--muted)">
+    <line x1="80" y1="70" x2="268" y2="70" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#arr4)"/>
+    <text x="174" y="62" text-anchor="middle">① nộp bài (MCQ + Viết + audio Nói)</text>
+    <line x1="270" y1="100" x2="270" y2="100"/>
+    <rect x="200" y="88" width="140" height="26" rx="6" fill="var(--bg-3)" stroke="var(--border)"/>
+    <text x="270" y="105" text-anchor="middle">② chấm MCQ đồng bộ (&lt;1s)</text>
+    <line x1="270" y1="136" x2="448" y2="136" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#arr4)"/>
+    <text x="360" y="128" text-anchor="middle">③ enqueue task Viết/Nói</text>
+    <line x1="268" y1="166" x2="82" y2="166" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#arr4)"/>
+    <text x="174" y="158" text-anchor="middle">④ trả ngay: MCQ + "đang chấm AI" (≤2s)</text>
+    <line x1="620" y1="200" x2="452" y2="200" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#arr4)"/>
+    <text x="536" y="192" text-anchor="middle">⑤ worker lấy task (prefetch=1)</text>
+    <line x1="620" y1="232" x2="788" y2="232" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#arr4)"/>
+    <text x="704" y="224" text-anchor="middle">⑥ chấm (rate-limit + retry 429)</text>
+    <line x1="788" y1="262" x2="622" y2="262" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#arr4)"/>
+    <text x="704" y="254" text-anchor="middle">⑦ điểm + feedback JSON</text>
+    <line x1="618" y1="294" x2="272" y2="294" stroke="var(--success)" stroke-width="1.4" marker-end="url(#arr4)"/>
+    <text x="445" y="286" text-anchor="middle" fill="var(--success)">⑧ ghi grades, submission → completed</text>
+    <line x1="80" y1="326" x2="268" y2="326" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#arr4)"/>
+    <text x="174" y="318" text-anchor="middle">⑨ poll/notify kết quả đầy đủ</text>
+  </g>
+</svg>
+<figcaption>D4 — Luồng chấm mục tiêu. <b>Hiện trạng:</b> API đang chấm đồng bộ toàn bộ (bước ③⑤ chưa nối —
+task Celery đã viết nhưng chưa được gọi). Bảo chứng chuyển đổi: SPEC-GRADE-003.</figcaption>
+</figure>
+
+<h3>Quy đổi điểm &amp; an toàn AI</h3>
+<ul>
+  <li><b>TOEIC:</b> % câu đúng mỗi kỹ năng tra bảng <code>toeic_scoring_table.json</code> → 5–495/kỹ năng, tổng 10–990.
+  Bảng đã được kiểm thuộc tính tự động: đủ 101 mốc, đơn điệu không giảm, đúng biên (SPEC-GRADE-001 ✓).</li>
+  <li><b>B1 VSTEP Viết/Nói:</b> rubric trong prompt-as-data (<code>prompts/en/vstep_*.json</code>); kết quả JSON
+  {score, feedback, grammar_errors / transcription, pronunciation_issues} lưu vào <code>grades.feedback_*</code>.</li>
+  <li><b>Degrade an toàn:</b> thiếu key/Gemini lỗi → mock có cấu trúc, không ném exception, không gọi mạng (SPEC-GRADE-004 ✓)
+  — phòng thi không bao giờ sập vì AI sập; bài chờ chấm lại qua retry.</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="dangonngu">
+<h2><span class="no">7.</span>Playbook mở rộng tiếng Trung (HSK)</h2>
+
+<p>Vì base được thiết kế "đa ngôn ngữ từ ngày 0" (mục 4), việc thêm HSK sau khi xong tiếng Anh là <b>công việc về dữ liệu,
+không phải refactor</b>. Checklist đầy đủ những gì phải chạm vào:</p>
+
+<table class="tbl">
+  <tr><th style="width:6%">#</th><th>Việc</th><th style="width:14%">Bản chất</th><th>Chi tiết</th></tr>
+  <tr><td>①</td><td>Thêm blueprint HSK</td><td><span class="badge b-green">DATA</span></td><td>INSERT 1 bản ghi <code>blueprints</code> (cấu trúc đề HSK 4/5/6: số phần, số câu, ma trận độ khó)</td></tr>
+  <tr><td>②</td><td>Bộ prompt chấm tiếng Trung</td><td><span class="badge b-green">DATA</span></td><td><code>prompts/cn/hsk_writing.json</code>, <code>hsk_speaking.json</code> (rubric Hán tự, thanh điệu, ngữ pháp)</td></tr>
+  <tr><td>③</td><td>Import ngân hàng câu HSK</td><td><span class="badge b-green">DATA</span></td><td>Qua Parser Engine sẵn có; metadata pinyin/hsk_level nằm trong JSON <code>options</code>/<code>meta</code> (đã chứng minh round-trip CJK — SPEC-I18N-001 ✓)</td></tr>
+  <tr><td>④</td><td>Frontend: font CJK + bộ gõ</td><td><span class="badge b-amber">UI nhỏ</span></td><td>Font stack hỗ trợ Hán tự, IME input cho bài viết, audio player giữ nguyên</td></tr>
+</table>
+
+<div class="ok"><b>Cam kết kiến trúc: 0 thay đổi schema, 0 thay đổi generator, 0 thay đổi worker.</b>
+Schema đã chứa được đề HSK ngay hôm nay (test SPEC-I18N-001 tạo đề <code>language="CN", exam_type="HSK"</code>
+với nội dung 中文 + pinyin và đọc lại nguyên vẹn — đang PASS).</div>
+
+<h3>Phản-checklist — dấu hiệu vi phạm thiết kế</h3>
+<div class="bad"><b>Nếu trong quá trình thêm HSK xuất hiện một trong các dấu hiệu sau, kiến trúc đang bị phá — dừng lại và sửa thiết kế thay vì viết tiếp:</b>
+<ul>
+  <li>Phải viết <code>if language == "CN"</code> trong generator hoặc grader → lẽ ra khác biệt phải nằm trong blueprint/prompt.</li>
+  <li>Phải thêm cột riêng kiểu <code>pinyin</code> vào bảng <code>questions</code> → lẽ ra nằm trong JSON <code>meta</code>.</li>
+  <li>Phải copy <code>toeic_generator.py</code> thành <code>hsk_generator.py</code> → lẽ ra một generator đọc blueprint.</li>
+  <li>Phải sửa Celery task để biết về HSK → task chỉ cần biết prompt nào, ngôn ngữ là tham số.</li>
+</ul></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="mvpproduction">
+<h2><span class="no">8.</span>Ma trận MVP → Production</h2>
+
+<p>MVP xây <b>đúng chuẩn bản chính</b> ngay từ đầu: cùng mã nguồn, cùng Docker image. Bảng dưới là toàn bộ khác biệt —
+tất cả nằm ở hạ tầng và <code>.env</code>:</p>
+
+<table class="tbl">
+  <tr><th>Hạng mục</th><th>MVP (50–100 CCU)</th><th>Production (500–1000 CCU)</th><th>Chuyển đổi qua</th></tr>
+  <tr><td>Frontend</td><td>Node container trên 1 VPS</td><td>Static Export + CDN (Cloud Storage/Cloudflare)</td><td><code>NEXT_PUBLIC_API_URL</code> + lệnh build</td></tr>
+  <tr><td>API</td><td>FastAPI 1 container (Docker Compose)</td><td>Google Cloud Run autoscale 2→N instances</td><td>cùng image, đổi nơi deploy</td></tr>
+  <tr><td>Database</td><td>PostgreSQL container local</td><td>Cloud SQL + <b>PgBouncer</b> (chặn 1000 connection trực tiếp, giữ ~50 kết nối thật)</td><td><code>DATABASE_URL</code></td></tr>
+  <tr><td>Queue</td><td>Redis container local</td><td>Memorystore (managed Redis)</td><td><code>REDIS_URL</code></td></tr>
+  <tr><td>Workers</td><td>1 Celery worker</td><td>N workers + queue riêng cho Gemini, điều tốc ~20 bài/phút tránh 429</td><td><code>CELERY_CONCURRENCY</code>, replicas</td></tr>
+  <tr><td>Storage file</td><td>Volume local (<code>STORAGE_BACKEND=local</code>)</td><td>GCS + CDN cho MP3/ảnh đề thi (<code>STORAGE_BACKEND=gcs</code>)</td><td><code>STORAGE_BACKEND</code>, <code>GCS_BUCKET_NAME</code></td></tr>
+  <tr><td>Secrets</td><td><code>.env</code> file</td><td>Secret Manager inject env</td><td>cùng tên biến</td></tr>
+  <tr><td>Giám sát hệ thống</td><td>docker logs</td><td>Cloud Logging + uptime check + cảnh báo hàng đợi tồn đọng</td><td>—</td></tr>
+</table>
+
+<h3>3 điểm nghẽn ở 1000 CCU và giải pháp đã cài sẵn trong thiết kế</h3>
+<table class="tbl">
+  <tr><th>Rủi ro</th><th>Giải pháp (đã nằm trong kiến trúc, không chờ Production)</th></tr>
+  <tr><td>1000 file ghi âm nộp cùng lúc (WAV ~20MB/bài = 20GB dội vào server)</td><td>Nén tại trình duyệt sang Opus/WebM ~1.5MB (useMediaRecorder, đã có) — còn ~1.5GB, tải lên thẳng storage.</td></tr>
+  <tr><td>1000 kết nối DB đồng thời làm PostgreSQL kiệt RAM</td><td>API stateless + PgBouncer transaction pooling — 1000 request chia sẻ ~50 kết nối thật.</td></tr>
+  <tr><td>1000 bài Viết/Nói dội vào Gemini → 429 hàng loạt</td><td>Toàn bộ chấm AI đi qua Redis queue, worker điều tốc + retry exponential; thí sinh nhận điểm MCQ ngay, điểm AI trả dần (SPEC-GRADE-003).</td></tr>
+</table>
+
+<p>Bảo chứng tự động: <b>SPEC-SCALE-001</b> (mọi config từ env — PASS) chốt rằng không có đường tắt hardcode nào lọt vào code;
+<b>SPEC-SCALE-003</b> (load test k6/Locust 500–1000 CCU, p95 &lt; 500ms) chạy ở Giai đoạn 4 trên staging trước bàn giao.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="harness">
+<h2><span class="no">9.</span>Harness Engineering: Specs &amp; Tests</h2>
+
+<div class="note"><b>Triết lý:</b> mỗi bảo chứng kiến trúc = 1 mã SPEC + tiêu chí chấp nhận + test tự động.
+<b>Nguồn sự thật duy nhất:</b> <code>specs/specs.json</code> (bảng dưới đây render từ file đó — khi lệch nhau, file JSON thắng).
+Truy vết 2 chiều spec ↔ test được <b>tự động kiểm</b> bởi <code>backend/tests/test_specs_traceability.py</code>:
+spec nào khai test không tồn tại, hoặc test nào nhắc spec không có trong catalog → CI đỏ.</div>
+
+<div class="kvs">
+  <div class="kv"><div class="k">Tổng spec</div><div class="v">23</div></div>
+  <div class="kv"><div class="k">Active — đang đạt</div><div class="v" style="color:var(--success)">8</div></div>
+  <div class="kv"><div class="k">Gap — đặc tả rồi, code chưa đạt</div><div class="v" style="color:var(--warning)">7</div></div>
+  <div class="kv"><div class="k">Planned — subsystem chưa có</div><div class="v" style="color:var(--muted)">8</div></div>
+  <div class="kv"><div class="k">Suite hôm nay (11/06/2026)</div><div class="v">15 passed · 7 skipped · 7 xfailed · 0 failed</div></div>
+</div>
+
+<h3>Catalog 23 spec</h3>
+<p><span class="badge b-green">active</span> = test PASS hôm nay ·
+<span class="badge b-amber">gap</span> = test <code>xfail</code>, assertion vẫn chạy và tự chuyển XPASS khi code được sửa ·
+<span class="badge b-gray">planned</span> = test <code>skip</code> kèm hợp đồng trong docstring · † = ID legacy giữ nguyên từ tài liệu v1.</p>
+
+<table class="tbl">
+  <tr><th>ID</th><th>Phát biểu</th><th style="width:9%">Verify</th><th style="width:10%">Trạng thái</th><th style="width:24%">Test</th></tr>
+  <tr><td><b>SPEC-PARSE-001</b> †</td><td>Sau import, không câu hỏi nào thiếu <code>reference_answer</code>/<code>options</code></td><td>pytest</td><td><span class="badge b-gray">planned</span></td><td><code>test_specs_parser.py</code></td></tr>
+  <tr><td><b>SPEC-PARSE-002</b></td><td>Nhóm Listening phải link MP3 tồn tại theo quy ước tên; thiếu → import fail</td><td>pytest</td><td><span class="badge b-gray">planned</span></td><td><code>test_specs_parser.py</code></td></tr>
+  <tr><td><b>SPEC-PARSE-003</b></td><td>Re-import cùng file là idempotent (content-hash, không nhân bản)</td><td>pytest</td><td><span class="badge b-gray">planned</span></td><td><code>test_specs_parser.py</code></td></tr>
+  <tr><td><b>SPEC-PARSE-004</b></td><td>Import all-or-nothing theo file + báo cáo lỗi JSON; item mới vào bank ở <code>draft</code></td><td>pytest</td><td><span class="badge b-gray">planned</span></td><td><code>test_specs_parser.py</code></td></tr>
+  <tr><td><b>SPEC-BANK-001</b></td><td>Chỉ item <code>status='approved'</code> được vào đề sinh ra</td><td>pytest</td><td><span class="badge b-amber">gap</span></td><td><code>test_specs_bank.py</code></td></tr>
+  <tr><td><b>SPEC-BANK-002</b></td><td>Sinh đề không thay đổi ngân hàng (clone, bank bất biến)</td><td>pytest</td><td><span class="badge b-green">active</span></td><td><code>test_specs_bank.py</code> + test generator cũ</td></tr>
+  <tr><td><b>SPEC-GEN-001</b></td><td>Đề TOEIC đúng blueprint 6/25/39/30/30/16/54 = 200 câu</td><td>pytest</td><td><span class="badge b-amber">gap</span></td><td><code>test_specs_generation.py</code></td></tr>
+  <tr><td><b>SPEC-MATRIX-002</b> †</td><td>Ma trận độ khó: per-part đúng target; toàn đề E[45,55]/M[95,105]/H[45,55]</td><td>pytest</td><td><span class="badge b-amber">gap</span><br><small>per-part ✓</small></td><td><code>test_specs_generation.py</code> (2 test)</td></tr>
+  <tr><td><b>SPEC-ISOLATE-003</b> †</td><td>Cách ly nhóm: câu theo nhóm cùng đề + cùng part, không câu mồ côi</td><td>pytest</td><td><span class="badge b-green">active</span></td><td><code>test_specs_generation.py</code></td></tr>
+  <tr><td><b>SPEC-GEN-002</b></td><td>Mỗi đáp án A/B/C/D chiếm 20–28% trong các phần 4 lựa chọn</td><td>pytest</td><td><span class="badge b-amber">gap</span></td><td><code>test_specs_generation.py</code></td></tr>
+  <tr><td><b>SPEC-GEN-003</b></td><td>Không chủ đề nào vượt 20% số câu trong một part</td><td>pytest</td><td><span class="badge b-amber">gap</span></td><td><code>test_specs_generation.py</code></td></tr>
+  <tr><td><b>SPEC-GEN-004</b></td><td>Lô 100 đề: 2 đề bất kỳ trùng ≤40% câu nguồn</td><td>pytest</td><td><span class="badge b-gray">planned</span></td><td><code>test_specs_generation.py</code></td></tr>
+  <tr><td><b>SPEC-GEN-005</b></td><td>Sinh đề nhận seed; cùng seed + cùng bank → đề giống hệt</td><td>pytest</td><td><span class="badge b-gray">planned</span></td><td><code>test_specs_generation.py</code></td></tr>
+  <tr><td><b>SPEC-GEN-006</b></td><td>Bank thiếu so blueprint → raise rõ ràng, không âm thầm sinh đề thiếu câu</td><td>pytest</td><td><span class="badge b-amber">gap</span></td><td><code>test_specs_generation.py</code></td></tr>
+  <tr><td><b>SPEC-GRADE-001</b></td><td>Bảng quy đổi 5–495 đủ 0–100%, đơn điệu; tổng = L + R</td><td>pytest</td><td><span class="badge b-green">active</span></td><td><code>test_specs_grading.py</code> + test grader cũ</td></tr>
+  <tr><td><b>SPEC-GRADE-002</b></td><td>Điểm Listening/Reading nằm trong trường đặt tên đúng ngữ nghĩa</td><td>pytest</td><td><span class="badge b-amber">gap</span></td><td><code>test_specs_grading.py</code></td></tr>
+  <tr><td><b>SPEC-GRADE-003</b></td><td>Chấm Viết/Nói bất đồng bộ qua Celery; API trả pending ≤2s</td><td>pytest</td><td><span class="badge b-gray">planned</span></td><td><code>test_specs_grading.py</code></td></tr>
+  <tr><td><b>SPEC-GRADE-004</b></td><td>Gemini thiếu key/lỗi → degrade an toàn (mock có cấu trúc), không ném exception</td><td>pytest</td><td><span class="badge b-green">active</span></td><td><code>test_specs_grading.py</code></td></tr>
+  <tr><td><b>SPEC-COLLATE-004</b> †</td><td>UTF-8 toàn trình: không ký tự lỗi U+FFFD trong mọi văn bản đề/bank</td><td>pytest</td><td><span class="badge b-green">active</span></td><td><code>test_specs_i18n.py</code></td></tr>
+  <tr><td><b>SPEC-I18N-001</b></td><td>Schema trung lập ngôn ngữ: chứa đề HSK + CJK + pinyin không cần đổi schema</td><td>pytest</td><td><span class="badge b-green">active</span></td><td><code>test_specs_i18n.py</code></td></tr>
+  <tr><td><b>SPEC-SCALE-001</b></td><td>Mọi cấu hình hạ tầng từ env; MVP → Prod chỉ đổi <code>.env</code></td><td>pytest</td><td><span class="badge b-green">active</span></td><td><code>test_specs_scale.py</code></td></tr>
+  <tr><td><b>SPEC-SCALE-002</b></td><td>Sinh 1 đề TOEIC &lt; 10 giây trên dataset chuẩn</td><td>pytest</td><td><span class="badge b-green">active</span></td><td><code>test_specs_scale.py</code></td></tr>
+  <tr><td><b>SPEC-SCALE-003</b></td><td>Chịu 500–1000 CCU, p95 endpoint thi &lt; 500ms</td><td>load-test</td><td><span class="badge b-gray">planned</span></td><td>k6/Locust trên staging (GĐ4)</td></tr>
+</table>
+
+<h3>Tháp kiểm thử</h3>
+<figure>
+<svg viewBox="0 0 700 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tháp kiểm thử">
+  <polygon points="350,20 470,90 230,90" fill="var(--bg-3)" stroke="var(--danger)"/>
+  <polygon points="222,100 478,100 530,170 170,170" fill="var(--bg-3)" stroke="var(--warning)"/>
+  <polygon points="162,180 538,180 590,250 110,250" fill="var(--bg-3)" stroke="var(--info)"/>
+  <polygon points="102,260 598,260 650,320 50,320" fill="var(--bg-3)" stroke="var(--success)"/>
+  <text x="350" y="72" text-anchor="middle" fill="var(--danger)" font-size="12" font-weight="700">Load test (k6/Locust)</text>
+  <text x="350" y="128" text-anchor="middle" fill="var(--warning)" font-size="12" font-weight="700">API tests (FastAPI TestClient)</text>
+  <text x="350" y="148" text-anchor="middle" fill="var(--muted)" font-size="10.5">bước kế tiếp — endpoint generate/take/submit</text>
+  <text x="350" y="208" text-anchor="middle" fill="var(--info)" font-size="12" font-weight="700">Spec tests (pytest — hôm nay: 29 test)</text>
+  <text x="350" y="228" text-anchor="middle" fill="var(--muted)" font-size="10.5">test_specs_*.py — bám 23 spec, SQLite in-memory</text>
+  <text x="350" y="288" text-anchor="middle" fill="var(--success)" font-size="12" font-weight="700">Unit validators (exam_validator dùng chung với generator)</text>
+  <text x="350" y="308" text-anchor="middle" fill="var(--muted)" font-size="10.5">cùng một bộ hàm kiểm ràng buộc cho cả production lẫn CI</text>
+</svg>
+<figcaption>D5 — Tháp kiểm thử: validator dùng chung ở đáy, spec test ở giữa, load test trên đỉnh.</figcaption>
+</figure>
+
+<h3>Cơ chế vận hành harness</h3>
+<table class="tbl">
+  <tr><th style="width:30%">Cơ chế</th><th>Chi tiết</th></tr>
+  <tr><td>Quy ước tên test</td><td><code>test_SPEC_&lt;DOMAIN&gt;_&lt;NNN&gt;_&lt;mô_tả&gt;</code> — meta-test đối chiếu token này về catalog.</td></tr>
+  <tr><td>Chính sách marker</td><td>Gap trong code hiện có → <code>xfail(strict=False)</code> (assertion chạy thật, tự XPASS khi sửa). Subsystem chưa tồn tại → <code>skip</code> kèm lý do + hợp đồng trong docstring.</td></tr>
+  <tr><td>Cổng CI</td><td><code>cd backend &amp;&amp; python -m pytest tests -q</code> phải <b>exit 0</b>. <code>failed &gt; 0</code> chặn merge; xfail/skip là trạng thái được quản lý, không phải lỗi.</td></tr>
+  <tr><td>Thêm spec mới (4 bước)</td><td>① thêm entry vào <code>specs.json</code> → ② viết test đúng quy ước tên + marker → ③ khai <code>tests[]</code> trong entry → ④ chạy pytest (meta-test xác nhận liên kết) + cập nhật bảng mục 9 này. Chi tiết: <code>specs/README.md</code>.</td></tr>
+  <tr><td>Kiểm định sinh đề hàng loạt</td><td>Khi generator hoàn thiện: script chạy validator trên toàn bộ lô 100 đề, xuất báo cáo từng đề (validation-report, mục 5.4) làm minh chứng nghiệm thu với đối tác.</td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<section id="lotrinh">
+<h2><span class="no">10.</span>Lộ trình &amp; Definition of Done</h2>
+
+<p>Bám 4 giai đoạn của <code>system_plan.md</code> (bàn giao 03/07/2026). Điểm khác biệt của tài liệu v2: mỗi mốc có
+<b>DoD đo được bằng trạng thái spec</b> — "xong" nghĩa là các spec liệt kê chuyển trạng thái và suite xanh, không phải cảm tính.</p>
+
+<figure>
+<svg viewBox="0 0 920 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Timeline 30 ngày">
+  <line x1="40" y1="60" x2="880" y2="60" stroke="var(--border)" stroke-width="2"/>
+  <g font-size="11">
+    <circle cx="60" cy="60" r="6" fill="var(--success)"/>
+    <text x="60" y="40" text-anchor="middle" fill="var(--text)" font-weight="700">GĐ1 · đến 10/06</text>
+    <text x="60" y="84" text-anchor="middle" fill="var(--muted)">Nền tảng</text>
+    <circle cx="300" cy="60" r="6" fill="var(--warning)"/>
+    <text x="300" y="40" text-anchor="middle" fill="var(--text)" font-weight="700">GĐ2 · đến 17/06 (mốc 30%)</text>
+    <text x="300" y="84" text-anchor="middle" fill="var(--muted)">Ra đề + Phòng thi</text>
+    <circle cx="580" cy="60" r="6" fill="var(--border)"/>
+    <text x="580" y="40" text-anchor="middle" fill="var(--text)" font-weight="700">GĐ3 · đến 25/06 (mốc 40%)</text>
+    <text x="580" y="84" text-anchor="middle" fill="var(--muted)">Chấm Viết/Nói AI</text>
+    <circle cx="840" cy="60" r="6" fill="var(--border)"/>
+    <text x="840" y="40" text-anchor="middle" fill="var(--text)" font-weight="700">GĐ4 · đến 03/07 (mốc 30%)</text>
+    <text x="840" y="84" text-anchor="middle" fill="var(--muted)">Cloud + Load test + Bàn giao</text>
+  </g>
+  <g font-size="10" fill="var(--muted)">
+    <text x="60" y="116" text-anchor="middle">SCALE-001 ✓ · Alembic · JWT</text>
+    <text x="300" y="116" text-anchor="middle">PARSE-001..004 → active</text>
+    <text x="300" y="132" text-anchor="middle">BANK-001 · GEN-001/002/003/006</text>
+    <text x="300" y="148" text-anchor="middle">MATRIX-002 · GEN-004/005 → active</text>
+    <text x="580" y="116" text-anchor="middle">GRADE-002 · GRADE-003 → active</text>
+    <text x="580" y="132" text-anchor="middle">Prompt VSTEP &gt;90% khớp giám khảo</text>
+    <text x="840" y="116" text-anchor="middle">SCALE-003 verified (k6 500–1000 CCU)</text>
+    <text x="840" y="132" text-anchor="middle">Pilot 10–20 SV thật · bàn giao</text>
+  </g>
+  <rect x="40" y="170" width="840" height="44" rx="8" fill="var(--bg-3)" stroke="var(--border)"/>
+  <text x="460" y="189" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">Hôm nay 11/06/2026: đang trong GĐ2 — trọng tâm Parser Engine + hoàn thiện generator theo 8 spec GEN/BANK</text>
+  <text x="460" y="206" text-anchor="middle" fill="var(--muted)" font-size="10">Suite: 15 passed · 7 skipped · 7 xfailed — mỗi spec chuyển trạng thái là một đầu việc nhìn thấy được</text>
+</svg>
+<figcaption>D6 — Timeline 30 ngày với mốc spec. Trạng thái spec là thước đo tiến độ khách quan.</figcaption>
+</figure>
+
+<table class="tbl">
+  <tr><th style="width:14%">Giai đoạn</th><th>Phạm vi</th><th style="width:38%">Definition of Done (đo bằng spec + suite)</th></tr>
+  <tr>
+    <td><b>GĐ1</b><br>Ngày 1–7<br>đến 10/06</td>
+    <td>Môi trường, Docker, models, <b>Alembic</b>, JWT auth (Admin/Teacher/Candidate), i18n middleware</td>
+    <td>SPEC-SCALE-001 active (✓ đã đạt) · <code>alembic upgrade head</code> chạy trên DB trống lẫn DB có dữ liệu · endpoint auth có test API</td>
+  </tr>
+  <tr>
+    <td><b>GĐ2</b><br>Ngày 8–14<br>đến 17/06<br><span class="badge b-amber">mốc 30%</span></td>
+    <td><b>Parser Engine</b> nạp TOEIC + B1, giao diện quản trị bank, <b>hoàn thiện generator</b> (status filter, Part 7 đủ 54, cân bằng đáp án, topic, seed, fail-fast, source_question_id), sinh lô 100 đề, phòng thi + proctoring + autosave</td>
+    <td>SPEC-PARSE-001..004: planned → <b>active</b> · SPEC-BANK-001, GEN-001/002/003/006, MATRIX-002: gap → <b>active</b> (hết xfail) · GEN-004/005: planned → <b>active</b> · lô 100 đề TOEIC qua validator 100%</td>
+  </tr>
+  <tr>
+    <td><b>GĐ3</b><br>Ngày 15–22<br>đến 25/06<br><span class="badge b-amber">mốc 40%</span></td>
+    <td>Editor bài viết + ghi âm gắn vào phòng thi, prompt engineering VSTEP, <b>nối Celery vào API submit</b>, sửa ngữ nghĩa trường điểm</td>
+    <td>SPEC-GRADE-002: gap → <b>active</b> · SPEC-GRADE-003: planned → <b>active</b> · độ khớp điểm AI với giám khảo &gt;90% trên bộ mẫu đã chấm tay</td>
+  </tr>
+  <tr>
+    <td><b>GĐ4</b><br>Ngày 23–30<br>đến 03/07<br><span class="badge b-amber">mốc 30%</span></td>
+    <td>Deploy Google Cloud theo ma trận mục 8, load test, pilot 10–20 SV, tài liệu vận hành, chuyển giao</td>
+    <td>SPEC-SCALE-003 verified (báo cáo k6 đính kèm) · pilot không sự cố mất bài · toàn suite: <b>0 failed, 0 xfailed</b> với các spec trong phạm vi bàn giao</td>
+  </tr>
+</table>
+
+<div class="note"><b>Sau bàn giao tiếng Anh:</b> giai đoạn tiếng Trung (HSK) thực hiện theo playbook mục 7 —
+khối lượng chính là dữ liệu (blueprint + prompt + import bank HSK), kiến trúc đã sẵn sàng và được bảo chứng bằng SPEC-I18N-001.</div>
+</section>
+
+</main>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem('theme'); } catch(e) {}
+  if (saved === 'light' || saved === 'dark') {
+    root.setAttribute('data-theme', saved);
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+    root.setAttribute('data-theme', 'light');
+  }
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch(e) {}
+  });
+
+  var sidebar = document.getElementById('sidebar');
+  document.getElementById('menuBtn').addEventListener('click', function(){
+    sidebar.classList.toggle('open');
+  });
+  sidebar.addEventListener('click', function(e){
+    if (e.target.tagName === 'A') sidebar.classList.remove('open');
+  });
+
+  // Scrollspy
+  var links = Array.prototype.slice.call(document.querySelectorAll('#nav a'));
+  var byId = {};
+  links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+  var observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting) {
+        links.forEach(function(a){ a.classList.remove('active'); });
+        var link = byId[entry.target.id];
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  document.querySelectorAll('main section, main h3[id]').forEach(function(el){ observer.observe(el); });
+})();
+</script>
+</body>
+</html>

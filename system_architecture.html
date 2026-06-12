@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tài liệu Kiến trúc Hệ thống Khảo thí & Chấm thi Tự động (AI-Powered)</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      /* Theme colors (Dark by default for premium dev look) */
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-tertiary: #1f2937;
+      --border-color: #374151;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-soft: rgba(59, 130, 246, 0.1);
+      --accent: #6366f1;
+      --accent-soft: rgba(99, 102, 241, 0.1);
+      --success: #10b981;
+      --success-soft: rgba(16, 185, 129, 0.1);
+      --warning: #f59e0b;
+      --warning-soft: rgba(245, 158, 11, 0.1);
+      --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-display: 'Outfit', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f1f5f9;
+      --border-color: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-soft: rgba(37, 99, 235, 0.08);
+      --accent: #4f46e5;
+      --accent-soft: rgba(79, 70, 229, 0.08);
+      --success: #059669;
+      --success-soft: rgba(5, 150, 105, 0.08);
+      --warning: #d97706;
+      --warning-soft: rgba(217, 119, 6, 0.08);
+      --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      transition: background-color 0.3s, color 0.3s;
+      line-height: 1.6;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    /* Container layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 300px;
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      width: 2.75rem;
+      height: 2.75rem;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 1.25rem;
+      font-family: var(--font-display);
+      box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item a:hover, .nav-item.active a {
+      color: var(--primary);
+      background-color: var(--primary-soft);
+      border-left-color: var(--primary);
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      background: transparent;
+      color: var(--text-main);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: background-color 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background-color: var(--primary-soft);
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: 300px;
+      flex: 1;
+      max-width: 1100px;
+      padding: 3rem 4rem;
+    }
+
+    header {
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .badge-primary {
+      background-color: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .badge-success {
+      background-color: var(--success-soft);
+      color: var(--success);
+    }
+
+    .badge-warning {
+      background-color: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .doc-title {
+      font-size: 2.5rem;
+      line-height: 1.2;
+      background: linear-gradient(to right, var(--text-main) 60%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .doc-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+    }
+
+    .doc-meta span {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* Sections */
+    section {
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    section:last-of-type {
+      border-bottom: none;
+    }
+
+    .section-title {
+      font-size: 1.75rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 1.75rem;
+      background-color: var(--primary);
+      border-radius: 2px;
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Cards & Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin: 1.5rem 0;
+    }
+
+    @media (min-width: 768px) {
+      .grid-2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-icon {
+      color: var(--primary);
+      font-size: 1.25rem;
+    }
+
+    .card-text {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* Lists */
+    ul.check-list {
+      list-style: none;
+      margin-left: 0.5rem;
+    }
+
+    ul.check-list li {
+      position: relative;
+      padding-left: 1.75rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    ul.check-list li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--success);
+      font-weight: 800;
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 1.25rem 1.5rem;
+      border-radius: 0.75rem;
+      margin: 1.5rem 0;
+      display: flex;
+      gap: 1rem;
+      border-left: 4px solid transparent;
+    }
+
+    .alert-info {
+      background-color: var(--primary-soft);
+      border-left-color: var(--primary);
+      color: var(--text-main);
+    }
+
+    .alert-warning {
+      background-color: var(--warning-soft);
+      border-left-color: var(--warning);
+      color: var(--text-main);
+    }
+
+    .alert-title {
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    /* Tech Table */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-secondary);
+      box-shadow: var(--card-shadow);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background-color: var(--bg-tertiary);
+      color: var(--text-main);
+      font-weight: 700;
+      padding: 1rem;
+      font-size: 0.9rem;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background-color: var(--primary-soft);
+      color: var(--text-main);
+    }
+
+    /* Code Block & Tabs */
+    .tabs-container {
+      margin: 2rem 0;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .tab-btn {
+      padding: 0.75rem 1.25rem;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--primary);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    pre {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--text-main);
+      box-shadow: var(--card-shadow);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      background-color: var(--bg-tertiary);
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+      color: var(--primary-hover);
+    }
+
+    /* Database Schema Expander */
+    .db-schema {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .db-table {
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      background-color: var(--bg-secondary);
+      overflow: hidden;
+    }
+
+    .db-table-header {
+      background-color: var(--bg-tertiary);
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s;
+    }
+
+    .db-table-header:hover {
+      background-color: var(--primary-soft);
+    }
+
+    .db-table-name {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .db-table-desc {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .db-table-content {
+      padding: 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: none;
+    }
+
+    .db-table-content.active {
+      display: block;
+    }
+
+    /* SVGs Diagram Styling */
+    .diagram-box {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 2rem;
+      margin: 1.5rem 0;
+      display: flex;
+      justify-content: center;
+      box-shadow: var(--card-shadow);
+    }
+
+    .svg-diagram {
+      width: 100%;
+      height: auto;
+      max-width: 800px;
+    }
+
+    .svg-text {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 500;
+      fill: var(--text-main);
+    }
+
+    .svg-text-bold {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      fill: var(--text-main);
+    }
+
+    .svg-text-small {
+      font-family: var(--font-sans);
+      font-size: 9px;
+      fill: var(--text-muted);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      .sidebar {
+        display: none;
+      }
+      .main-content {
+        margin-left: 0;
+        padding: 2rem 1.5rem;
+      }
+    }
+
+    /* Print styling rules */
+    @media print {
+      @page {
+        margin: 15mm;
+        size: A4;
+      }
+      body {
+        background-color: #ffffff !important;
+        color: #0d1117 !important;
+      }
+      .sidebar {
+        display: none !important;
+      }
+      .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+      }
+      section {
+        page-break-before: always;
+        break-before: page;
+        padding: 2rem 0 !important;
+        border-bottom: none !important;
+      }
+      .db-table-content {
+        display: block !important;
+      }
+      .tab-content {
+        display: block !important;
+        margin-bottom: 2rem;
+      }
+      .tabs {
+        display: none !important;
+      }
+      .card, .table-container, .db-table, pre, .diagram-box {
+        box-shadow: none !important;
+        border: 1px solid #94a3b8 !important;
+        background-color: #ffffff !important;
+        color: #0d1117 !important;
+        page-break-inside: avoid;
+      }
+      /* Fix title visibility and gradient in print */
+      h1, h2, h3, h4, .doc-title, .section-title {
+        color: #0f172a !important;
+        background: none !important;
+        -webkit-text-fill-color: initial !important;
+      }
+      h2.section-title::before {
+        background-color: #2563eb !important;
+      }
+      p, .card-text, td, li, span, .svg-text-small {
+        color: #334155 !important;
+      }
+      .badge {
+        background-color: #e2e8f0 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+      .alert {
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        border-left: 4px solid #2563eb !important;
+        page-break-inside: avoid;
+      }
+      .alert-warning {
+        border-left-color: #d97706 !important;
+      }
+      td, th {
+        border-bottom-color: #cbd5e1 !important;
+      }
+      th {
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+      }
+      .svg-text, .svg-text-bold {
+        fill: #0f172a !important;
+      }
+      .svg-text-small {
+        fill: #475569 !important;
+      }
+      rect {
+        stroke: #475569 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">TD</div>
+        <div>
+          <div class="brand-title">Thành Đông</div>
+          <div class="brand-subtitle">Thi & Chấm thi Tự động</div>
+        </div>
+      </div>
+      
+      <ul class="nav-list">
+        <li class="nav-item active"><a href="#tongquan">📌 1. Tổng quan Kiến trúc</a></li>
+        <li class="nav-item"><a href="#congnghe">🛠️ 2. Công nghệ Cốt lõi</a></li>
+        <li class="nav-item"><a href="#sodo">📊 3. Sơ đồ Luồng xử lý</a></li>
+        <li class="nav-item"><a href="#luongchitiet">⚙️ 3b. Luồng Chức năng Cốt lõi</a></li>
+        <li class="nav-item"><a href="#database">💾 4. Thiết kế Database</a></li>
+        <li class="nav-item"><a href="#thumuc">📁 5. Cấu trúc Thư mục</a></li>
+        <li class="nav-item"><a href="#danganngu">🌐 6. Thiết kế Đa Ngôn Ngữ Base</a></li>
+        <li class="nav-item"><a href="#mvpproduction">⚡ 7. So sánh MVP & Production</a></li>
+        <li class="nav-item"><a href="#rade">📝 8. Chi tiết Phân hệ Ra đề</a></li>
+        <li class="nav-item"><a href="#harness">🛡️ 9. Quy chuẩn Specs & Tests</a></li>
+        <li class="nav-item"><a href="#nangcap">🚀 10. Chiến lược Chịu tải</a></li>
+      </ul>
+
+      <button class="theme-toggle" id="themeBtn">
+        🌙 Chế độ Tối
+      </button>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      
+      <header>
+        <span class="badge badge-primary">Tài liệu Kỹ thuật (Technical Blueprint)</span>
+        <h1 class="doc-title">Kiến trúc Hệ thống Khảo thí & Chấm thi Thông minh</h1>
+        <p style="color: var(--text-muted); font-size: 1.1rem; margin-top: 0.5rem;">
+          Thiết kế kiến trúc hệ thống chuẩn mã nguồn, đảm bảo vận hành ổn định từ phiên bản chạy thử nghiệm (100 thí sinh) đến quy mô chính thức (1000 thí sinh đồng thời) mà không cần viết lại cốt lõi phần mềm.
+        </p>
+        
+        <div class="doc-meta">
+          <span>👤 <strong>Đội ngũ Kỹ thuật</strong></span>
+          <span>📅 Ngày 11 Tháng 6, 2026</span>
+          <span>🏷️ Phiên bản 1.1.0</span>
+          <span>⚡ Trạng thái: Sẵn sàng triển khai</span>
+        </div>
+      </header>
+
+      <!-- SECTION 1: SYSTEM OVERVIEW -->
+      <section id="tongquan">
+        <h2 class="section-title">1. Tổng quan Kiến trúc Hệ thống</h2>
+        <p class="section-desc">Hệ thống áp dụng mô hình kiến trúc phân tách hoàn toàn (Decoupled Architecture) giữa Frontend (Giao diện người dùng) và Backend (Dịch vụ API), liên kết với hệ thống hàng đợi bất đồng bộ xử lý chấm điểm AI.</p>
+        
+        <div class="grid grid-2">
+          <div class="card">
+            <h3 class="card-title">
+              <span class="card-icon">🎯</span> Quy mô Demo (100 CCU)
+            </h3>
+            <p class="card-text">Hạ tầng chuẩn hóa. Hệ thống chạy trên Docker với cơ sở dữ liệu PostgreSQL cục bộ, đảm bảo tính đồng nhất 100% về cấu hình, mô hình bảng và kiểu dữ liệu với môi trường Production chính thức.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">
+              <span class="card-icon">⚡</span> Quy mô Chính thức (1000 CCU)
+            </h3>
+            <p class="card-text">Nâng cấp phi tập trung. Tách biệt CSDL (PostgreSQL Cloud SQL), lưu trữ file (Google Cloud Storage), phân phối tĩnh qua CDN, và mở rộng số lượng worker chấm ngầm để chống nghẽn nghẹt hệ thống.</p>
+          </div>
+        </div>
+
+        <div class="alert alert-info">
+          <div>
+            <div class="alert-title">💡 Triết lý Kiến trúc: Mở rộng Hướng ngang (Horizontal Scalability)</div>
+            <p style="font-size: 0.9rem;">Toàn bộ API được thiết kế dạng <strong>Stateless</strong>. Nghĩa là máy chủ API không lưu trạng thái đăng nhập hay dữ liệu phiên của người dùng. Khi quy mô sinh viên tăng lên 1000+, ta chỉ cần bật thêm các bản sao máy chủ API đứng sau bộ cân bằng tải (Load Balancer) mà không cần sửa bất kỳ dòng code nào.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: CORE TECH STACK -->
+      <section id="congnghe">
+        <h2 class="section-title">2. Công nghệ Cốt lõi & Đánh giá Tối ưu</h2>
+        <p class="section-desc">Bảng đánh giá lựa chọn công nghệ cho thấy sự phù hợp tuyệt đối cho cả hai giai đoạn: Demo và Nâng cấp chính thức.</p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 20%;">Thành phần</th>
+                <th style="width: 25%;">Công nghệ Lựa chọn</th>
+                <th style="width: 25%;">Tối ưu cho Demo (100 CCU)</th>
+                <th style="width: 30%;">Tối ưu cho Nâng cấp (1000 CCU)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Frontend</strong></td>
+                <td>Next.js 15 (React, TS, Tailwind CSS)</td>
+                <td>Phát triển giao diện phòng thi nhanh. Responsive tốt trên thiết bị di động của sinh viên.</td>
+                <td>Build tĩnh (Static Export) chạy trực tiếp trên CDN, giảm 100% tải load trang cho server chính. Ghi âm nén nộp bài ngay tại trình duyệt.</td>
+              </tr>
+              <tr>
+                <td><strong>Backend API</strong></td>
+                <td>FastAPI (Python async)</td>
+                <td>Lập trình bất đồng bộ xử lý nhanh. Tự động sinh Swagger API docs để chia việc phát triển.</td>
+                <td>Hiệu năng cực cao nhờ máy chủ ASGI bất đồng bộ. Hỗ trợ chạy container hóa (Docker) để nhân bản chịu tải.</td>
+              </tr>
+              <tr>
+                <td><strong>Database</strong></td>
+                <td>PostgreSQL (SQLAlchemy ORM)</td>
+                <td>Dùng PostgreSQL (chạy cục bộ qua Docker container) để đảm bảo đồng nhất về môi trường và kiểu dữ liệu.</td>
+                <td>Nâng cấp lên Google Cloud SQL (PostgreSQL Managed) kết hợp PgBouncer (Connection Pool) để tối ưu kết nối lớn.</td>
+              </tr>
+              <tr>
+                <td><strong>Hàng đợi (Queue)</strong></td>
+                <td>Redis + Celery</td>
+                <td>Redis chạy ngay trên máy chủ để quản lý hàng đợi chấm bài thi Nói và Viết.</td>
+                <td>Redis quản lý hàng chục ngàn tin nhắn. Tăng số lượng Celery Worker để chấm điểm nhanh hơn. Tự động tránh lỗi giới hạn API Gemini.</td>
+              </tr>
+              <tr>
+                <td><strong>Chấm điểm AI</strong></td>
+                <td>Gemini 3.1 Pro & Gemini 3.5 Flash API</td>
+                <td>Dùng Gemini 3.1 Pro cho tác vụ chấm Nói & Viết chính để bảo đảm độ chính xác tối đa (>90% chuẩn), kết hợp Gemini 3.5 Flash xử lý tác vụ phụ.</td>
+                <td>Vận hành tài khoản Enterprise. Hàng đợi Celery tự động kiểm soát tần suất cuộc gọi (Rate-limit) tránh lỗi giới hạn RPM/TPM.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 3: ARCHITECTURE & DATA FLOW -->
+      <section id="sodo">
+        <h2 class="section-title">3. Sơ đồ Luồng Hoạt động</h2>
+        <p class="section-desc">Sơ đồ dưới đây minh họa luồng đi của dữ liệu từ thiết bị của sinh viên qua các tầng xử lý và kết thúc tại dịch vụ chấm điểm AI.</p>
+        
+        <div class="diagram-box">
+          <!-- SVG Diagram: System Architecture Overview -->
+          <svg class="svg-diagram" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <!-- Background grids -->
+            <rect width="800" height="450" fill="var(--bg-secondary)" rx="12" stroke="var(--border-color)" stroke-width="2"/>
+            
+            <!-- CLIENT LAYER -->
+            <rect x="30" y="40" width="160" height="370" fill="var(--primary-soft)" stroke="var(--primary)" stroke-width="2" rx="8" />
+            <text x="110" y="30" class="svg-text-bold" text-anchor="middle">TẦNG CLIENT (TRÌNH DUYỆT)</text>
+            
+            <rect x="45" y="65" width="130" height="85" fill="var(--bg-primary)" stroke="var(--border-color)" rx="6" />
+            <text x="110" y="90" class="svg-text-bold" text-anchor="middle">Giao diện Phòng thi</text>
+            <text x="110" y="110" class="svg-text-small" text-anchor="middle">Next.js 15 App</text>
+            <text x="110" y="125" class="svg-text-small" text-anchor="middle">(Nhận đề, hiển thị đề)</text>
+
+            <rect x="45" y="170" width="130" height="100" fill="var(--bg-primary)" stroke="var(--border-color)" rx="6" />
+            <text x="110" y="195" class="svg-text-bold" text-anchor="middle">Ghi âm & Nén bài</text>
+            <text x="110" y="215" class="svg-text-small" text-anchor="middle">useMediaRecorder.ts</text>
+            <text x="110" y="235" class="svg-text-small" text-anchor="middle">Nén Opus/WebM cục bộ</text>
+            <text x="110" y="250" class="svg-text-small" text-anchor="middle">(Tiết kiệm 90% dung lượng)</text>
+
+            <rect x="45" y="290" width="130" height="100" fill="var(--bg-primary)" stroke="var(--border-color)" rx="6" />
+            <text x="110" y="315" class="svg-text-bold" text-anchor="middle">Module Giám sát</text>
+            <text x="110" y="335" class="svg-text-small" text-anchor="middle">useProctoring.ts</text>
+            <text x="110" y="355" class="svg-text-small" text-anchor="middle">Khóa Fullscreen</text>
+            <text x="110" y="370" class="svg-text-small" text-anchor="middle">Ghi Webcam ngẫu nhiên</text>
+
+            <!-- CONNECTOR LINE 1 -->
+            <line x1="190" y1="110" x2="280" y2="110" stroke="var(--primary)" stroke-width="2" stroke-dasharray="4" />
+            <polygon points="280,110 272,105 272,115" fill="var(--primary)" />
+            
+            <line x1="190" y1="220" x2="280" y2="220" stroke="var(--primary)" stroke-width="2" />
+            <polygon points="280,220 272,215 272,225" fill="var(--primary)" />
+            <text x="235" y="208" class="svg-text-small" text-anchor="middle">Upload Audio</text>
+
+            <!-- BACKEND LAYER -->
+            <rect x="290" y="40" width="200" height="370" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2" rx="8" />
+            <text x="390" y="30" class="svg-text-bold" text-anchor="middle">TẦNG BACKEND (API & DB)</text>
+
+            <rect x="310" y="65" width="160" height="85" fill="var(--bg-primary)" stroke="var(--border-color)" rx="6" />
+            <text x="390" y="90" class="svg-text-bold" text-anchor="middle">API Server (FastAPI)</text>
+            <text x="390" y="110" class="svg-text-small" text-anchor="middle">Phát đề, chấm Trắc nghiệm</text>
+            <text x="390" y="125" class="svg-text-small" text-anchor="middle">Đồng bộ tự động lưu (30s)</text>
+
+            <rect x="310" y="170" width="160" height="85" fill="var(--bg-primary)" stroke="var(--border-color)" rx="6" />
+            <text x="390" y="195" class="svg-text-bold" text-anchor="middle">CSDL (PostgreSQL)</text>
+            <text x="390" y="215" class="svg-text-small" text-anchor="middle">SQLAlchemy Connection Pool</text>
+            <text x="390" y="230" class="svg-text-small" text-anchor="middle">Lưu trữ kết quả & Bài nộp</text>
+
+            <rect x="310" y="275" width="160" height="85" fill="var(--bg-primary)" stroke="var(--border-color)" rx="6" />
+            <text x="390" y="300" class="svg-text-bold" text-anchor="middle">Hàng đợi Redis</text>
+            <text x="390" y="320" class="svg-text-small" text-anchor="middle">Nhận task chấm Nói & Viết</text>
+            <text x="390" y="335" class="svg-text-small" text-anchor="middle">(Hàng đợi chống nghẽn tải)</text>
+
+            <line x1="390" y1="150" x2="390" y2="170" stroke="var(--accent)" stroke-width="2" />
+            <polygon points="390,170 385,162 395,162" fill="var(--accent)" />
+
+            <line x1="390" y1="255" x2="390" y2="275" stroke="var(--accent)" stroke-width="2" />
+            <polygon points="390,275 385,267 395,267" fill="var(--accent)" />
+
+            <!-- CONNECTOR LINE 2 -->
+            <line x1="470" y1="318" x2="560" y2="318" stroke="var(--success)" stroke-width="2" />
+            <polygon points="560,318 552,313 552,323" fill="var(--success)" />
+            <text x="515" y="306" class="svg-text-small" text-anchor="middle">Lấy Task</text>
+
+            <!-- WORKER & AI LAYER -->
+            <rect x="570" y="40" width="200" height="370" fill="var(--success-soft)" stroke="var(--success)" stroke-width="2" rx="8" />
+            <text x="670" y="30" class="svg-text-bold" text-anchor="middle">TẦNG WORKER & AI</text>
+
+            <rect x="590" y="100" width="160" height="100" fill="var(--bg-primary)" stroke="var(--border-color)" rx="6" />
+            <text x="670" y="125" class="svg-text-bold" text-anchor="middle">Celery Workers</text>
+            <text x="670" y="145" class="svg-text-small" text-anchor="middle">Chạy ngầm đa luồng</text>
+            <text x="670" y="160" class="svg-text-small" text-anchor="middle">Gọi AI và xử lý JSON</text>
+            <text x="670" y="175" class="svg-text-small" text-anchor="middle">Tự động gọi lại nếu lỗi</text>
+
+            <rect x="590" y="270" width="160" height="100" fill="var(--bg-primary)" stroke="var(--border-color)" rx="6" />
+            <text x="670" y="295" class="svg-text-bold" text-anchor="middle">Gemini 3.1 Pro / 3.5 Flash</text>
+            <text x="670" y="315" class="svg-text-small" text-anchor="middle">Google AI Cloud (Enterprise)</text>
+            <text x="670" y="330" class="svg-text-small" text-anchor="middle">Chấm điểm & Phân tích lỗi chính xác</text>
+            <text x="670" y="345" class="svg-text-small" text-anchor="middle">(Hỗ trợ Audio và Rich-text)</text>
+
+            <line x1="670" y1="200" x2="670" y2="270" stroke="var(--success)" stroke-width="2" />
+            <polygon points="670,270 665,262 675,262" fill="var(--success)" />
+            <polygon points="670,200 675,208 665,208" fill="var(--success)" />
+            <text x="685" y="240" class="svg-text-small">API HTTPS</text>
+            
+            <!-- Worker write back to db line -->
+            <path d="M 590 150 Q 510 150 510 212" fill="none" stroke="var(--success)" stroke-width="2" stroke-dasharray="4" />
+            <polygon points="510,212 505,204 515,204" fill="var(--success)" />
+            <text x="525" y="180" class="svg-text-small" text-anchor="middle">Ghi nhận Điểm</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- SECTION 3B: CORE FEATURE FLOWS -->
+      <section id="luongchitiet">
+        <h2 class="section-title">3b. Luồng Xử lý Kỹ thuật các Tính năng Cốt lõi</h2>
+        <p class="section-desc">Mô tả chi tiết các bước vận hành kỹ thuật (luồng đi dữ liệu) cho 4 chức năng cốt lõi của hệ thống MVP.</p>
+        
+        <div class="grid grid-2">
+          <!-- FLOW 1: AUTH -->
+          <div class="card" style="border-left: 4px solid var(--primary);">
+            <div class="card-title" style="color: var(--primary);">🔑 Luồng Xác thực & Phân quyền (JWT)</div>
+            <p class="card-text" style="margin-bottom: 0.75rem;">Đảm bảo tính bảo mật và phân quyền rõ ràng giữa Sinh viên, Giáo viên và Admin:</p>
+            <ol style="margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem;">
+              <li><strong>Bước 1:</strong> Trình duyệt gửi request <code>POST /api/v1/auth/login</code> chứa mã sinh viên/mã giáo viên và mật khẩu.</li>
+              <li><strong>Bước 2:</strong> FastAPI truy vấn database, đối khớp mật khẩu băm (bcrypt hash).</li>
+              <li><strong>Bước 3:</strong> FastAPI tạo mã <strong>JWT Token</strong> chứa thông tin mã hóa (User ID, Role, thời gian hết hạn).</li>
+              <li><strong>Bước 4:</strong> Client lưu JWT vào <code>localStorage</code> hoặc <code>Cookie</code> an toàn của trình duyệt.</li>
+              <li><strong>Bước 5:</strong> Mọi request gọi API tiếp theo (lấy đề, nộp bài) đều phải đính kèm header <code>Authorization: Bearer &lt;JWT_TOKEN&gt;</code> để xác thực quyền.</li>
+            </ol>
+          </div>
+
+          <!-- FLOW 2: PROCTORING -->
+          <div class="card" style="border-left: 4px solid var(--warning);">
+            <div class="card-title" style="color: var(--warning);">🛡️ Luồng Giám sát & Báo cáo Vi phạm</div>
+            <p class="card-text" style="margin-bottom: 0.75rem;">Hạn chế gian lận trong thời gian thi trực tuyến nhờ các Web APIs tích hợp:</p>
+            <ol style="margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem;">
+              <li><strong>Bước 1:</strong> Trình duyệt sinh viên lắng nghe sự kiện <code>visibilitychange</code> (chuyển tab) hoặc <code>fullscreenchange</code> (thoát toàn màn hình).</li>
+              <li><strong>Bước 2:</strong> Khi phát hiện hành vi thoát/chuyển tab, hook <code>useProctoring.ts</code> kích hoạt hiển thị cảnh báo đỏ và ghi nhận lỗi.</li>
+              <li><strong>Bước 3:</strong> Frontend gửi ngầm request <code>POST /api/v1/exams/proctoring/log</code> với loại vi phạm và mốc thời gian lên backend.</li>
+              <li><strong>Bước 4:</strong> FastAPI ghi dữ liệu vi phạm vào bảng <code>proctoring_logs</code> trong database để lưu vết vĩnh viễn.</li>
+              <li><strong>Bước 5:</strong> Màn hình giám thị (Teacher Dashboard) nhận thông báo vi phạm thời gian thực để đưa ra quyết định đình chỉ thi nếu cần.</li>
+            </ol>
+          </div>
+
+          <!-- FLOW 3: AUTO-SAVE -->
+          <div class="card" style="border-left: 4px solid var(--accent);">
+            <div class="card-title" style="color: var(--accent);">💾 Luồng Tự động Lưu bài (Auto-save)</div>
+            <p class="card-text" style="margin-bottom: 0.75rem;">Phòng tránh mất mát bài làm của thí sinh khi gặp sự cố mất điện hoặc rớt mạng:</p>
+            <ol style="margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem;">
+              <li><strong>Bước 1:</strong> Trong lúc thi, cứ mỗi <strong>30 giây</strong>, một bộ timer chạy ngầm tại Frontend sẽ gom trạng thái bài làm hiện tại.</li>
+              <li><strong>Bước 2:</strong> Frontend đóng gói câu trả lời dưới định dạng JSON và gọi API <code>POST /api/v1/submissions/{id}/autosave</code>.</li>
+              <li><strong>Bước 3:</strong> FastAPI tiếp nhận JSON bài làm, thực hiện cập nhật đè (upsert) trường <code>answers</code> trong bảng <code>submissions</code>.</li>
+              <li><strong>Bước 4:</strong> Database phản hồi thành công, backend trả về kết quả 200 OK để đồng bộ trạng thái lưu trữ trên giao diện.</li>
+              <li><strong>Bước 5:</strong> Nếu thí sinh bị sập nguồn, khi mở lại máy và truy cập phòng thi, hệ thống sẽ tự động tải lại JSON bài làm cũ để thi tiếp.</li>
+            </ol>
+          </div>
+
+          <!-- FLOW 4: AI GRADING -->
+          <div class="card" style="border-left: 4px solid var(--success);">
+            <div class="card-title" style="color: var(--success);">🤖 Luồng Chấm thi Tự luận AI Asynchronous</div>
+            <p class="card-text" style="margin-bottom: 0.75rem;">Xử lý chấm bài tự luận nói/viết ngầm, tối ưu hóa hiệu năng hệ thống:</p>
+            <ol style="margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem;">
+              <li><strong>Bước 1:</strong> Thí sinh ấn nộp bài, FastAPI cập nhật trạng thái bảng submission thành <code>submitted</code> và trả về kết quả cho client trong 0.1s.</li>
+              <li><strong>Bước 2:</strong> FastAPI đẩy một task chấm bài thi tự luận Nói/Viết vào hàng đợi <strong>Redis Broker</strong>.</li>
+              <li><strong>Bước 3:</strong> <strong>Celery Worker</strong> chạy ngầm bốc task từ Redis, lấy audio bài nói hoặc text bài viết từ database.</li>
+              <li><strong>Bước 4:</strong> Worker gửi yêu cầu kèm theo Prompt chấm chuẩn VSTEP/HSK và dữ liệu bài làm sang <strong>Gemini API</strong>.</li>
+              <li><strong>Bước 5:</strong> Nhận kết quả từ Gemini, Worker giải mã JSON (điểm, đánh giá lỗi phát âm/ngữ pháp) và lưu vào bảng <code>grades</code>, cập nhật trạng thái submission sang <code>graded</code>.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: DATABASE DESIGN -->
+      <section id="database">
+        <h2 class="section-title">4. Thiết kế Cơ sở Dữ liệu (Database Schema)</h2>
+        <p class="section-desc">Hệ thống cơ sở dữ liệu được chuẩn hóa cao độ để lưu trữ thông tin câu hỏi, bài thi và logs vi phạm của sinh viên. Click vào từng bảng để xem chi tiết.</p>
+
+        <div class="db-schema">
+          
+          <!-- TABLE 1: USERS -->
+          <div class="db-table">
+            <div class="db-table-header" onclick="toggleTable('tbl-users')">
+              <span class="db-table-name">👤 users</span>
+              <span class="db-table-desc">Quản lý định danh người dùng (Thí sinh, Giáo viên, Admin)</span>
+            </div>
+            <div id="tbl-users" class="db-table-content active">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trường dữ liệu</th>
+                    <th>Kiểu dữ liệu</th>
+                    <th>Ràng buộc</th>
+                    <th>Ý nghĩa nghiệp vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>id</strong></td>
+                    <td>UUID</td>
+                    <td>Primary Key</td>
+                    <td>Mã định danh duy nhất</td>
+                  </tr>
+                  <tr>
+                    <td><strong>username</strong></td>
+                    <td>VARCHAR(50)</td>
+                    <td>Unique, Indexed</td>
+                    <td>Tên tài khoản đăng nhập (mã sinh viên/mã giáo viên)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>email</strong></td>
+                    <td>VARCHAR(100)</td>
+                    <td>Unique</td>
+                    <td>Địa chỉ email liên hệ</td>
+                  </tr>
+                  <tr>
+                    <td><strong>hashed_password</strong></td>
+                    <td>VARCHAR(255)</td>
+                    <td>Not Null</td>
+                    <td>Mật khẩu đã được mã hóa bằng bcrypt</td>
+                  </tr>
+                  <tr>
+                    <td><strong>full_name</strong></td>
+                    <td>VARCHAR(100)</td>
+                    <td>Not Null</td>
+                    <td>Họ và tên đầy đủ (hỗ trợ tiếng Việt UTF-8)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>role</strong></td>
+                    <td>VARCHAR(20)</td>
+                    <td>Not Null</td>
+                    <td>Vai trò phân quyền: `admin`, `teacher`, `candidate`</td>
+                  </tr>
+                  <tr>
+                    <td><strong>is_active</strong></td>
+                    <td>BOOLEAN</td>
+                    <td>Default: True</td>
+                    <td>Trạng thái hoạt động tài khoản</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TABLE 2: EXAMS -->
+          <div class="db-table">
+            <div class="db-table-header" onclick="toggleTable('tbl-exams')">
+              <span class="db-table-name">📝 exams</span>
+              <span class="db-table-desc">Cấu hình cấu trúc và cài đặt thời gian cho các kỳ thi</span>
+            </div>
+            <div id="tbl-exams" class="db-table-content">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trường dữ liệu</th>
+                    <th>Kiểu dữ liệu</th>
+                    <th>Ràng buộc</th>
+                    <th>Ý nghĩa nghiệp vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>id</strong></td>
+                    <td>UUID</td>
+                    <td>Primary Key</td>
+                    <td>Mã cấu hình kỳ thi</td>
+                  </tr>
+                  <tr>
+                    <td><strong>title</strong></td>
+                    <td>VARCHAR(200)</td>
+                    <td>Not Null</td>
+                    <td>Tiêu đề kỳ thi (Ví dụ: "Thi thử TOEIC Đợt 1")</td>
+                  </tr>
+                  <tr>
+                    <td><strong>language</strong></td>
+                    <td>VARCHAR(20)</td>
+                    <td>Not Null</td>
+                    <td>Ngôn ngữ thi: `english`, `chinese`</td>
+                  </tr>
+                  <tr>
+                    <td><strong>category</strong></td>
+                    <td>VARCHAR(20)</td>
+                    <td>Not Null</td>
+                    <td>Phân loại chứng chỉ: `toeic`, `vstep_b1`, `hsk`</td>
+                  </tr>
+                  <tr>
+                    <td><strong>duration_minutes</strong></td>
+                    <td>INTEGER</td>
+                    <td>Not Null</td>
+                    <td>Thời gian làm bài thi (Tính bằng phút)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>passing_score</strong></td>
+                    <td>FLOAT</td>
+                    <td>Default: 0</td>
+                    <td>Điểm đạt yêu cầu tối thiểu</td>
+                  </tr>
+                  <tr>
+                    <td><strong>is_published</strong></td>
+                    <td>BOOLEAN</td>
+                    <td>Default: False</td>
+                    <td>Trạng thái xuất bản để sinh viên bắt đầu thi</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TABLE 3: QUESTION GROUPS -->
+          <div class="db-table">
+            <div class="db-table-header" onclick="toggleTable('tbl-groups')">
+              <span class="db-table-name">📂 question_groups</span>
+              <span class="db-table-desc">Nhóm câu hỏi chứa tệp âm thanh (Audio) hoặc đoạn văn đọc hiểu (Passage) chung</span>
+            </div>
+            <div id="tbl-groups" class="db-table-content">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trường dữ liệu</th>
+                    <th>Kiểu dữ liệu</th>
+                    <th>Ràng buộc</th>
+                    <th>Ý nghĩa nghiệp vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>id</strong></td>
+                    <td>UUID</td>
+                    <td>Primary Key</td>
+                    <td>Mã nhóm câu hỏi</td>
+                  </tr>
+                  <tr>
+                    <td><strong>exam_id</strong></td>
+                    <td>UUID</td>
+                    <td>Foreign Key</td>
+                    <td>Liên kết trực tiếp tới bảng `exams.id` (Có thể Null nếu là ngân hàng câu hỏi)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>audio_url</strong></td>
+                    <td>VARCHAR(500)</td>
+                    <td>Nullable</td>
+                    <td>Đường dẫn tới file nghe MP3 dùng chung cho các câu hỏi trong nhóm</td>
+                  </tr>
+                  <tr>
+                    <td><strong>passage_text</strong></td>
+                    <td>TEXT</td>
+                    <td>Nullable</td>
+                    <td>Đoạn văn đọc hiểu chung (Part 6, Part 7 TOEIC hoặc bài đọc B1)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TABLE 4: QUESTIONS -->
+          <div class="db-table">
+            <div class="db-table-header" onclick="toggleTable('tbl-questions')">
+              <span class="db-table-name">❓ questions</span>
+              <span class="db-table-desc">Chi tiết câu hỏi đơn lẻ hoặc câu hỏi nằm trong nhóm</span>
+            </div>
+            <div id="tbl-questions" class="db-table-content">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trường dữ liệu</th>
+                    <th>Kiểu dữ liệu</th>
+                    <th>Ràng buộc</th>
+                    <th>Ý nghĩa nghiệp vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>id</strong></td>
+                    <td>UUID</td>
+                    <td>Primary Key</td>
+                    <td>Mã định danh câu hỏi</td>
+                  </tr>
+                  <tr>
+                    <td><strong>group_id</strong></td>
+                    <td>UUID</td>
+                    <td>Foreign Key</td>
+                    <td>Liên kết tới `question_groups.id` (Nếu câu hỏi thuộc đoạn văn/file nghe chung)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>part</strong></td>
+                    <td>INTEGER</td>
+                    <td>Not Null</td>
+                    <td>Phần của bài thi (Ví dụ TOEIC: Part 1 đến Part 7)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>question_type</strong></td>
+                    <td>VARCHAR(20)</td>
+                    <td>Not Null</td>
+                    <td>Loại hình câu hỏi: `multiple_choice`, `essay`, `speaking_upload`</td>
+                  </tr>
+                  <tr>
+                    <td><strong>prompt</strong></td>
+                    <td>TEXT</td>
+                    <td>Not Null</td>
+                    <td>Nội dung câu hỏi hiển thị cho sinh viên</td>
+                  </tr>
+                  <tr>
+                    <td><strong>options</strong></td>
+                    <td>JSON</td>
+                    <td>Nullable</td>
+                    <td>Danh sách các đáp án lựa chọn dạng JSON (Ví dụ: `{"A": "Apple", "B": "Banana"}`)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>correct_answer</strong></td>
+                    <td>VARCHAR(50)</td>
+                    <td>Nullable</td>
+                    <td>Đáp án đúng để đối khớp tự động trắc nghiệm (Ví dụ: "A")</td>
+                  </tr>
+                  <tr>
+                    <td><strong>difficulty</strong></td>
+                    <td>VARCHAR(10)</td>
+                    <td>Not Null</td>
+                    <td>Độ khó phục vụ thuật toán sinh đề: `easy`, `medium`, `hard`</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TABLE 5: SUBMISSIONS -->
+          <div class="db-table">
+            <div class="db-table-header" onclick="toggleTable('tbl-submissions')">
+              <span class="db-table-name">📝 submissions</span>
+              <span class="db-table-desc">Quản lý bài làm và dữ liệu câu trả lời của thí sinh</span>
+            </div>
+            <div id="tbl-submissions" class="db-table-content">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trường dữ liệu</th>
+                    <th>Kiểu dữ liệu</th>
+                    <th>Ràng buộc</th>
+                    <th>Ý nghĩa nghiệp vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>id</strong></td>
+                    <td>UUID</td>
+                    <td>Primary Key</td>
+                    <td>Mã bài thi nộp lên</td>
+                  </tr>
+                  <tr>
+                    <td><strong>candidate_id</strong></td>
+                    <td>UUID</td>
+                    <td>Foreign Key</td>
+                    <td>Mã sinh viên làm bài, liên kết tới `users.id`</td>
+                  </tr>
+                  <tr>
+                    <td><strong>exam_id</strong></td>
+                    <td>UUID</td>
+                    <td>Foreign Key</td>
+                    <td>Mã kỳ thi, liên kết tới `exams.id`</td>
+                  </tr>
+                  <tr>
+                    <td><strong>answers</strong></td>
+                    <td>JSON</td>
+                    <td>Not Null</td>
+                    <td>JSON chứa toàn bộ câu trả lời, text viết thư và các tệp âm thanh ghi âm nộp lên.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>status</strong></td>
+                    <td>VARCHAR(20)</td>
+                    <td>Not Null</td>
+                    <td>Trạng thái bài thi: `in_progress` (đang thi), `submitted` (đã nộp), `graded` (đã chấm)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>start_time</strong></td>
+                    <td>TIMESTAMP</td>
+                    <td>Not Null</td>
+                    <td>Thời gian thí sinh bắt đầu nhấn làm bài</td>
+                  </tr>
+                  <tr>
+                    <td><strong>end_time</strong></td>
+                    <td>TIMESTAMP</td>
+                    <td>Nullable</td>
+                    <td>Thời gian nhấn nộp bài (hoặc tự động nộp khi hết giờ)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TABLE 6: GRADES -->
+          <div class="db-table">
+            <div class="db-table-header" onclick="toggleTable('tbl-grades')">
+              <span class="db-table-name">💯 grades</span>
+              <span class="db-table-desc">Kết quả điểm số chi tiết và giải thích nhận xét từ AI</span>
+            </div>
+            <div id="tbl-grades" class="db-table-content">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trường dữ liệu</th>
+                    <th>Kiểu dữ liệu</th>
+                    <th>Ràng buộc</th>
+                    <th>Ý nghĩa nghiệp vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>id</strong></td>
+                    <td>UUID</td>
+                    <td>Primary Key</td>
+                    <td>Mã điểm số</td>
+                  </tr>
+                  <tr>
+                    <td><strong>submission_id</strong></td>
+                    <td>UUID</td>
+                    <td>Foreign Key</td>
+                    <td>Liên kết trực tiếp tới bài làm `submissions.id`</td>
+                  </tr>
+                  <tr>
+                    <td><strong>total_score</strong></td>
+                    <td>FLOAT</td>
+                    <td>Not Null</td>
+                    <td>Tổng điểm quy đổi cuối cùng (Ví dụ: TOEIC 0-990, VSTEP 0-10)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>listening_score</strong></td>
+                    <td>FLOAT</td>
+                    <td>Nullable</td>
+                    <td>Điểm số kỹ năng Nghe</td>
+                  </tr>
+                  <tr>
+                    <td><strong>reading_score</strong></td>
+                    <td>FLOAT</td>
+                    <td>Nullable</td>
+                    <td>Điểm số kỹ năng Đọc</td>
+                  </tr>
+                  <tr>
+                    <td><strong>writing_score</strong></td>
+                    <td>FLOAT</td>
+                    <td>Nullable</td>
+                    <td>Điểm kỹ năng Viết (Chấm bằng Gemini AI)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>speaking_score</strong></td>
+                    <td>FLOAT</td>
+                    <td>Nullable</td>
+                    <td>Điểm kỹ năng Nói (Chấm bằng Gemini AI)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>ai_feedback</strong></td>
+                    <td>JSON</td>
+                    <td>Nullable</td>
+                    <td>Nhận xét chi tiết theo tiêu chí (Ngữ pháp, phát âm, từ vựng) định dạng JSON.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TABLE 7: PROCTORING LOGS -->
+          <div class="db-table">
+            <div class="db-table-header" onclick="toggleTable('tbl-proctoring')">
+              <span class="db-table-name">🛡️ proctoring_logs</span>
+              <span class="db-table-desc">Ghi nhận các cảnh báo hành vi vi phạm quy chế thi</span>
+            </div>
+            <div id="tbl-proctoring" class="db-table-content">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trường dữ liệu</th>
+                    <th>Kiểu dữ liệu</th>
+                    <th>Ràng buộc</th>
+                    <th>Ý nghĩa nghiệp vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>id</strong></td>
+                    <td>UUID</td>
+                    <td>Primary Key</td>
+                    <td>Mã log vi phạm</td>
+                  </tr>
+                  <tr>
+                    <td><strong>submission_id</strong></td>
+                    <td>UUID</td>
+                    <td>Foreign Key</td>
+                    <td>Liên kết trực tiếp tới `submissions.id`</td>
+                  </tr>
+                  <tr>
+                    <td><strong>violation_type</strong></td>
+                    <td>VARCHAR(50)</td>
+                    <td>Not Null</td>
+                    <td>Loại vi phạm: `tab_switch` (chuyển tab), `exit_fullscreen` (thoát toàn màn hình), `face_not_detected` (không có mặt)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>timestamp</strong></td>
+                    <td>TIMESTAMP</td>
+                    <td>Not Null</td>
+                    <td>Thời gian cụ thể xảy ra vi phạm</td>
+                  </tr>
+                  <tr>
+                    <td><strong>details</strong></td>
+                    <td>VARCHAR(255)</td>
+                    <td>Nullable</td>
+                    <td>Mô tả chi tiết vi phạm (Ví dụ: "Phát hiện chuyển sang tab khác 3 giây")</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- SECTION 5: FOLDER STRUCTURE & WORKFLOW -->
+      <section id="thumuc">
+        <h2 class="section-title">5. Cấu trúc Thư mục & Phân chia Công việc</h2>
+        <p class="section-desc">Cấu trúc thư mục được phân chia hợp lý để phân rã dự án độc lập, giúp các lập trình viên Frontend và Backend phối hợp làm việc song song.</p>
+        
+        <div class="tabs-container">
+          <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('dir-backend')">Cấu trúc Backend (FastAPI)</button>
+            <button class="tab-btn" onclick="switchTab('dir-frontend')">Cấu trúc Frontend (Next.js)</button>
+          </div>
+
+          <div id="dir-backend" class="tab-content active">
+            <pre><code>backend/
+├── app/
+│   ├── api/                  # 1. Các file router và controller điều phối API
+│   │   ├── auth.py           # API đăng ký, đăng nhập, JWT token
+│   │   ├── exams.py          # API tạo đề, danh sách đề
+│   │   └── toeic.py          # API sinh đề tự động & chấm điểm trắc nghiệm
+│   ├── core/                 # 2. Các file cấu hình hệ thống
+│   │   ├── config.py         # Đọc biến môi trường từ .env
+│   │   ├── database.py       # Thiết lập Connection Pool kết nối cơ sở dữ liệu
+│   │   └── celery.py         # Cấu hình hàng đợi chạy ngầm
+│   ├── models/               # 3. Các thực thể bảng dữ liệu SQLAlchemy (Database Tables)
+│   │   ├── user.py, exam.py, question.py, submission.py, grade.py...
+│   ├── schemas/              # 4. Pydantic schemas kiểm định kiểu dữ liệu đầu vào/ra
+│   ├── services/             # 5. Các module xử lý lõi (Core Engines)
+│   │   ├── ai_grading.py     # Prompt Engine kết nối Gemini API chấm Nói/Viết
+│   │   ├── toeic_grader.py   # Chấm điểm Listening/Reading theo thang ETS
+│   │   └── toeic_generator.py # Thuật toán sinh đề thi ngẫu nhiên theo ma trận độ khó
+│   └── workers/              # 6. Celery Workers xử lý tác vụ chấm điểm
+│       └── tasks.py          # Chạy ngầm gọi AI chấm bài
+└── requirements.txt          # Khai báo các thư viện Python</code></pre>
+            
+            <div style="margin-top: 1.5rem;">
+              <h4 style="margin-bottom: 0.5rem; color: var(--primary);">🎯 Công việc Backend cần thực hiện đầu tiên (Bản Demo):</h4>
+              <ul class="check-list">
+                <li>Thiết lập file `.env` chứa token của Gemini API và kết nối cơ sở dữ liệu PostgreSQL (chạy local qua Docker).</li>
+                <li>Xây dựng API xác thực JWT đăng nhập cho sinh viên và giáo viên.</li>
+                <li>Hoàn thành thuật toán sinh đề trong `toeic_generator.py` để giáo viên import đề từ Word/Excel.</li>
+                <li>Kiểm tra bộ Celery task chạy ngầm có kết nối được Redis cục bộ và gọi được Gemini API thành công.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="dir-frontend" class="tab-content">
+            <pre><code>frontend/
+├── src/
+│   ├── app/                  # 1. Định nghĩa các trang giao diện (Next.js App Router)
+│   │   ├── page.tsx          # Trang chủ / Đăng nhập
+│   │   ├── dashboard/        # Bảng điều khiển chọn đề của sinh viên
+│   │   ├── exam/
+│   │   │   ├── toeic/        # Trang thi trắc nghiệm TOEIC (Listening & Reading)
+│   │   │   └── vstep/        # Trang thi tự luận và nói VSTEP B1
+│   │   └── admin/            # Giao diện cho giáo viên quản trị đề thi
+│   ├── components/           # 2. Các thành phần giao diện dùng chung (UI Components)
+│   │   ├── AudioPlayer.tsx   # Trình nghe audio có giới hạn số lần nghe
+│   │   ├── QuestionPalette.tsx # Bản đồ 200 câu hỏi chuyển hướng nhanh
+│   │   └── ResultView.tsx    # Giao diện hiển thị bảng điểm và sửa lỗi AI
+│   └── hooks/                # 3. Các Custom React Hooks xử lý chức năng đặc thù
+│       ├── useProctoring.ts  # Theo dõi tab, chống copy-paste, chụp ảnh webcam
+│       └── useMediaRecorder.ts # Ghi âm giọng nói bài Nói và tự động nén file
+└── package.json              # Khai báo các thư viện Javascript/Next.js</code></pre>
+
+            <div style="margin-top: 1.5rem;">
+              <h4 style="margin-bottom: 0.5rem; color: var(--accent);">🎯 Công việc Frontend cần thực hiện đầu tiên (Bản Demo):</h4>
+              <ul class="check-list">
+                <li>Thiết kế trang đăng nhập và lưu giữ JWT Token của sinh viên khi đăng nhập thành công.</li>
+                <li>Xây dựng giao diện trang thi TOEIC chia đôi màn hình (bên trái đoạn văn bài đọc, bên phải câu hỏi trắc nghiệm).</li>
+                <li>Kết nối API và hiển thị audio cho các Part nghe trắc nghiệm.</li>
+                <li>Tích hợp hook nén âm thanh để đảm bảo ghi âm và gửi thử nghiệm file nói nhẹ dung lượng lên máy chủ.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 6: MULTI-LANGUAGE BASE DESIGN -->
+      <section id="danganngu">
+        <h2 class="section-title">6. Thiết kế Hệ thống Base Hỗ trợ Đa Ngôn Ngữ</h2>
+        <p class="section-desc">Hệ thống được thiết kế ngay từ đầu để đáp ứng đồng thời cả Tiếng Anh (TOEIC, VSTEP B1) và Tiếng Trung (HSK) mà không cần cấu trúc lại lõi nghiệp vụ.</p>
+        
+        <div class="grid grid-2">
+          <div class="card">
+            <h3 class="card-title">
+              <span class="card-icon">🔤</span> Cơ sở Dữ liệu UTF-8 Collation
+            </h3>
+            <p class="card-text">
+              Toàn bộ cơ sở dữ liệu PostgreSQL sử dụng bảng mã <code>UTF8</code> và Collation đa ngôn ngữ chuẩn (<code>lc_collate = 'en_US.UTF-8'</code>, <code>lc_ctype = 'en_US.UTF-8'</code>). Điều này đảm bảo lưu trữ chuẩn xác các ký tự đặc biệt của tiếng Việt có dấu, tiếng Anh, và các ký tự tượng hình của tiếng Trung (Simplified / Traditional) HSK mà không bị lỗi hiển thị font chữ (font artifacts).
+            </p>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">
+              <span class="card-icon">⚙️</span> Dynamic Payloads via JSONB
+            </h3>
+            <p class="card-text">
+              Để đáp ứng sự khác biệt về nghiệp vụ (ví dụ: tiếng Trung cần lưu trữ Pinyin phiên âm, thứ tự nét viết nét vẽ; tiếng Anh cần link audio/script), các bảng <code>questions</code> và <code>question_groups</code> sử dụng cột <code>metadata</code> kiểu <code>JSONB</code> của PostgreSQL. Cấu trúc payload động này cho phép mở rộng thuộc tính tùy chỉnh theo ngôn ngữ mà không cần thay đổi schema vật lý của bảng.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 25%;">Thành phần</th>
+                <th style="width: 35%;">Thiết kế cho Tiếng Anh (TOEIC & B1)</th>
+                <th style="width: 40%;">Mở rộng tương đương cho Tiếng Trung (HSK)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Cột Metadata (JSONB)</strong></td>
+                <td>
+                  <code>{ "audio_script": "...", "vocabulary_level": "B1" }</code>
+                </td>
+                <td>
+                  <code>{ "pinyin": "nǐ hǎo", "hsk_level": 4, "characters_stroke": 12 }</code>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>API Routing & i18n</strong></td>
+                <td>
+                  Middleware đọc Header <code>Accept-Language: en</code> hoặc route <code>/api/v1/en/exams</code>.
+                </td>
+                <td>
+                  Middleware đọc Header <code>Accept-Language: zh</code> hoặc route <code>/api/v1/zh/exams</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>AI Engine Prompts</strong></td>
+                <td>
+                  Load prompt chấm theo khung B1 VSTEP/ETS từ file <code>prompts/en/grading.json</code>.
+                </td>
+                <td>
+                  Load prompt chấm theo thang HSK (1-6) / HSKK từ file <code>prompts/zh/grading.json</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Lưu trữ Âm thanh (Speaking)</strong></td>
+                <td>
+                  Nén file ghi âm Opus/WebM từ thiết bị sinh viên, ghi nhận transcript tiếng Anh.
+                </td>
+                <td>
+                  Nén tương tự, AI Whisper/Gemini transcribe và đối chiếu phát âm thanh điệu tiếng Trung.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 7: MVP VS PRODUCTION TRANSITION -->
+      <section id="mvpproduction">
+        <h2 class="section-title">7. Chiến lược Chuyển đổi từ MVP lên Bản Chính thức</h2>
+        <p class="section-desc">Đảm bảo mã nguồn chạy MVP (50-100 CCU) và bản chính thức (1000 CCU) là trùng khớp 100%. Sự khác biệt chỉ nằm ở cách cấu hình hạ tầng triển khai.</p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 20%;">Dịch vụ</th>
+                <th style="width: 40%;">Kiến trúc MVP (50 - 100 CCU)</th>
+                <th style="width: 40%;">Kiến trúc Chính thức (500 - 1000 CCU)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Next.js Frontend</strong></td>
+                <td>Chạy Node container trên 1 VM VPS của trường.</td>
+                <td>Build tĩnh (Static Export) deploy lên Google Cloud Storage + CDN toàn cầu (Vercel/Cloudflare). 0% tải cho server chính.</td>
+              </tr>
+              <tr>
+                <td><strong>FastAPI API</strong></td>
+                <td>Chạy container trên cùng 1 VM VPS.</td>
+                <td>Deploy lên Google Cloud Run (Serverless, tự động Scale out từ 1 lên 20+ instances).</td>
+              </tr>
+              <tr>
+                <td><strong>PostgreSQL Database</strong></td>
+                <td>PostgreSQL chạy dưới dạng Docker container cục bộ, ánh xạ ổ cứng VPS để lưu trữ.</td>
+                <td>Google Cloud SQL (PostgreSQL Managed) cấu hình High Availability, kết hợp PgBouncer làm Connection Pool chống nghẽn kết nối.</td>
+              </tr>
+              <tr>
+                <td><strong>Queue & Cache</strong></td>
+                <td>Redis Container chạy cục bộ trên VPS.</td>
+                <td>Google Cloud Memorystore (Redis Cluster Managed) chịu tải lớn, dự phòng thảm họa.</td>
+              </tr>
+              <tr>
+                <td><strong>Media Storage</strong></td>
+                <td>Lưu trực tiếp vào thư mục VPS được ánh xạ (Local Docker Volumes).</td>
+                <td>Google Cloud Storage (GCS) lưu file MP3 đề thi và Opus nộp bài của sinh viên, bảo mật qua Signed URLs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert alert-info">
+          <div>
+            <div class="alert-title">💾 Đảm bảo Tính Đồng nhất Mã nguồn thông qua Biến Môi trường (.env)</div>
+            <p style="font-size: 0.9rem; margin-bottom: 0.5rem;">Hệ thống sử dụng các thư viện Driver chuẩn (<code>SQLAlchemy</code>, <code>boto3/gcloud</code>, <code>celery</code>) đọc cấu hình qua biến môi trường. Khi chuyển từ MVP lên Cloud Production, lập trình viên tuyệt đối <strong>không được sửa code logic</strong>, chỉ thay đổi file cấu hình <code>.env</code>:</p>
+            <pre><code># --- ENV TRÊN MVP (LOCAL DOCKER-COMPOSE) ---
+DATABASE_URL=postgresql://user:pass@localhost:5432/exam_db
+REDIS_URL=redis://localhost:6379/0
+STORAGE_TYPE=local
+UPLOAD_DIR=/app/uploads
+
+# --- ENV TRÊN PRODUCTION (GOOGLE CLOUD RUN) ---
+DATABASE_URL=postgresql://user:pass@pgbouncer-cloudsql.internal:5432/exam_db
+REDIS_URL=redis://memorystore-redis.internal:6379/0
+STORAGE_TYPE=gcs
+GCS_BUCKET_NAME=thanhdong-exam-media</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 8: TEST GENERATION ENGINE DEEP DIVE -->
+      <section id="rade">
+        <h2 class="section-title">8. Chi tiết Phân hệ Ra đề Tự động (Exam Generator)</h2>
+        <p class="section-desc">Phân tích sâu cơ chế nạp liệu Word/Excel và thuật toán trộn đề sinh 100 bộ đề mẫu độc lập cho Tiếng Anh (TOEIC & VSTEP B1) trên base đa ngôn ngữ.</p>
+        
+        <div class="grid grid-2">
+          <!-- PARSER ENGINE -->
+          <div class="card" style="border-top: 4px solid var(--primary);">
+            <h3 class="card-title" style="color: var(--primary);">📥 Bộ Phân tách Dữ liệu (Parser Engine)</h3>
+            <p class="card-text" style="margin-bottom: 0.75rem;">Backend sử dụng <code>python-docx</code> để bóc tách tệp câu hỏi gốc (.docx) và <code>openpyxl</code> để đọc bảng đáp án (.xlsx):</p>
+            <ul class="check-list" style="font-size: 0.85rem;">
+              <li><strong>Phân tích Word (.docx):</strong> Nhận diện câu hỏi đơn và nhóm câu hỏi dựa trên cấu trúc Paragraph, Text Run và Tables. Nhận diện các thẻ đánh dấu đề để tách đoạn văn đọc hiểu chung (passage) hoặc script hội thoại.</li>
+              <li><strong>Phân tích Excel (.xlsx):</strong> Tự động đọc danh sách câu hỏi, cột đáp án đúng (A/B/C/D), phân loại độ khó (Easy, Medium, Hard) và phần thi tương ứng.</li>
+              <li><strong>Liên kết tài liệu:</strong> Ánh xạ tự động các file nghe trong thư mục audio thô với mã câu hỏi dựa trên quy tắc đặt tên file (ví dụ: <code>LT2601_part1.mp3</code> tương ứng với <code>exam_id = 2601, part = 1</code>).</li>
+            </ul>
+          </div>
+
+          <!-- GENERATOR ALGORITHM -->
+          <div class="card" style="border-top: 4px solid var(--accent);">
+            <h3 class="card-title" style="color: var(--accent);">🎲 Thuật toán Trộn đề Ràng buộc (Constraint Generator)</h3>
+            <p class="card-text" style="margin-bottom: 0.75rem;">Để tạo ra 100 bộ đề thi chuẩn hóa độc lập, thuật toán phải tuân thủ nghiêm ngặt ma trận ràng buộc:</p>
+            <ul class="check-list" style="font-size: 0.85rem;">
+              <li><strong>Ràng buộc Độ khó (Difficulty Matrix):</strong> Định mức tỷ lệ 25% câu Dễ (Easy), 50% câu Trung bình (Medium), 25% câu Khó (Hard) cho từng phần thi (Part), cho phép sai số tối đa ±2 câu.</li>
+              <li><strong>Ràng buộc Nhóm (Group Isolation):</strong> Đối với các câu hỏi đi theo đoạn văn (TOEIC Part 6-7, B1 Reading) hoặc đoạn hội thoại (TOEIC Part 3-4, B1 Listening), thuật toán bắt buộc phải trộn ở cấp độ Nhóm (Group-level), không được tách lẻ hoặc tráo đổi câu hỏi con ra khỏi đoạn văn/file nghe chung của nó.</li>
+              <li><strong>Cân bằng Đáp án (Answer Balance):</strong> Phân bổ tỷ lệ đáp án đúng (A, B, C, D) cân bằng trong khoảng từ 20% đến 28% mỗi loại trên toàn bộ bài thi để loại bỏ các mẫu đoán mò.</li>
+              <li><strong>Tránh lặp chủ đề (Topic Diversity):</strong> Kiểm soát không cho xuất hiện cùng 1 chủ đề từ vựng (ví dụ: Email thương mại, Quảng cáo, Vé máy bay) quá 2 lần liên tiếp.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <h4 style="margin-bottom: 0.75rem;">🛠️ Sơ đồ Quy trình sinh 100 Đề thi tự động:</h4>
+          <pre><code>[Giáo viên Upload File Đề (.docx) + File Đáp Án (.xlsx)]
+                         │
+                         ▼
+        [Parser Engine bóc tách dữ liệu thô]
+                         │
+                         ├─► Đọc câu hỏi, nhóm câu hỏi
+                         ├─► Nhận diện độ khó, đáp án đúng
+                         └─► Nạp vào Ngân hàng câu hỏi gốc (DB)
+                         │
+                         ▼
+[Chạy Script Sinh Đề Hàng Loạt: generate_exams(target_count=100)]
+                         │
+      ┌──────────────────┴──────────────────┐
+      ▼                                     ▼
+[Lọc danh sách câu hỏi]           [Lọc nhóm câu hỏi passage/audio]
+      │                                     │
+      └──────────────────┬──────────────────┘
+                         ▼
+   [Lấy ngẫu nhiên & Đối chiếu ma trận ràng buộc]
+                         │
+    - Đủ 200 câu (TOEIC) hoặc đúng số câu (B1 VSTEP)? ──► (Kiểm tra lại)
+    - Tỷ lệ Độ khó đạt 25% - 50% - 25%?              ──► (Kiểm tra lại)
+    - Nhóm câu hỏi đi cùng nhau không bị phân rã?     ──► (Kiểm tra lại)
+    - Tỷ lệ đáp án đúng cân bằng A:B:C:D?            ──► (Kiểm tra lại)
+                         │
+                         ├─► [ĐẠT] ──► Lưu bộ đề mới vào bảng `exams` (is_published = True)
+                         └─► [HỎNG] ─► Loại bỏ và thử lại tổ hợp ngẫu nhiên khác</code></pre>
+        </div>
+      </section>
+
+      <!-- SECTION 9: HARNESS ENGINEERING STANDARDS -->
+      <section id="harness">
+        <h2 class="section-title">9. Quy chuẩn Thiết kế Specs & Tests (Harness Engineering)</h2>
+        <p class="section-desc">Áp dụng triết lý Harness Engineering nhằm thiết lập môi trường giàn thử nghiệm (Test Harness) tự động, giúp kiểm định chất lượng đề thi được sinh ra trước khi đưa vào phòng thi chính thức.</p>
+
+        <div class="grid grid-2">
+          <!-- TECHNICAL SPECS -->
+          <div class="card" style="border-left: 4px solid var(--success);">
+            <h3 class="card-title" style="color: var(--success);">📋 Quy chuẩn Kỹ thuật (Specifications)</h3>
+            <p class="card-text" style="margin-bottom: 0.5rem;">Từng phân hệ nghiệp vụ bắt buộc phải tuân thủ các mã Spec định nghĩa sẵn trong hệ thống:</p>
+            <ul style="margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.5rem; list-style-type: square;">
+              <li><strong>SPEC-PARSE-001 (Tính toàn vẹn dữ liệu):</strong> Bộ phân tách tệp (Parser Engine) sau khi chạy không được để lại bất kỳ bản ghi câu hỏi nào bị khuyết trường <code>correct_answer</code> hoặc khuyết danh sách phương án <code>options</code>.</li>
+              <li><strong>SPEC-MATRIX-002 (Tỷ lệ ma trận độ khó):</strong> Mọi đề thi sinh ra phải đảm bảo số lượng câu Easy nằm trong khoảng <code>[45, 55]</code>, Medium <code>[95, 105]</code>, Hard <code>[45, 55]</code> (đối với TOEIC 200 câu).</li>
+              <li><strong>SPEC-ISOLATE-003 (Ràng buộc nhóm):</strong> Khóa ngoại <code>group_id</code> của các câu hỏi con thuộc nhóm bắt buộc phải tồn tại trong bảng <code>question_groups</code> của đề thi đó. Không chấp nhận tình trạng câu hỏi bị mồ côi (orphaned question).</li>
+              <li><strong>SPEC-COLLATE-004 (Định dạng UTF-8):</strong> Tất cả các văn bản câu hỏi, câu trả lời tự luận không được chứa các ký tự lỗi mã hóa (ví dụ: ).</li>
+            </ul>
+          </div>
+
+          <!-- TEST HARNESS -->
+          <div class="card" style="border-left: 4px solid var(--primary);">
+            <h3 class="card-title" style="color: var(--primary);">🏗️ Giàn Thử nghiệm (Test Harness Architecture)</h3>
+            <p class="card-text" style="margin-bottom: 0.5rem;">Môi trường thử nghiệm độc lập được thiết lập tự động để kiểm thử code sinh đề và chấm đề:</p>
+            <ul style="margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.5rem; list-style-type: square;">
+              <li><strong>Test Scaffolding (Mock Files):</strong> Thư mục <code>tests/fixtures/</code> chứa các tệp Word/Excel mẫu chuẩn và các tệp bị cố ý làm hỏng cấu trúc (thiếu cột đáp án, lỗi font tiếng Trung, thừa đáp án E, v.v...) để kiểm tra độ chịu lỗi của Parser.</li>
+              <li><strong>Automated Execution (Pytest Harness):</strong> Bộ công cụ chạy test tự động. Khi chạy lệnh kiểm thử, Test Runner sẽ khởi tạo DB kiểm thử tạm thời (PostgreSQL test database hoặc Sqlite in-memory), nạp dữ liệu mockup, chạy thuật toán trộn và kiểm tra toàn bộ mã Spec.</li>
+              <li><strong>Programmatic QA Gate (Exam Validator):</strong> Một validator script tự động chạy thử nghiệm giải đề giả lập (Simulation of 10,000 runs) để verify xem hệ thống chấm điểm có trả về kết quả khớp 100% với key hay không. Bộ đề thi chỉ được đổi trạng thái <code>is_published = True</code> sau khi đã vượt qua QA Gate này.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <h4 style="margin-bottom: 0.75rem;">⚙️ Mẫu kịch bản kiểm thử tích hợp (Integration Test Harness Example):</h4>
+          <pre><code># File: backend/tests/test_harness/test_exam_generator.py
+import pytest
+from app.services.toeic_generator import ExamGenerator
+from app.schemas.exam import ExamCreateSchema
+
+def test_generator_matrix_adherence(db_session):
+    """
+    Harness Test verifying SPEC-MATRIX-002:
+    Ensures that the generated exam adheres strictly to the 25% - 50% - 25% difficulty matrix.
+    """
+    # 1. Setup Mock Question Bank
+    generator = ExamGenerator(db=db_session)
+    
+    # 2. Execute Generator
+    new_exam = generator.generate_single_exam(title="Harness Test Exam", language="english")
+    
+    # 3. Assertions (Programmatic QA Gate Checks)
+    easy_count = sum(1 for q in new_exam.questions if q.difficulty == "easy")
+    medium_count = sum(1 for q in new_exam.questions if q.difficulty == "medium")
+    hard_count = sum(1 for q in new_exam.questions if q.difficulty == "hard")
+    
+    # Verify exact TOEIC 200 questions count
+    assert len(new_exam.questions) == 200, "SPEC-MATRIX-002: Exam must have exactly 200 questions"
+    
+    # Verify difficulty tolerances
+    assert 45 <= easy_count <= 55, f"SPEC-MATRIX-002: Easy questions count {easy_count} out of bounds"
+    assert 95 <= medium_count <= 105, f"SPEC-MATRIX-002: Medium questions count {medium_count} out of bounds"
+    assert 45 <= hard_count <= 55, f"SPEC-MATRIX-002: Hard questions count {hard_count} out of bounds"
+    
+    # Verify answer options distribution (A, B, C, D frequency should be between 20% and 30% each)
+    correct_answers = [q.correct_answer for q in new_exam.questions if q.correct_answer]
+    for option in ['A', 'B', 'C', 'D']:
+        option_ratio = correct_answers.count(option) / len(correct_answers)
+        assert 0.20 <= option_ratio <= 0.30, f"SPEC-MATRIX-002: Option {option} distribution is skewed: {option_ratio:.2f}"</code></pre>
+          <div style="margin-top: 1rem;">
+            <p style="font-size: 0.9rem; color: var(--text-muted);">Lệnh thực thi chạy test harness tự động tại terminal backend:</p>
+            <pre><code># Chạy pytest kèm báo cáo đo độ bao phủ code (code coverage)
+pytest tests/test_harness/ --cov=app/services --cov-report=term-missing</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 10: SCALING STRATEGY -->
+      <section id="nangcap">
+        <h2 class="section-title">10. Chiến lược Chịu tải nâng cấp lên 1000 sinh viên</h2>
+        <p class="section-desc">Phân tích sự khác biệt về cấu hình vận hành để chứng minh hệ thống dễ dàng chịu tải khi tăng gấp 10 lần quy mô người dùng.</p>
+
+        <div class="grid grid-2">
+          <div class="card" style="border-left: 4px solid var(--warning);">
+            <div class="card-title" style="color: var(--warning);">⚠️ Các rủi ro sập hệ thống khi tăng tải</div>
+            <ul class="check-list">
+              <li><strong>Nghẽn băng thông:</strong> 1000 học sinh tải file ghi âm bài Nói (WAV thô ~20MB) cùng một lúc làm sập đường truyền của trường.</li>
+              <li><strong>Sập Database:</strong> 1000 kết nối đồng thời từ API mở vào Database làm Database quá tải RAM/CPU.</li>
+              <li><strong>Hết hạn mức AI:</strong> Gửi 1000 yêu cầu chấm thi tự luận dồn dập vào Gemini API cùng lúc bị lỗi trả về `429 Too Many Requests`.</li>
+            </ul>
+          </div>
+
+          <div class="card" style="border-left: 4px solid var(--success);">
+            <div class="card-title" style="color: var(--success);">🛠️ Cách thiết kế này giải quyết triệt để</div>
+            <ul class="check-list">
+              <li><strong>N Nén cục bộ tại Client:</strong> `useMediaRecorder` nén sang Opus chỉ còn ~1.5MB trước khi gửi. Giảm 90% băng thông mạng.</li>
+              <li><strong>Connection Pooling:</strong> Dùng `PgBouncer` giới hạn kết nối thực tế vào PostgreSQL chỉ tối đa 50 kết nối an toàn.</li>
+              <li><strong>Hàng đợi điều phối AI:</strong> Hàng đợi Redis xếp 1000 bài thi Nói/Viết lại. Celery Worker chấm tuần tự 20 bài/phút giúp an toàn tuyệt đối, không lo lỗi API Gemini.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="alert alert-warning">
+          <div>
+            <div class="alert-title">🚀 Tuyên bố Kỹ thuật</div>
+            <p style="font-size: 0.9rem;">Toàn bộ cấu trúc mã nguồn bên dưới của Next.js (Frontend) và FastAPI (Backend) được thiết kế theo đúng chuẩn Cloud-Native. Nhờ vậy, khi chuyển đổi quy mô vận hành từ 100 sinh viên lên 1000 sinh viên, lập trình viên của Đại học Thành Đông chỉ cần thay đổi tệp cấu hình triển khai hệ thống (Docker Compose / Google Cloud Run) mà <strong>không phải chỉnh sửa lại bất kỳ dòng code logic nghiệp vụ nào</strong>. Tiết kiệm tối đa 100% chi phí phát triển và loại bỏ rủi ro phát sinh bug mới.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Dark/Light Theme Switching
+    const themeBtn = document.getElementById('themeBtn');
+    const htmlEl = document.documentElement;
+
+    themeBtn.addEventListener('click', () => {
+      const currentTheme = htmlEl.getAttribute('data-theme');
+      if (currentTheme === 'dark') {
+        htmlEl.setAttribute('data-theme', 'light');
+        themeBtn.innerHTML = '🌙 Chế độ Tối';
+      } else {
+        htmlEl.setAttribute('data-theme', 'dark');
+        themeBtn.innerHTML = '☀️ Chế độ Sáng';
+      }
+    });
+
+    // Tab Switching for Folder Structure
+    function switchTab(tabId) {
+      const parent = document.getElementById(tabId).parentNode;
+      const tabButtons = parent.querySelector('.tabs').querySelectorAll('.tab-btn');
+      const tabContents = parent.querySelectorAll('.tab-content');
+
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabContents.forEach(content => content.classList.remove('active'));
+
+      // Activate selected tab content
+      document.getElementById(tabId).classList.add('active');
+      
+      // Find button corresponding to tabId and activate it
+      tabButtons.forEach(btn => {
+        if (btn.getAttribute('onclick').includes(tabId)) {
+          btn.classList.add('active');
+        }
+      });
+    }
+
+    // Toggle Database Schema Tables display
+    function toggleTable(tableId) {
+      const tableContent = document.getElementById(tableId);
+      if (tableContent.classList.contains('active')) {
+        tableContent.classList.remove('active');
+      } else {
+        tableContent.classList.add('active');
+      }
+    }
+
+    // Sidebar active item on scroll
+    const sections = document.querySelectorAll('section');
+    const navItems = document.querySelectorAll('.nav-item');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop;
+        const sectionHeight = section.clientHeight;
+        if (pageYOffset >= (sectionTop - 150)) {
+          current = section.getAttribute('id');
+        }
+      });
+
+      navItems.forEach(item => {
+        item.classList.remove('active');
+        const linkHref = item.querySelector('a').getAttribute('href');
+        if (linkHref === `#${current}`) {
+          item.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

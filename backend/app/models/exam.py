@@ -16,4 +16,5 @@ class Exam(Base):
 
     # Relationships
     questions = relationship("Question", back_populates="exam", cascade="all, delete-orphan")
+    question_groups = relationship("QuestionGroup", back_populates="exam", cascade="all, delete-orphan")
     submissions = relationship("Submission", back_populates="exam", cascade="all, delete-orphan")

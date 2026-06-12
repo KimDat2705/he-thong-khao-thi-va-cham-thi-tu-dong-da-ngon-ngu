@@ -1,0 +1,408 @@
+{
+  "version": "2.0",
+  "updated": "2026-06-11",
+  "source_of_truth": true,
+  "description": "Catalog spec theo chuẩn Harness Engineering. Đây là NGUỒN SỰ THẬT DUY NHẤT cho mọi bảo chứng kiến trúc của hệ thống. Bảng spec trong docs/kien_truc_he_thong_v2.html (mục 9) được render từ file này. Meta-test backend/tests/test_specs_traceability.py kiểm tra truy vết 2 chiều spec <-> test.",
+  "conventions": {
+    "id_format": "SPEC-<DOMAIN>-<NNN>",
+    "verification": [
+      "pytest",
+      "load-test",
+      "manual"
+    ],
+    "status": {
+      "active": "Bảo chứng đang được test tự động xác nhận (test PASS hôm nay)",
+      "gap": "Bảo chứng đã đặc tả nhưng code hiện tại chưa đạt (test XFAIL — tự chuyển XPASS khi sửa xong)",
+      "planned": "Bảo chứng cho subsystem chưa triển khai (test SKIP kèm lý do)"
+    },
+    "test_naming": "test_SPEC_<DOMAIN>_<NNN>_<mo_ta_ngan>"
+  },
+  "specs": [
+    {
+      "id": "SPEC-PARSE-001",
+      "domain": "PARSE",
+      "legacy": true,
+      "title": "Không câu hỏi khuyết đáp án sau import",
+      "statement": "Sau khi Parser Engine import một file nguồn (Word/Excel), không tồn tại bất kỳ câu hỏi trắc nghiệm nào trong ngân hàng thiếu reference_answer hoặc thiếu options.",
+      "acceptance_criteria": [
+        "Query câu hỏi type='choice' có reference_answer IS NULL hoặc rỗng trả về 0 bản ghi",
+        "Query câu hỏi type='choice' có options IS NULL hoặc rỗng trả về 0 bản ghi",
+        "File nguồn chứa câu khuyết đáp án phải bị từ chối ở validation gate (xem SPEC-PARSE-004)"
+      ],
+      "verification": "pytest",
+      "status": "planned",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_001_no_incomplete_questions_after_import"
+      ],
+      "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
+    },
+    {
+      "id": "SPEC-PARSE-002",
+      "domain": "PARSE",
+      "title": "Liên kết audio Listening phải hợp lệ",
+      "statement": "Mỗi nhóm câu hỏi Listening import từ file LTxxxx.docx phải được liên kết tới file MP3 tồn tại theo quy ước đặt tên; nếu file âm thanh thiếu, import phải thất bại với thông báo rõ ràng.",
+      "acceptance_criteria": [
+        "Sau import thành công, mọi QuestionGroup part 3/4 (và câu Part 1/2) có audio_url trỏ tới file tồn tại trong storage",
+        "Import bộ Listening với MP3 thiếu phải raise lỗi và rollback (không ghi bản ghi nào)",
+        "Báo cáo lỗi nêu rõ tên file MP3 bị thiếu"
+      ],
+      "verification": "pytest",
+      "status": "planned",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_002_listening_audio_link_resolves"
+      ],
+      "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
+    },
+    {
+      "id": "SPEC-PARSE-003",
+      "domain": "PARSE",
+      "title": "Import idempotent (chống nhân bản)",
+      "statement": "Import lại cùng một file nguồn không tạo bản ghi trùng lặp trong ngân hàng câu hỏi; nhận diện trùng bằng content-hash của câu hỏi/nhóm.",
+      "acceptance_criteria": [
+        "Import cùng file 2 lần: tổng số Question và QuestionGroup không đổi sau lần 2",
+        "Mỗi câu hỏi/nhóm có content-hash được lưu để đối chiếu",
+        "Lần import thứ 2 báo cáo số bản ghi bị bỏ qua do trùng"
+      ],
+      "verification": "pytest",
+      "status": "planned",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_003_reimport_is_idempotent"
+      ],
+      "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
+    },
+    {
+      "id": "SPEC-PARSE-004",
+      "domain": "PARSE",
+      "title": "Import all-or-nothing kèm báo cáo lỗi",
+      "statement": "Import theo đơn vị file là giao dịch nguyên tử: file không qua validation thì 0 bản ghi được ghi vào DB, đồng thời sinh báo cáo lỗi JSON liệt kê từng vi phạm.",
+      "acceptance_criteria": [
+        "File lỗi (khuyết đáp án, sai cấu trúc, thiếu audio) -> số bản ghi trong DB không đổi",
+        "Báo cáo lỗi JSON chứa: tên file, vị trí lỗi (số câu/dòng), loại lỗi, mô tả",
+        "Mọi item import thành công vào bank ở trạng thái status='draft' chờ duyệt"
+      ],
+      "verification": "pytest",
+      "status": "planned",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_004_failed_import_writes_nothing"
+      ],
+      "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
+    },
+    {
+      "id": "SPEC-BANK-001",
+      "domain": "BANK",
+      "title": "Chỉ item đã duyệt được vào đề",
+      "statement": "Thuật toán sinh đề chỉ được chọn câu hỏi/nhóm có status='approved' từ ngân hàng; item ở trạng thái draft hoặc retired không bao giờ xuất hiện trong đề sinh ra.",
+      "acceptance_criteria": [
+        "Bank toàn item draft cho một part -> đề sinh ra không chứa câu nào của part đó (hoặc raise lỗi thiếu bank theo SPEC-GEN-006)",
+        "Generator có filter status='approved' trong mọi query chọn câu/nhóm"
+      ],
+      "verification": "pytest",
+      "status": "gap",
+      "tests": [
+        "tests/test_specs_bank.py::test_SPEC_BANK_001_only_approved_items_generated"
+      ],
+      "notes": "GAP: generator chưa lọc status='approved' — test XFAIL."
+    },
+    {
+      "id": "SPEC-BANK-002",
+      "domain": "BANK",
+      "title": "Sinh đề không phá hủy ngân hàng",
+      "statement": "Thao tác sinh đề chỉ CLONE dữ liệu từ ngân hàng; tập câu hỏi/nhóm gốc (exam_id IS NULL) phải bất biến cả về số lượng lẫn nội dung.",
+      "acceptance_criteria": [
+        "Snapshot (id, content) của mọi bản ghi bank trước/sau sinh đề là giống hệt nhau",
+        "Số bản ghi exam_id IS NULL không đổi sau khi sinh đề"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_bank.py::test_SPEC_BANK_002_generation_preserves_bank",
+        "tests/test_toeic_generator.py::test_generate_toeic_exam_success"
+      ],
+      "notes": "Đang đạt: generator clone bản ghi mới với exam_id của đề, không sửa bản gốc."
+    },
+    {
+      "id": "SPEC-GEN-001",
+      "domain": "GEN",
+      "title": "Tuân thủ blueprint số câu TOEIC",
+      "statement": "Đề TOEIC sinh ra phải có đúng số câu từng part theo blueprint: P1=6, P2=25, P3=39, P4=30, P5=30, P6=16, P7=54 — tổng 200 câu.",
+      "acceptance_criteria": [
+        "Đếm câu theo part khớp chính xác 6/25/39/30/30/16/54",
+        "Tổng số câu của đề = 200",
+        "P3: 13 nhóm x 3 câu; P4: 10 nhóm x 3 câu; P6: 4 nhóm x 4 câu; P7: tổ hợp nhóm 2-5 câu đạt đúng 54"
+      ],
+      "verification": "pytest",
+      "status": "gap",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_GEN_001_blueprint_part_counts"
+      ],
+      "notes": "GAP: thuật toán greedy Part 7 với bank toàn nhóm 4 câu chỉ đạt 52 câu (tổng 198). Cần thuật toán tổ hợp (subset-sum) cho Part 7 — test XFAIL."
+    },
+    {
+      "id": "SPEC-MATRIX-002",
+      "domain": "GEN",
+      "legacy": true,
+      "title": "Ma trận độ khó 25/50/25",
+      "statement": "Đề sinh ra phải tuân thủ ma trận độ khó: đúng target từng part (P1-P6), và toàn đề Easy thuộc [45,55], Medium thuộc [95,105], Hard thuộc [45,55] (quy theo tổng câu thực tế nếu khác 200).",
+      "acceptance_criteria": [
+        "P1: 2E/3M/1H; P2: 6E/13M/6H; P5: 8E/15M/7H (đếm theo câu)",
+        "P3: 3E/7M/3H; P4: 2E/5M/3H; P6: 1E/2M/1H (đếm theo nhóm)",
+        "Toàn đề: Easy/Medium/Hard nằm trong [45,55]/[95,105]/[45,55] tỷ lệ theo tổng thực tế"
+      ],
+      "verification": "pytest",
+      "status": "gap",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_MATRIX_002_per_part_difficulty_targets",
+        "tests/test_specs_generation.py::test_SPEC_MATRIX_002_whole_exam_ratio"
+      ],
+      "notes": "ID legacy giữ nguyên từ v1. Per-part ĐANG ĐẠT (test pass); toàn đề chưa đảm bảo vì Part 7 chọn nhóm ngẫu nhiên không ràng buộc độ khó — phần toàn đề XFAIL."
+    },
+    {
+      "id": "SPEC-ISOLATE-003",
+      "domain": "GEN",
+      "legacy": true,
+      "title": "Cách ly nhóm — không câu mồ côi",
+      "statement": "Câu hỏi thuộc nhóm (đoạn văn/file nghe chung) phải đi nguyên nhóm vào đề: mọi câu có group_id phải tham chiếu nhóm tồn tại, cùng đề, cùng part; mọi nhóm trong đề phải có đủ câu hỏi.",
+      "acceptance_criteria": [
+        "Mọi Question của đề có group_id -> QuestionGroup tồn tại với exam_id trùng đề và part trùng câu",
+        "Không QuestionGroup nào của đề có 0 câu hỏi",
+        "Câu Part 3/4/6/7 trong đề bắt buộc có group_id (không câu lẻ)"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_ISOLATE_003_group_isolation_no_orphans"
+      ],
+      "notes": "ID legacy giữ nguyên từ v1. Đang đạt: clone_group sao chép nguyên nhóm kèm toàn bộ câu hỏi."
+    },
+    {
+      "id": "SPEC-GEN-002",
+      "domain": "GEN",
+      "title": "Cân bằng đáp án A/B/C/D",
+      "statement": "Trong các phần dùng 4 lựa chọn, mỗi đáp án đúng (A/B/C/D) phải chiếm 20%-28% tổng số câu để tránh mẫu đoán mò.",
+      "acceptance_criteria": [
+        "Đếm reference_answer trên các câu 4 lựa chọn của đề: tỷ lệ mỗi đáp án thuộc [0.20, 0.28]",
+        "Áp dụng cho đề sinh ra, không yêu cầu với bank gốc (cân bằng đạt được qua chọn lọc hoặc hoán vị đáp án)"
+      ],
+      "verification": "pytest",
+      "status": "gap",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_GEN_002_answer_balance"
+      ],
+      "notes": "GAP: generator chưa có bước cân bằng/hoán vị đáp án — test XFAIL."
+    },
+    {
+      "id": "SPEC-GEN-003",
+      "domain": "GEN",
+      "title": "Đa dạng chủ đề",
+      "statement": "Trong mỗi part nhiều nhóm (P3/P4/P6/P7), không chủ đề (topic) nào chiếm quá 20% số câu, tránh lặp chủ đề gây thiên lệch.",
+      "acceptance_criteria": [
+        "Với từng part 3/4/6/7 của đề: max(số câu theo topic) / tổng câu part <= 0.20",
+        "Topic NULL được tính là nhóm riêng và cũng không vượt ngưỡng"
+      ],
+      "verification": "pytest",
+      "status": "gap",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_GEN_003_topic_diversity"
+      ],
+      "notes": "GAP: generator chưa ràng buộc topic khi chọn nhóm — test XFAIL."
+    },
+    {
+      "id": "SPEC-GEN-004",
+      "domain": "GEN",
+      "title": "Độ trùng lặp giữa các đề trong lô",
+      "statement": "Khi sinh lô 100 đề, hai đề bất kỳ không được trùng nhau quá 40% câu hỏi nguồn (truy vết qua source_question_id).",
+      "acceptance_criteria": [
+        "Với mọi cặp đề (i, j) trong lô: |source_ids(i) giao source_ids(j)| / 200 <= 0.40",
+        "Mỗi câu clone lưu source_question_id trỏ về câu gốc trong bank"
+      ],
+      "verification": "pytest",
+      "status": "planned",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_GEN_004_cross_exam_overlap"
+      ],
+      "notes": "Cần thêm cột questions.source_question_id (qua Alembic) để truy vết nguồn — test SKIP đến khi schema sẵn sàng."
+    },
+    {
+      "id": "SPEC-GEN-005",
+      "domain": "GEN",
+      "title": "Sinh đề tái lập được bằng seed",
+      "statement": "Hàm sinh đề nhận tham số seed; cùng seed và cùng trạng thái bank phải cho ra đề giống hệt nhau (phục vụ debug, audit và kiểm định).",
+      "acceptance_criteria": [
+        "generate(seed=X) hai lần trên cùng bank -> hai đề có cùng dãy source_question_id theo thứ tự",
+        "Seed khác nhau -> đề khác nhau (xác suất trùng không đáng kể)"
+      ],
+      "verification": "pytest",
+      "status": "planned",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_GEN_005_seeded_generation_reproducible"
+      ],
+      "notes": "Lập kế hoạch: generator bản đầu chưa nhận seed — test SKIP."
+    },
+    {
+      "id": "SPEC-GEN-006",
+      "domain": "GEN",
+      "title": "Fail-fast khi bank thiếu",
+      "statement": "Nếu ngân hàng không đủ câu/nhóm đạt blueprint, sinh đề phải raise lỗi rõ ràng (nêu part và số lượng thiếu) thay vì âm thầm tạo đề thiếu câu.",
+      "acceptance_criteria": [
+        "Bank rỗng hoặc thiếu so blueprint -> generate raise exception có thông điệp nêu part thiếu",
+        "Không bản ghi đề nào được ghi vào DB khi raise (rollback sạch)"
+      ],
+      "verification": "pytest",
+      "status": "gap",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_GEN_006_insufficient_bank_raises"
+      ],
+      "notes": "GAP: generator chưa kiểm tồn kho fail-fast — test XFAIL."
+    },
+    {
+      "id": "SPEC-GRADE-001",
+      "domain": "GRADE",
+      "title": "Bảng quy đổi điểm TOEIC chuẩn",
+      "statement": "Quy đổi điểm trắc nghiệm theo bảng chuẩn toeic_scoring_table.json: mỗi kỹ năng (Listening/Reading) phủ đủ 0-100% câu đúng, điểm 5-495, đơn điệu không giảm; tổng điểm = Listening + Reading.",
+      "acceptance_criteria": [
+        "Mỗi mảng listening/reading có đúng 101 phần tử (index 0-100)",
+        "Dãy điểm đơn điệu không giảm, min >= 5, max <= 495",
+        "Điểm chấm thực tế khớp tra bảng theo % câu đúng; score_total = L + R"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_grading.py::test_SPEC_GRADE_001_scoring_table_properties",
+        "tests/test_toeic_grader.py::test_grade_toeic_submission_success"
+      ],
+      "notes": "Đang đạt: kiểm thuộc tính bảng + test E2E chấm điểm có sẵn."
+    },
+    {
+      "id": "SPEC-GRADE-002",
+      "domain": "GRADE",
+      "title": "Ngữ nghĩa trường điểm đúng tên",
+      "statement": "Điểm Listening và Reading phải được lưu trong trường có tên đúng ngữ nghĩa (score_listening/score_reading), không mượn trường score_speaking/score_writing.",
+      "acceptance_criteria": [
+        "Model Grade có thuộc tính score_listening và score_reading",
+        "Sau khi chấm TOEIC: score_listening chứa điểm Nghe, score_reading chứa điểm Đọc"
+      ],
+      "verification": "pytest",
+      "status": "gap",
+      "tests": [
+        "tests/test_specs_grading.py::test_SPEC_GRADE_002_score_field_semantics"
+      ],
+      "notes": "GAP: toeic_grader hiện lưu Listening vào score_speaking, Reading vào score_writing. Cần Alembic thêm cột mới rồi migrate — test XFAIL."
+    },
+    {
+      "id": "SPEC-GRADE-003",
+      "domain": "GRADE",
+      "title": "Chấm tự luận bất đồng bộ qua Celery",
+      "statement": "Bài Writing/Speaking phải được chấm bất đồng bộ: API nộp bài đẩy task vào hàng đợi Redis và phản hồi trạng thái pending trong <= 2 giây; Celery worker chấm ngầm qua Gemini rồi ghi kết quả.",
+      "acceptance_criteria": [
+        "POST submit với câu writing/speaking trả về ngay (status pending/grading), không chờ Gemini",
+        "grade_submission_task được enqueue và xử lý (kiểm bằng celery eager mode trong test)",
+        "Kết quả cuối ghi vào bảng grades, submission.status='completed'"
+      ],
+      "verification": "pytest",
+      "status": "planned",
+      "tests": [
+        "tests/test_specs_grading.py::test_SPEC_GRADE_003_async_grading_via_celery"
+      ],
+      "notes": "Task grade_submission_task đã định nghĩa trong app/workers/tasks.py nhưng API đang chấm ĐỒNG BỘ — test SKIP đến khi nối queue."
+    },
+    {
+      "id": "SPEC-GRADE-004",
+      "domain": "GRADE",
+      "title": "Degrade an toàn khi AI không khả dụng",
+      "statement": "Khi Gemini API thiếu key hoặc lỗi, dịch vụ chấm AI phải trả về kết quả có cấu trúc (mock/thông báo lỗi trong payload), tuyệt đối không ném exception làm gãy luồng chấm.",
+      "acceptance_criteria": [
+        "GEMINI_API_KEY=None -> AIGradingService khởi tạo ở mock mode, không crash",
+        "grade_writing trả dict đủ keys: score, feedback, grammar_errors",
+        "grade_speaking trả dict đủ keys: score, transcription, feedback, pronunciation_issues",
+        "Không gọi mạng ra ngoài khi ở mock mode"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_grading.py::test_SPEC_GRADE_004_ai_grading_degrades_safely"
+      ],
+      "notes": "Đang đạt: ai_grading.py có mock fallback và try/except bao quanh lời gọi Gemini."
+    },
+    {
+      "id": "SPEC-COLLATE-004",
+      "domain": "I18N",
+      "legacy": true,
+      "title": "UTF-8 toàn trình, không mojibake",
+      "statement": "Mọi văn bản trong ngân hàng và đề sinh ra (nội dung câu, options, đoạn văn, đáp án, giải thích) phải là UTF-8 hợp lệ, không chứa ký tự thay thế U+FFFD hay lỗi mã hóa.",
+      "acceptance_criteria": [
+        "Quét toàn bộ trường văn bản sau sinh đề: không chuỗi nào chứa U+FFFD",
+        "Mọi chuỗi encode/decode UTF-8 round-trip nguyên vẹn"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_i18n.py::test_SPEC_COLLATE_004_no_mojibake_in_bank_or_exam"
+      ],
+      "notes": "ID legacy giữ nguyên từ v1."
+    },
+    {
+      "id": "SPEC-I18N-001",
+      "domain": "I18N",
+      "title": "Schema trung lập ngôn ngữ",
+      "statement": "Schema hiện tại phải chứa được đề thi tiếng Trung/HSK không cần thay đổi: language/exam_type là dữ liệu, metadata đặc thù ngôn ngữ (pinyin, hsk_level) nằm trong JSON, ký tự CJK round-trip nguyên vẹn.",
+      "acceptance_criteria": [
+        "Tạo Exam(language='CN', exam_type='HSK') + Question nội dung CJK + options JSON lồng pinyin bằng model hiện tại: commit và đọc lại nguyên vẹn",
+        "Không cần thêm cột/bảng mới cho tiếng Trung",
+        "Generator không chứa code path riêng theo ngôn ngữ (không if language=='CN')"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_i18n.py::test_SPEC_I18N_001_schema_accepts_chinese_hsk"
+      ],
+      "notes": "Bảo chứng nền tảng cho chiến lược 'thêm tiếng Trung = thêm DATA, không refactor'."
+    },
+    {
+      "id": "SPEC-SCALE-001",
+      "domain": "SCALE",
+      "title": "Cấu hình hạ tầng 100% từ biến môi trường",
+      "statement": "Mọi cấu hình hạ tầng (DATABASE_URL, REDIS_URL, GEMINI_API_KEY, storage...) phải đọc từ biến môi trường; chuyển MVP -> Production chỉ thay .env, không sửa code.",
+      "acceptance_criteria": [
+        "Set env var rồi khởi tạo Settings -> giá trị lấy từ env, không hardcode",
+        "Không chuỗi kết nối production nào nằm cứng trong mã nguồn"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_scale.py::test_SPEC_SCALE_001_config_from_environment"
+      ],
+      "notes": "Nền tảng của ma trận MVP -> Production (mục 8 tài liệu kiến trúc)."
+    },
+    {
+      "id": "SPEC-SCALE-002",
+      "domain": "SCALE",
+      "title": "Hiệu năng sinh đề",
+      "statement": "Sinh một đề TOEIC hoàn chỉnh từ ngân hàng chuẩn phải hoàn tất trong dưới 10 giây (đảm bảo sinh lô 100 đề khả thi trong một phiên làm việc).",
+      "acceptance_criteria": [
+        "generate_toeic_exam trên dataset test chuẩn < 10 giây",
+        "Sinh lô 100 đề (tương lai) có báo cáo thời gian từng đề"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_scale.py::test_SPEC_SCALE_002_generation_latency_smoke"
+      ],
+      "notes": "Smoke test trên SQLite in-memory; số liệu PostgreSQL thực tế đo ở giai đoạn load test."
+    },
+    {
+      "id": "SPEC-SCALE-003",
+      "domain": "SCALE",
+      "title": "Chịu tải 500-1000 thí sinh đồng thời",
+      "statement": "Hệ thống Production chịu được 500-1000 CCU làm bài đồng thời: p95 latency các endpoint phòng thi < 500ms, không mất bài làm, hàng đợi chấm AI không tràn.",
+      "acceptance_criteria": [
+        "Kịch bản k6/Locust 500 CCU và 1000 CCU trên môi trường staging: p95 < 500ms cho /take, /start, /autosave, /submit",
+        "0 submission bị mất hoặc hỏng dữ liệu trong suốt bài test",
+        "Hàng đợi Redis tiêu thụ hết backlog chấm AI với rate limit Gemini"
+      ],
+      "verification": "load-test",
+      "status": "planned",
+      "tests": [],
+      "notes": "Không verify bằng pytest — chạy k6/Locust ở Giai đoạn 4 (system_plan.md) trên staging trước bàn giao."
+    }
+  ]
+}
