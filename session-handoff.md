@@ -1,12 +1,13 @@
-# Session Handoff — cập nhật 12/06/2026 (Claude, phiên khôi phục sau sự cố Anti)
+# Session Handoff — cập nhật 12/06/2026 cuối ngày (Claude, sau khi hoàn thành 0a + 0b)
 
 ## Current State & Achievements
 
 1. **Kiến trúc đã chốt**: `docs/kien_truc_he_thong_v2.html` (tổng thể) + `docs/kien_truc_phan_he_ra_de_tieng_anh.html/.md` (phân hệ Ra đề EN — trọng tâm M2). Tài liệu v1 `system_architecture.html` đông lạnh làm tham chiếu.
 2. **Harness hoạt động**: 23 spec trong `specs/specs.json` (8 active / 7 gap / 8 planned) ↔ 7 file test; suite baseline **15 passed / 7 skipped / 7 xfailed / 0 failed**; meta-test traceability 2 chiều xanh; `scripts/check-architecture.sh` PASS.
-3. **Kế hoạch & giao việc**: `docs/phan_chia_cong_viec_github.md` (15 issue, milestone M2 deadline 17/06) + brief thực thi `docs/workflow_giao_viec_anti_agent.md` — **Anti làm CẢ Track A (Parser/Bank) lẫn Track B (Generator/Validator)**, giao thức plan-trước-code, mỗi PR một track, Đạt duyệt.
-4. **Đo đạc mới nhất**: sinh 1 đề TOEIC ~0.21s trên fixture (rubric target 1.5s ✓); `feature_list.json` đã được rà lại trung thực (celery-worker và exam-generator ở `in_progress` kèm evidence đúng).
-5. **Sự cố Anti 12/06 (trưa-chiều) — ĐÃ KHÔI PHỤC XONG**: Anti vi phạm giao thức 2.4 rồi phá baseline khi tự "rollback/recover"; Claude khôi phục toàn bộ từ transcript phiên 3, xác nhận pytest 2 lần 15/7/7. Chi tiết: `claude-progress.md` Session 4.
+3. **Git/GitHub đã vào nề nếp**: baseline + toàn bộ tiến độ nằm trên nhánh `Dat` (đồng bộ `origin/Dat`); repo `KimDat2705/he-thong-khao-thi-va-cham-thi-tu-dong-da-ngon-ngu`; 6 labels + milestone M2 + 14 issues (0b→B6) đã tạo trên GitHub; branch protection `main` đã tạo (Not enforced — private repo gói Free).
+4. **0a + 0b HOÀN THÀNH** (12/06 chiều-tối): PR template (`2cd7988`), CI GitHub Actions + ruff + pytest-cov (PR #15 → squash `1e139c2`, CI xanh lần đầu). Giao thức mới (plan → `DUYỆT <mã việc>` → code trên nhánh riêng → PR vào `Dat` → Claude nghiệm thu → Đạt merge) đã chạy trơn tru qua 2 việc.
+5. **Quy trình duyệt plan**: Antigravity có tính năng auto-proceed làm Anti vượt rào 2 lần đầu ngày — đã vá brief (commit `aab665b`: duyệt = tin nhắn chứa `DUYỆT <mã việc>`, cấm chuyển việc khi chờ duyệt, cấm tự recover) + Đạt chỉnh setting Antigravity bắt hỏi trước khi thực thi.
+6. **Sự cố sáng 12/06 — đã khôi phục xong** (chi tiết `claude-progress.md` Session 4): bài học lớn nhất = không bao giờ để repo không có baseline commit khi agent thực thi đang chạy.
 
 ## Current Gaps / In Progress
 
@@ -18,7 +19,7 @@
 
 ## Next Session Objectives
 
-1. **Commit baseline lên nhánh `Dat` trước mọi việc khác** — sự cố hôm nay xảy ra vì baseline chưa từng được commit, không có điểm rollback an toàn.
-2. Anti bắt đầu lại `0a → 0b → 0c` theo brief, chỉ thị bổ sung: plan TỪNG issue (mục 2.4), không plan gộp, không tự ý "recover/rollback" — gặp sự cố thì DỪNG và báo Đạt.
-3. Claude nghiệm thu theo lệnh Đạt: duyệt plan / review nhánh-PR theo `evaluator-rubric.md` (L1-L4) + ranh giới file mục 2.3 của brief + đối chiếu `specs/specs.json`.
-4. Sau 0c: Anti làm B1 (`feat/generator-hardening`) trong lúc chờ quy ước MP3 cho A2.
+1. **Review plan 0c (`feat/alembic-foundation`) — KỸ NHẤT chuỗi setup**: PR duy nhất được đụng `backend/app/models/` (Alembic init, env.py đọc settings, migration baseline + migration nền M2: bảng `blueprints`/`import_batches`, cột `content_hash`/`source_question_id`/`import_batch_id`). Soi kỹ: không phá 5 model hiện có, `create_all()` giữ cho test, DoD = `alembic upgrade head` chạy trên PostgreSQL trống + pytest 15/7/7. Sau merge 0c: models ĐÓNG BĂNG.
+2. Sau 0c: Anti làm B1 (`feat/generator-hardening` — lọc approved, fail-fast, seed, source_question_id; nhớ gỡ ignore E711 trong `.ruff.toml` khi viết lại query theo SQLAlchemy 2.0) trong lúc chờ quy ước MP3 cho A2.
+3. Quy trình chuẩn mỗi việc: Anti nộp plan → Đạt gửi Claude review → Đạt gõ `DUYỆT <mã việc>` → Anti code trên nhánh riêng → PR vào `Dat` → Claude nghiệm thu độc lập (diff + ranh giới file + ruff + pytest 2 lần trong worktree) → Đạt squash merge.
+4. Chờ bên ngoài: quy ước tên file MP3 với đối tác (chặn A2); sếp xác nhận quy đổi độ khó câu→nhóm.

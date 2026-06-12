@@ -40,8 +40,17 @@
 - **Mất không khôi phục được**: diff chưa-commit buổi sáng của `grade.py`, `submission.py`, `user.py` (không nguồn nào lưu) — suite xanh với bản HEAD nên đánh giá tương đương chức năng; khi làm 0c (Alembic) cần rà schema kỹ để phát hiện lệch nếu có.
 - **Bài học**: PHẢI commit baseline vào git trước khi cho agent thực thi chạy trên repo; lệnh "rollback" giao cho agent không có git baseline là rủi ro mất dữ liệu.
 
+### Session 5 -- 2026-06-12 (Claude + Anti — hoàn thành 0a + 0b theo giao thức mới)
+- **Baseline lên git**: commit `ba2eeab` (41 file, toàn bộ baseline 15/7/7) + push GitHub lần đầu (nhánh `Dat`, remote `KimDat2705/he-thong-khao-thi-va-cham-thi-tu-dong-da-ngon-ngu`).
+- **Vá brief sau sự cố lần 2** (commit `aab665b`): nguyên nhân Anti vượt rào = tính năng auto-proceed plan của Antigravity + 2 kẽ hở trong brief. Vá: định nghĩa duyệt machine-checkable (`DUYỆT <mã việc>`), cấm chuyển việc khi plan đang chờ duyệt, cấm tự recover/rollback (điều cấm số 5).
+- **Việc 0a HOÀN THÀNH** (commit `2cd7988`): PR template (Anti viết, plan được duyệt qua 2 vòng review); Đạt tự chạy `scripts/setup_repo_github.py` tạo 6 labels + milestone M2 + 14 issues; bật branch protection `main` (⚠️ "Not enforced" — repo private gói Free, rule chỉ là biển báo, tự kích hoạt nếu repo public/nâng gói).
+- **Việc 0b HOÀN THÀNH** (PR #15 → squash `1e139c2`): CI GitHub Actions (trigger push/PR vào main + Dat), ruff (0 lỗi với `.ruff.toml` per-file-ignores: F401 main.py/__init__/2 file Chấm đóng băng, E711 toeic_generator — gỡ ở B1), pytest-cov (72%, chỉ report chưa gate 85%). Sự cố nhỏ: YAML lỗi dòng 34 (`sqlite:///:memory:` không bọc nháy → dấu `:` cuối bị hiểu thành key) — Claude fix `870c539`, CI xanh lần đầu trên PR #15.
+- **Giao thức mới chạy tốt**: Anti plan từng việc → DỪNG chờ `DUYỆT <mã>` → code đúng nhánh → PR vào `Dat` → Claude nghiệm thu độc lập (worktree riêng, ruff + pytest 2 lần) → Đạt merge.
+- **Bài học**: file YAML phải kiểm bằng parser thật (PyYAML) khi review, không chỉ soi mắt; squash merge làm `git branch -d` báo "not fully merged" — kiểm diff nội dung rồi `-D`.
+- Suite sau merge: **15 passed / 7 skipped / 7 xfailed** ✓.
+
 ## Next Steps
-- **Commit baseline lên nhánh `Dat` NGAY** trước khi giao việc lại cho Anti (chống mất dữ liệu lần 2).
-- Anti bắt đầu lại việc 0a với chỉ thị: plan TỪNG issue một (mục 2.4), KHÔNG plan gộp, KHÔNG đụng file hiện có ngoài phạm vi issue, gặp sự cố thì DỪNG và báo Đạt — không tự "recover".
-- Claude nghiệm thu theo lệnh của Đạt: duyệt plan của Anti / review nhánh-PR (fetch + diff + pytest + kiểm ranh giới file + specs.json).
+- Anti lập plan 0c (`feat/alembic-foundation`) — việc NHẠY CẢM NHẤT chuỗi setup: PR duy nhất được đụng `backend/app/models/` (Alembic init + bảng blueprints/import_batches + cột content_hash/source_question_id). Review plan kỹ nhất từ trước tới nay; sau merge 0c thì models ĐÓNG BĂNG.
+- Sau 0c: B1 (`feat/generator-hardening`) trong lúc chờ quy ước MP3 cho A2.
+- Khi nào lên CI check đầu tiên cho nhánh main: quay lại branch protection bật "Require status checks" (nếu repo chuyển public/nâng gói).
 - Chờ chốt với đối tác: quy ước tên file MP3 (chặn A2); chờ sếp xác nhận quy đổi độ khó câu→nhóm (±1 trong dung sai ±2).
