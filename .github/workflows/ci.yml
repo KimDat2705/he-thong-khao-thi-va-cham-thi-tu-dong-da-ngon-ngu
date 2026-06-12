@@ -31,5 +31,5 @@ jobs:
 
       - name: Run pytest with coverage
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
         run: python -m pytest --cov=app --cov-report=term-missing tests/
