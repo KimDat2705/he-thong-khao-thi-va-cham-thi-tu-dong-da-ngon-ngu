@@ -22,8 +22,16 @@ class QuestionGroup(Base):
     difficulty = Column(String, nullable=True)     # E.g., "easy", "medium", "hard"
     status = Column(String, default="approved")    # E.g., "draft", "approved"
     
+    # New columns for M2
+    content_hash = Column(String, nullable=True, index=True)
+    import_batch_id = Column(Integer, ForeignKey("import_batches.id", ondelete="SET NULL"), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     exam = relationship("Exam", back_populates="question_groups")
     questions = relationship("Question", back_populates="group", cascade="all, delete-orphan")
+
+    # New relationships for M2
+    import_batch = relationship("ImportBatch", back_populates="question_groups")
+

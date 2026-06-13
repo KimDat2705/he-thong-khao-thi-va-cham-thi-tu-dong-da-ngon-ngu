@@ -27,3 +27,14 @@ This is the backend server for the automated grading and examination system. It 
    uvicorn app.main:app --reload
    ```
 4. Access the auto-generated API docs at `http://127.0.0.1:8000/docs`.
+
+## Database & Migrations
+
+This project uses **Alembic** to manage database schema migrations.
+
+- **SQLite (Dev & Automated Tests)**: SQLite database files and in-memory test databases are initialized and updated automatically using SQLAlchemy's `create_all()`.
+- **PostgreSQL (Production & Staging)**: Real PostgreSQL database instances must be upgraded to the latest schema using Alembic:
+  ```bash
+  alembic upgrade head
+  ```
+

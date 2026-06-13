@@ -7,6 +7,9 @@ from app.models.exam import Exam
 from app.models.question import Question
 from app.models.submission import Submission, SubmissionDetail
 from app.models.grade import Grade
+from app.models.blueprint import Blueprint
+from app.models.import_batch import ImportBatch
+
 
 # Auto-create tables (SQLite will create file grading_db.db if it doesn't exist)
 Base.metadata.create_all(bind=engine)
