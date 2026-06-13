@@ -21,6 +21,11 @@ class Question(Base):
     topic = Column(String, nullable=True)  # Topic domain
     status = Column(String, default="approved")  # "draft" | "approved"
     explanation = Column(Text, nullable=True)  # AI/Teacher explanation for grading feedback
+    
+    # New columns for M2
+    source_question_id = Column(Integer, ForeignKey("questions.id", ondelete="SET NULL"), nullable=True, index=True)
+    content_hash = Column(String, nullable=True, index=True)
+    import_batch_id = Column(Integer, ForeignKey("import_batches.id", ondelete="SET NULL"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -28,3 +33,8 @@ class Question(Base):
     exam = relationship("Exam", back_populates="questions")
     group = relationship("QuestionGroup", back_populates="questions")
     details = relationship("SubmissionDetail", back_populates="question", cascade="all, delete-orphan")
+    
+    # New relationships for M2
+    source_question = relationship("Question", remote_side=[id])
+    import_batch = relationship("ImportBatch", back_populates="questions")
+
