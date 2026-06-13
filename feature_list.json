@@ -14,9 +14,9 @@
       "id": "db-migration",
       "name": "Database Migrations Engine",
       "description": "Uses Alembic migrations to automatically apply and rollback database schema changes.",
-      "status": "not_started",
-      "evidence": "",
-      "testedAt": ""
+      "status": "active",
+      "evidence": "Alembic configured in backend/alembic (env.py reads DATABASE_URL from settings, engine built in code so no creds in alembic.ini). 2 migrations: 3a99aac81951 (baseline 7 tables) + 69936c2cdac2 (M2: blueprints, import_batches, content_hash/source_question_id/import_batch_id). Verified MANUALLY: `alembic upgrade head` runs clean on empty PostgreSQL 17 (both revisions applied; Migration 2's ALTER ADD CONSTRAINT is PG-only, fails on SQLite by design). No automated pytest coverage — tests use create_all() on SQLite in-memory. Task 0c, PR #16 (0c265c9).",
+      "testedAt": "2026-06-13T17:30:00Z"
     },
     {
       "id": "exam-admin-api",
