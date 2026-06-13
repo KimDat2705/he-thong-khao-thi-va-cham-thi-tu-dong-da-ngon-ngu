@@ -18,6 +18,8 @@ from app.models.question import Question
 from app.models.question_group import QuestionGroup
 from app.models.submission import Submission, SubmissionDetail
 from app.models.grade import Grade
+from app.models.blueprint import Blueprint
+from app.models.import_batch import ImportBatch
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
