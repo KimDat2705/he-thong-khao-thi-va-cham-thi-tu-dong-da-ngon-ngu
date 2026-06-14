@@ -204,8 +204,22 @@
 - **Bài học**: Anti dry-run/self-report hay ĐẾM (số câu) chứ không kiểm HOÀN CHỈNH (options đủ 4, có terminate). Nghiệm thu PHẢI verify dữ liệu thật bằng metric ĐÚNG (completeness), + check process (CPU) khi nghi treo.
 - **Trạng thái spec sau PARSE-009**: **29 spec — 24 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-009; gap MATRIX-002 + GRADE-002; planned GEN-004, GRADE-003, SCALE-003).
 
+### Session 19 -- 2026-06-15 (Claude + Anti — PARSE-010: merge+import Reading; MỐC pipeline Parser thật ĐỦ Nghe+Đọc→bank)
+- **Việc PARSE-010 HOÀN THÀNH** (`feat/parser-reading-merge` → FF vào `Dat`, commit `e2941f3`; đã push). SPEC-PARSE-010 active. Tổng quát hoá merge+import:
+  - `import_exam_set(db, docx_path, key_path, exam_type, audio_dir=None)` — gom logic merge+validate+ImportBatch+`save_parsed_items`; dispatch parser theo `exam_type` (listening→`parse_listening_docx`, reading→`parse_reading_docx`); set_id match tổng quát `(?i)(LT|RT)\.?\s*(\d+)`. `import_listening_set` → **wrapper mỏng GIỮ nguyên chữ ký** (PARSE-007 xanh); `import_reading_set` wrapper mới.
+- **Grounding completeness ĐÚNG metric** (rút kinh nghiệm S18): Anti ground RT2605+KEY RT.2605 (in-memory DB) → 100/100 câu, mọi câu draft+ABCD, 20 nhóm, 0 lỗi, idempotent. Anti tuân thủ quy trình (nhánh feature, chờ nghiệm thu, không đụng file Claude, không F841).
+- **Nghiệm thu (Claude, độc lập) — verify CẢ 2 path + coexist trên dữ liệu THẬT**:
+  - LISTENING qua wrapper (**regression check refactor**): LT2601 → 100 câu/23 nhóm, idempotent — **refactor KHÔNG phá Listening**.
+  - READING: RT2605 → 100 câu/20 nhóm, idempotent.
+  - **Coexist**: nạp cả LT2601 + RT2605 vào 1 DB → **200 câu / 43 nhóm / 0 câu thiếu đáp án** (khác set_id nên cùng tồn tại trong bank).
+  - pytest **32/2/2** ×2; ruff sạch; architecture PASS; ranh giới 4 file KHÔNG đụng models.
+- 🏗️ **MỐC: pipeline Parser thật ĐỦ Nghe + Đọc → bank** (trên dữ liệu đối tác THẬT: parse `.docx`/`.doc` + merge đáp án xlsx + ghi bank idempotent). Còn lại track Parser: chỉ ④ audio MP3 gộp.
+- **Trạng thái spec sau PARSE-010**: **30 spec — 25 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-010; gap MATRIX-002 + GRADE-002; planned GEN-004, GRADE-003, SCALE-003).
+
 ## Next Steps
-- **Việc tiếp theo (lộ trình Parser thật)**: ① PARSE-006 → ② PARSE-007 → ③ converter PARSE-008 → ④ **parser Reading PARSE-009 XONG** (verify RT2605: 100 câu / 0 thiếu options). **Kế tiếp**: **merge đáp án Reading + ghi bank** — nạp `parse_reading_docx` + `parse_answer_key(Key RT)` theo set_id RT + số câu 1-100, ghi bank (cân nhắc tổng quát `import_listening_set` → `import_exam_set` dùng chung Nghe/Đọc); và **A2-rework audio MP3 gộp** cho Nghe.
+- **Lộ trình Parser thật ① → ⑤ XONG** (PARSE-006..010: parse Nghe + convert .doc + parse Đọc + merge+import chung) — verify dữ liệu thật LT2601 + RT2605 = 200 câu vào bank, coexist, idempotent. **Còn lại track Parser**: **A2-rework audio MP3 gộp** (mapping đề→file+đoạn/timestamp) cho Nghe — mục cuối.
+- Sau Parser: quay lại **generator gaps** — MATRIX-002 toàn-đề (reframe per-skill theo Ma trận thật) + GEN-004 (độ trùng lô).
+- 💡 Đối chiếu `TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật → cập nhật giá trị (data).
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
   - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
