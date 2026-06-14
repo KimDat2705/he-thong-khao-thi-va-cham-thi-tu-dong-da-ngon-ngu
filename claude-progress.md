@@ -84,11 +84,22 @@
 - **Quy trình duyệt machine-checkable tiếp tục tốt**: plan v1 → Claude bắt 3 lỗi hạ tầng (thiếu python-docx → gãy CI; fixture lệch path + CI không tự chạy make_fixtures; "Proposed Changes" thiếu khai báo file) → Anti sửa plan v2 (thêm fixture autouse + khai báo đủ file) → `DUYỆT A1` → code → nghiệm thu → merge.
 - **Ranh giới: lần này Anti KHÔNG đụng file harness của Claude** (rút kinh nghiệm B1 đã có tác dụng). Anti chỉ tạo `task.md`/`walkthrough.md` trong workspace riêng — đúng.
 - **Trạng thái spec sau A1**: **14 active / 5 gap / 4 planned** (active +3: PARSE-001/003/004; gap giữ nguyên 5; planned còn PARSE-002, GEN-004, GRADE-003, SCALE-003).
+- **Cuối Session 8 (đã push)**: B1 + A1 + 2 commit harness đã push lên `origin/Dat` @ `b620c32`; xoá 2 nhánh đã merge (`feat/generator-hardening`, `feat/parser-core`).
+
+### Session 9 -- 2026-06-14 (Claude + Anti — hoàn thành A2: kiểm định audio Listening)
+- **ĐÍNH CHÍNH giả định sai kéo dài**: "quy ước tên file MP3" **KHÔNG phải chờ đối tác** — đây là **quyết định kỹ thuật nội bộ** (Đạt chốt). A2 KHÔNG bị chặn. Quy ước đã chốt: **`{SetID}_P{Part}_{NN}.mp3`** (SetID = stem .docx, vd `LT2601`; per-câu P1/P2, per-nhóm P3/P4; NN 2 chữ số). Lý do per-unit (không phải 1 track/part): để câu/nhóm clone & ráp lại thành đề mới vẫn tái dùng được audio.
+- **Việc A2 HOÀN THÀNH** (`feat/parser-audio` → merge fast-forward vào `Dat`, commit `c019be0`, CHƯA push). Sửa `parser.py`:
+  - `import_file(db, filepath, audio_dir=None)` (mặc định = thư mục chứa .docx); `process_blocks` kiểm tồn tại file audio cho block Listening (Part 1-4) **có** trường Audio, trong giai đoạn validation (TRƯỚC khi tạo ImportBatch) → all-or-nothing. Thiếu file → `ImportError` message chứa "MP3" + report nêu tên file thiếu.
+  - `make_fixtures.py`: đổi Audio fixture + tên MP3 mock theo quy ước (`LT_sample_valid_P1_01.mp3`/`_P3_01.mp3`); `missing_audio` trỏ file không tạo. `test_specs_parser.py`: gỡ skip PARSE-002. `specs.json`: PARSE-002 → active.
+- **Nghiệm thu (Claude, độc lập)**: đọc diff `parser.py` từng dòng; ranh giới đúng **4 file** (không đụng models/harness); fixtures gitignored; pytest **22 passed / 2 skipped / 5 xfailed** (×2 ổn định); ruff sạch; architecture PASS.
+- **Lưu ý coverage (không chặn, để theo dõi)**: A2 kiểm audio *khi trường Audio có mặt*, CHƯA bắt buộc mọi block Listening PHẢI có Audio (PARSE-002 AC#1). Hardening sau: thêm fixture Listening-thiếu-Audio + bắt buộc presence.
+- **Trạng thái spec sau A2**: **15 active / 5 gap / 3 planned** (active +1: PARSE-002; gap giữ 5; planned còn GEN-004, GRADE-003, SCALE-003).
 
 ## Next Steps
-- **Push `Dat` lên `origin`** khi Đạt sẵn sàng (`45ccd09` + `d07f345` + `fe11fa3` đang local, +3 so origin).
-- **Việc tiếp theo**: A2/A3/A4 (parser hoàn thiện: Excel đáp án, mapping MP3 — A2 CHẶN bởi quy ước tên file đối tác) hoặc Generator B2-B6. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → nghiệm thu → merge.
+- **Push `Dat` lên `origin`** khi Đạt sẵn sàng: A2 (`c019be0`) + commit harness Session 9 đang local (origin đang ở `b620c32`).
+- **Việc tiếp theo**: A3/A4 (parser nâng cao: parse Excel đáp án, convert `.doc`→`.docx` cho bộ Reading RT26xx) hoặc Generator B2-B6. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → nghiệm thu → merge.
 - ⚠️ **Bẫy fixture cho B2/B3** (đừng quên): conftest hiện có Part 7 TOÀN nhóm 4 câu (không ráp được đúng 54) + topic đơn điệu ("Article" cho cả P7). Gỡ xfail GEN-001/GEN-002/GEN-003 **cần PR mở rộng `conftest.py` được duyệt TRƯỚC**.
+- (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
-- Chờ chốt với đối tác: quy ước tên file MP3 (chặn A2); chờ sếp xác nhận quy đổi độ khó câu→nhóm (±1 trong dung sai ±2).
+- Chờ sếp xác nhận quy đổi độ khó câu→nhóm (±1 trong dung sai ±2). **(Quy ước MP3 KHÔNG chờ đối tác — đã chốt nội bộ ở A2.)**
