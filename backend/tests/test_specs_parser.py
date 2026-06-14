@@ -247,7 +247,6 @@ def test_SPEC_PARSE_008_doc_converter(tmp_path):
     from app.services.parser import convert_doc_to_docx
     import os
     import docx
-    import shutil
     from unittest.mock import patch
 
     # 1. Passthrough Test: .docx file
