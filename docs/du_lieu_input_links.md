@@ -37,7 +37,33 @@
 3. **Audio MP3 gộp theo dải (~100MB, "2601-2604.mp3")** → một file chứa nhiều đề. Quy ước A2 `{SetID}_P{Part}_{NN}.mp3` (per-câu, file riêng) **KHÔNG khớp thực tế** → mô hình audio cần thiết kế lại (mapping đề→file+đoạn/timestamp). A2 hiện chỉ đúng trên fixture giả.
 4. **Ma trận = Google Sheet** ("tiêu chí trộn đề") → nhiều khả năng định nghĩa CHÍNH các luật ta đang code (độ khó/topic/cân bằng). Cần đối chiếu để xác nhận blueprint hardcode khớp thực tế + làm nền Blueprint-as-Data.
 
-## Cần lấy thêm (CONTENT — fetch chỉ thấy tên file, không thấy nội dung)
-- Nội dung **Ma trận TOEIC** (Sheet) — để chốt blueprint thật + tiêu chí.
-- Cấu trúc 1 file **KEY *.xlsx** (cột nào: số câu? đáp án? part?) — để spec A3.
-- Cấu trúc bên trong 1 **LT*.docx** + 1 **RT*.doc** — để spec parser thật (câu/nhóm/đoạn văn nằm thế nào).
+## CÁCH TRUY XUẤT NỘI DUNG (đã chạy được 15/06)
+Tải về máy + parse bằng Python (cũng chính là việc parser thật sẽ làm). KHÔNG commit dữ liệu đối tác vào repo — tải vào thư mục NGOÀI repo: `D:\Dat-Antigravity\drive_input\`.
+```bash
+export PYTHONUTF8=1   # tránh lỗi charmap với tên file tiếng Việt
+python -m pip install gdown openpyxl python-docx
+# Thư mục thường: python -m gdown --folder "<folder_url>" -O "<đích>"
+# Google Sheet: tải bản xuất xlsx (đủ tab):
+python -m gdown "https://docs.google.com/spreadsheets/d/<SHEET_ID>/export?format=xlsx" -O matrix.xlsx
+```
+Bỏ qua thư mục audio (~1.5GB MP3). `.doc` legacy: python-docx KHÔNG đọc được, cần convert (LibreOffice/`docx2txt`/`antiword`).
+
+## NỘI DUNG THẬT đã đọc (15/06) — đối chiếu spec
+
+### Ma trận TOEIC (Sheet, 5 tab: Hướng dẫn · Tổng thể · Listening · Reading · Tiêu chí QC) — ĐÂY LÀ SPEC THẬT
+- **Số câu/part = ĐÚNG KHỚP `TOEIC_BLUEPRINT`**: P1=6, P2=25, P3=39 (13 set×3), P4=30 (10 set×3), P5=30, P6=16 (4 set×4), P7=54 (đơn/đôi/ba) → 200 (L100+R100). ✓ Blueprint hardcode CHÍNH XÁC, không cần đổi số.
+- **Độ khó 25/50/25 theo TỪNG KỸ NĂNG** (L100, R100 riêng), dạng KHOẢNG: mỗi kỹ năng Dễ 22–28 / TB 47–53 / Khó 22–28; toàn đề Dễ 25%±3, TB 50%±4, Khó 25%±3. → SPEC-MATRIX-002 "toàn-đề" nên reframe **per-skill** (không phải bound 200 như hiện tại).
+- **Độ khó per-part**: P1 2/3/1 ✓, P2 6/13/6 ✓, P5 8/15/7 ✓ (KHỚP ta). Nhưng P3 8/21/10, P4 6/16/8, P6 3/8/5, P7 9/28/17 — tính theo **CÂU**, KHÔNG phải bội số của set → mô hình hiện gán độ khó theo NHÓM là **giản lược** (refine sau).
+- **Luật trộn đề xác nhận spec ta đã làm**: giữ nguyên set 3/4/6/7 (ISOLATE-003 ✓); "không chủ điểm >20%" (GEN-003 ✓); cân bằng khóa đáp án (GEN-002 ✓); ngưỡng overlap giữa mã đề (GEN-004 ✓); chỉ item Approved (BANK-001 ✓).
+- **Khái niệm MỚI** (chưa có trong specs): `Exposure_Count` (số lần dùng item/set), `Overlap_Group`, cân bằng single/double/triple passage (P7), metadata phong phú (Speaker_Count/Speech_Rate/Accent/Passage_Type/Source_Format/Topic_Domain — model đã có một phần).
+
+### Đáp án `KEY *.xlsx` (đọc được qua openpyxl)
+- Lưới đơn giản: tiêu đề "TOEIC - LISTENING - LT2601"; các cặp cột **"Câu | Đáp án"** (5 block: 1-20, 21-40, …, 81-100) → Listening **100 câu**, mỗi câu 1 đáp án A/B/C/D. Reading KEY tương tự (100 câu). **Khoá liên kết = Mã đề** (LT2601/RT2601).
+- → spec A3: parse xlsx, gom các cặp Câu→Đáp án, merge với câu hỏi theo Mã đề + số câu.
+
+### Đề `LT*.docx` (đọc được qua python-docx) — PARSER THẬT KHÁC HẲN fixture giả
+- Word phức tạp: ~41 paragraph + **15 bảng (tables)** + ảnh (Part 1 photos). Mã đề nằm trong bảng ("Mã đề thi LT.2601"). Có header trường/ĐH, "Part 3:/Part 4:" + Directions, "THE END".
+- **Câu hỏi/lựa chọn nằm trong TABLES + ảnh**, KHÔNG phải format thẻ `[Group]/[Question]/Key:Value` tự chế. **KHÔNG có đáp án inline** (đáp án ở KEY xlsx).
+- → Parser thật phải: đọc **tables** (python-docx), trích **ảnh** Part 1 (→image_url), nhận diện Part/Directions/số câu, **merge KEY xlsx theo Mã đề**. Lớn hơn nhiều A1 giả lập (A1/A2 hiện chỉ là scaffolding trên fixture).
+
+> Dữ liệu mẫu đã tải về `D:\Dat-Antigravity\drive_input\` (MatranTOEIC.xlsx, KEY_LT/, LT/) — ngoài repo, không commit.
