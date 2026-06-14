@@ -325,10 +325,53 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, se
         raise InsufficientBankError(
             "Insufficient questions in bank for Part 7: could not find a combination of groups summing to exactly 54 questions satisfying the topic diversity constraints"
         )
-
     # Clone selected Part 7 groups
     for g in selected_p7_groups:
         clone_group(g)
+
+    # --- Balance correct answers (A/B/C/D) ---
+    # Query all cloned questions of the exam
+    cloned_qs = db.query(Question).filter(Question.exam_id == new_exam.id).all()
+    # Identify 4-option questions
+    four_option_qs = [
+        q for q in cloned_qs
+        if isinstance(q.options, dict) and len(q.options) == 4 and q.reference_answer
+    ]
+    # Sort them by Question.id for stability and reproducibility
+    four_option_qs = sorted(four_option_qs, key=lambda q: q.id)
+    
+    n_qs = len(four_option_qs)
+    if n_qs > 0:
+        # Generate balanced target letters
+        target_letters = ["A", "B", "C", "D"] * (n_qs // 4) + ["A", "B", "C", "D"][:n_qs % 4]
+        # Shuffle target letters using local_random for reproducibility
+        local_random.shuffle(target_letters)
+        
+        # Permute options for each question
+        for i, q in enumerate(four_option_qs):
+            target_ans = target_letters[i]
+            orig_ans = q.reference_answer.strip().upper()
+            
+            # Reconstruct options with new answer letter
+            correct_text = q.options.get(orig_ans)
+            if correct_text is not None:
+                incorrect_texts = [q.options[letter] for letter in ["A", "B", "C", "D"] if letter != orig_ans]
+                # Shuffle incorrect options using local_random
+                local_random.shuffle(incorrect_texts)
+                
+                # Reconstruct options dict
+                new_options = {}
+                inc_idx = 0
+                for letter in ["A", "B", "C", "D"]:
+                    if letter == target_ans:
+                        new_options[letter] = correct_text
+                    else:
+                        new_options[letter] = incorrect_texts[inc_idx]
+                        inc_idx += 1
+                        
+                q.options = new_options
+                q.reference_answer = target_ans
+        db.commit()
 
     db.refresh(new_exam)
     return new_exam

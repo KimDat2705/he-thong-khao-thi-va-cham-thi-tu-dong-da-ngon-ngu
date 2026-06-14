@@ -184,11 +184,11 @@
         "Áp dụng cho đề sinh ra, không yêu cầu với bank gốc (cân bằng đạt được qua chọn lọc hoặc hoán vị đáp án)"
       ],
       "verification": "pytest",
-      "status": "gap",
+      "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_GEN_002_answer_balance"
       ],
-      "notes": "GAP: generator chưa có bước cân bằng/hoán vị đáp án — test XFAIL."
+      "notes": "Đang đạt: generator hoán vị đáp án và các lựa chọn trên câu hỏi clone để đảm bảo cân bằng phân bố đáp án đúng."
     },
     {
       "id": "SPEC-GEN-003",

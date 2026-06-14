@@ -147,10 +147,6 @@ def test_SPEC_ISOLATE_003_group_isolation_no_orphans(db_session: Session):
         assert len(group.questions) > 0, f"Nhóm {group.id} trong đề không có câu hỏi nào"
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="GAP SPEC-GEN-002: generator chưa có bước cân bằng/hoán vị đáp án A/B/C/D",
-)
 def test_SPEC_GEN_002_answer_balance(db_session: Session):
     """SPEC-GEN-002: Trong các phần dùng 4 lựa chọn, mỗi đáp án đúng (A/B/C/D)
     phải chiếm 20%-28% tổng số câu để tránh mẫu đoán mò.
