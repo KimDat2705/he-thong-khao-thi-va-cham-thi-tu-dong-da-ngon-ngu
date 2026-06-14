@@ -122,11 +122,21 @@
   - CHỈ sửa clone → bank gốc bất biến → **BANK-002 vẫn xanh** (đã verify).
 - **Nghiệm thu (Claude, độc lập)**: đọc logic hoán vị; xác nhận chỉ đụng clone (BANK-002), filter trùng test, đáp án đúng giữ nội dung; ranh giới đúng **3 file**; pytest **25 passed / 2 skipped / 2 xfailed** (×2; BANK-002 + GEN-005 + GEN-003 + COLLATE-004 vẫn xanh); ruff sạch; architecture PASS.
 - **Trạng thái spec sau GEN-002**: **18 active / 2 gap / 3 planned** (active +1: GEN-002; gap còn **MATRIX-002 toàn-đề** + GRADE-002; planned còn GEN-004, GRADE-003, SCALE-003).
-- 📊 **Phân hệ Ra đề EN gần hoàn chỉnh**: chỉ còn GEN-004 (độ trùng lô, B6 — cần generate lô) và MATRIX-002 toàn-đề (tỷ lệ độ khó toàn đề). Parser còn Excel/.doc (chưa có spec).
+- 📊 **Phân hệ Ra đề EN gần hoàn chỉnh** (trên fixture): chỉ còn GEN-004 (độ trùng lô) và MATRIX-002 toàn-đề.
+
+### Bổ sung 15/06/2026 (Claude — đối chiếu DỮ LIỆU INPUT THẬT, đính chính giả định)
+- Đạt gửi toàn bộ link Drive input (không gửi lại) → ghi vào `docs/du_lieu_input_links.md` (commit `64ba66d`, pushed) + memory. Đã fetch danh sách file thật các thư mục TOEIC.
+- **ĐÍNH CHÍNH**: "Excel đáp án" trong docstring là **ĐÚNG** (tôi đã sai khi nghi là giả định sai) — file `.xlsx` "KEY LT*/KEY RT*" nằm trong **thư mục con** (nên không thấy ở gốc). Đã sửa lại memory + doc.
+- **Thực tế dữ liệu**: đáp án ở file `.xlsx` RIÊNG (không inline); Đề Đọc nhiều `.doc` legacy; audio MP3 **gộp ~100MB theo dải** ("2601-2604.mp3"); Ma trận TOEIC là **Google Sheet** ("tiêu chí trộn đề" — có thể là nguồn thật của luật GEN/MATRIX).
+- **Hệ quả tracking**:
+  - Parser hiện chỉ chạy fixture `.docx` tự chế (đáp án inline) → **KHÔNG khớp thật**. Parser thật = merge đề + Excel đáp án + convert `.doc`→`.docx` + format đề thật. A3/A4 là việc THẬT.
+  - Quy ước audio A2 (`{SetID}_P{Part}_{NN}.mp3` per-câu) **không khớp** MP3 gộp thật → A2 cần thiết kế lại cho dữ liệu thật.
+  - Generator (B1/B2/B3/GEN-002) + khung Parser (ImportBatch/idempotent/validation) **không bị ảnh hưởng**, dùng lại được.
+  - Cần **mẫu CONTENT** (Sheet ma trận, 1 KEY.xlsx, 1 LT.docx + 1 RT.doc) để spec parser thật — công cụ chỉ đọc được tên file, không đọc nội dung.
 
 ## Next Steps
-- **Việc tiếp theo (gợi ý)**: **MATRIX-002 toàn-đề** (tỷ lệ độ khó 25/50/25 toàn đề) hoặc **GEN-004/B6** (độ trùng giữa các đề trong lô — `source_question_id` đã sẵn từ B1, cần API generate lô) hoặc A3/A4 parser (Excel/.doc — cần viết spec+test trước).
-  - ⚠️ **MATRIX-002 toàn-đề giờ vướng**: P7 đã có nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch (Easy=39<45, Hard=56>55). Cần **rebalance conftest P7 difficulty** (giữ topic+size đã chốt) hoặc nới nghiệm P7 — task này phải sửa conftest rất cẩn thận (P7 đang giòn). Cân nhắc kỹ trước khi giao.
+- **Việc tiếp theo (đã rõ thứ tự sau đối chiếu input)**: **Blueprint-as-Data NGAY** (độc lập dữ liệu, model `Blueprint` sẵn — brief đã soạn). Sau đó: **Parser thật** (chờ mẫu content từ Đạt). Để cuối: **MATRIX-002 toàn-đề / GEN-004** (chờ redesign fixture + đối chiếu Ma trận thật).
+  - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch (Easy=39<45, Hard=56>55). Cần rebalance conftest P7 difficulty hoặc nới nghiệm P7 — sửa fixture rất cẩn thận. Và Ma trận Sheet thật có thể định nghĩa lại luật này.
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
