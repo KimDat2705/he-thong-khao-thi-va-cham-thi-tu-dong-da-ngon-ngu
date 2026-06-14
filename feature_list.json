@@ -63,8 +63,8 @@
       "name": "TOEIC & B1 Exam Generator",
       "description": "Retrieves questions from the approved question bank and matches exam blueprints dynamically.",
       "status": "in_progress",
-      "evidence": "backend/app/services/toeic_generator.py — TOEIC core + hardening (verified by test_toeic_generator.py + test_specs_generation.py & test_specs_bank.py): status='approved' filter (BANK-001), seeded reproducibility (GEN-005), fail-fast pre-checks (GEN-006), Part 7 subset-sum to exactly 200 questions (GEN-001), and adaptive topic-diversity cap per part via backtracking selection (GEN-003) active. Known gaps tracked as xfail: SPEC-GEN-002 (answer balance), MATRIX-002 whole-exam difficulty ratio, GEN-004 (cross-exam overlap, planned/B6). Blueprint-as-data not implemented.",
-      "testedAt": "2026-06-14T21:15:00Z"
+      "evidence": "backend/app/services/toeic_generator.py — TOEIC generator near-complete (verified by test_toeic_generator.py + test_specs_generation.py & test_specs_bank.py): status='approved' filter (BANK-001), seeded reproducibility (GEN-005), fail-fast pre-checks (GEN-006), Part 7 subset-sum to exactly 200 questions (GEN-001), adaptive topic-diversity cap per part (GEN-003), and balanced correct-answer distribution A/B/C/D 20-28% via clone permutation (GEN-002) — all active. Known gaps tracked as xfail/planned: MATRIX-002 whole-exam difficulty ratio (entangled with unique P7 subset-sum solution), GEN-004 (cross-exam overlap, B6 — needs batch generation). Blueprint-as-data not implemented.",
+      "testedAt": "2026-06-14T22:00:00Z"
     },
     {
       "id": "exam-validator",

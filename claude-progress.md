@@ -114,9 +114,19 @@
 - **Nghiệm thu (Claude, độc lập)**: tự verify chứng minh khả thi (Option B P7 là nghiệm DUY NHẤT — đúng); xác minh generator P7 prune topic (điểm dễ sai nhất); ranh giới đúng **4 file**; pytest **24 passed / 2 skipped / 3 xfailed** (×2; GEN-005 tái lập + MATRIX per-part xanh; MATRIX toàn-đề vẫn xfail, không flip); ruff sạch; architecture PASS.
 - ⚠️ **Lưu ý bảo trì**: fixture P7 trong conftest có **lời giải subset-sum DUY NHẤT** (loại G2,G3) — rất giòn. Chứng minh nằm trong commit `3c7be1f` + task.md/walkthrough của Anti. Sửa conftest P7 tương lai phải kiểm lại tính khả thi.
 - **Trạng thái spec sau B3**: **17 active / 3 gap / 3 planned** (active +1: GEN-003; gap còn GEN-002 (cân bằng đáp án), MATRIX-002 toàn-đề, GRADE-002; planned còn GEN-004, GRADE-003, SCALE-003).
+- **Cuối Session 11 (đã push)**: B3 (`3c7be1f`) + harness Session 11 (`0fed6c7`) đã push lên `origin/Dat`; xoá nhánh `feat/generator-topic`.
+
+### Session 12 -- 2026-06-14 (Claude + Anti — hoàn thành GEN-002: cân bằng đáp án)
+- **Việc GEN-002 HOÀN THÀNH** (`feat/generator-answer-balance` → merge fast-forward vào `Dat`, commit `ca2ce48`, đã push). SPEC-GEN-002:
+  - `toeic_generator.py`: cuối `generate_toeic_exam`, lọc câu 4 lựa chọn của ĐỀ (`exam_id==new_exam.id`, `len(options)==4` — filter trùng khít test), sắp theo id; sinh mảng letter mục tiêu A/B/C/D chia đều rồi `local_random.shuffle` (tái lập theo seed); **hoán vị options + reference_answer trên CLONE** để đáp án đúng nằm ở letter mục tiêu, giữ nguyên nội dung lựa chọn. 175 câu → mỗi đáp án ~25% (trong [20%,28%]).
+  - CHỈ sửa clone → bank gốc bất biến → **BANK-002 vẫn xanh** (đã verify).
+- **Nghiệm thu (Claude, độc lập)**: đọc logic hoán vị; xác nhận chỉ đụng clone (BANK-002), filter trùng test, đáp án đúng giữ nội dung; ranh giới đúng **3 file**; pytest **25 passed / 2 skipped / 2 xfailed** (×2; BANK-002 + GEN-005 + GEN-003 + COLLATE-004 vẫn xanh); ruff sạch; architecture PASS.
+- **Trạng thái spec sau GEN-002**: **18 active / 2 gap / 3 planned** (active +1: GEN-002; gap còn **MATRIX-002 toàn-đề** + GRADE-002; planned còn GEN-004, GRADE-003, SCALE-003).
+- 📊 **Phân hệ Ra đề EN gần hoàn chỉnh**: chỉ còn GEN-004 (độ trùng lô, B6 — cần generate lô) và MATRIX-002 toàn-đề (tỷ lệ độ khó toàn đề). Parser còn Excel/.doc (chưa có spec).
 
 ## Next Steps
-- **Việc tiếp theo (gợi ý)**: **GEN-002 (cân bằng đáp án A/B/C/D 20-28%)** — gap generator còn khả thi; cần hoán vị đáp án khi clone + có thể mở rộng conftest đáp án. Hoặc A3/A4 (parser: Excel đáp án, `.doc`→`.docx`, chưa có spec → cần viết spec+test). Hoặc MATRIX-002 toàn-đề (ràng buộc độ khó P7).
+- **Việc tiếp theo (gợi ý)**: **MATRIX-002 toàn-đề** (tỷ lệ độ khó 25/50/25 toàn đề) hoặc **GEN-004/B6** (độ trùng giữa các đề trong lô — `source_question_id` đã sẵn từ B1, cần API generate lô) hoặc A3/A4 parser (Excel/.doc — cần viết spec+test trước).
+  - ⚠️ **MATRIX-002 toàn-đề giờ vướng**: P7 đã có nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch (Easy=39<45, Hard=56>55). Cần **rebalance conftest P7 difficulty** (giữ topic+size đã chốt) hoặc nới nghiệm P7 — task này phải sửa conftest rất cẩn thận (P7 đang giòn). Cân nhắc kỹ trước khi giao.
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
