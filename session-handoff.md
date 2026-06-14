@@ -8,8 +8,8 @@
 4. **Real Parser Track (PARSE-006 & PARSE-007) — HOÀN THÀNH**:
    - **A3 (`d2388e8`)**: `parse_answer_key(filepath)->dict[int,str]` (openpyxl, quét header, gộp 5 block).
    - **PARSE-006 (`8239a88` + `c65eb57`)**: `parse_listening_docx(filepath)->{set_id, items}` — bóc tách table-based `.docx` theo document order, split nhóm P3/P4 bằng line `---` trong cell, ghép wrap option/câu qua nhiều paragraph (state-machine), P1 ghi image index.
-   - **PARSE-007 (`a6fdf99`)**: `import_listening_set(db, docx_path, key_path, audio_dir=None)` — trộn đáp án từ tệp Excel vào câu hỏi Word tương ứng, validation gate (all-or-nothing), lưu ImportBatch và commit ngân hàng câu hỏi ở trạng thái `draft`.
-   - **Sửa lỗi Question Hash Collision**: Đưa `set_id` và `number` vào `calculate_question_hash`, và `set_id` vào `calculate_group_hash`. Định danh duy nhất theo (set, số câu) loại bỏ hoàn toàn bug trùng hash của Part 1/Part 2 (có content giống nhau và options rỗng) mà vẫn giữ tương thích ngược hoàn toàn với synthetic/legacy path.
+   - **PARSE-007 (`c8948fa` + vá `a6fdf99`)**: `import_listening_set(db, docx_path, key_path, audio_dir=None)` — trộn đáp án từ tệp Excel vào câu hỏi Word theo số câu, validation gate (all-or-nothing), set_id docx khớp KEY, lưu ImportBatch và commit ngân hàng ở trạng thái `draft` (save bọc try/except + rollback).
+   - **Bug Question Hash Collision — Claude bắt lúc nghiệm thu trên dữ liệu THẬT**: fixture xanh nhưng `import_listening_set` trên cặp thật LT2601 chỉ ghi 75/100 câu (P1/P2 content giống nhau + options rỗng → trùng hash → nuốt 25 câu). Vá: đưa `set_id`+`number` vào `calculate_question_hash`, `set_id` vào `calculate_group_hash` (path cũ → None → tương thích ngược). **Claude verify lại file thật: 100/100 câu + 23/23 nhóm, 0 skip, idempotent ✓.** Bài học: pytest fixture xanh KHÔNG đủ — verify file thật là bắt buộc.
 5. **SETUP (0a+0b+0c) XONG**: 0a (`2cd7988`); 0b (PR #15 → `1e139c2`) CI+ruff+pytest-cov; 0c (PR #16 → `0c265c9`) Alembic, chạy thật trên PostgreSQL 17. **MODELS ĐÓNG BĂNG từ 0c.**
 6. **Pipeline Ra đề EN (B1+B2+B3+GEN-002) — generator gần hoàn chỉnh**:
    - **B1 (`45ccd09`)**: filter `approved` (BANK-001), `InsufficientBankError` + pre-check (GEN-006), `seed` qua `local_random`+`.order_by(id)` (GEN-005), `source_question_id`.
@@ -41,6 +41,6 @@
    - **A2-rework audio gộp** (đề Nghe thật).
    - **CHỜ REDESIGN FIXTURE + đối chiếu Ma trận**: MATRIX-002 toàn-đề (reframe per-skill theo Ma trận), GEN-004 (vướng P7 nghiệm-duy-nhất + bank nhỏ).
    - 💡 Đối chiếu `TOEIC_BLUEPRINT` (hardcode) ↔ Ma trận TOEIC Sheet thật khi có content → cập nhật giá trị (data, không sửa code).
-2. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → Claude nghiệm thu → merge → push. KHÔNG đụng `backend/app/models/`, phân hệ Chấm, `claude-progress.md`/`session-handoff.md`.
+2. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → **Claude nghiệm thu XONG mới push** → merge. KHÔNG đụng `backend/app/models/`, phân hệ Chấm, `claude-progress.md`/`session-handoff.md`. ⚠️ Phiên PARSE-007 Anti lại (a) push trước khi Claude nghiệm thu, (b) tự sửa 2 file nhật ký của Claude — nhắc giữ đúng ranh giới lần sau.
 3. Hạ tầng (khi rảnh): postgres service vào `ci.yml`; "Require status checks" cho `main`; hardening PARSE-002.
 4. Chờ sếp xác nhận quy đổi độ khó câu→nhóm.
