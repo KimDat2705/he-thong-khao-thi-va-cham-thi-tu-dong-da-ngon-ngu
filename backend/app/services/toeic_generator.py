@@ -4,25 +4,19 @@ from app.models.exam import Exam
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
 
-def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) -> Exam:
+class InsufficientBankError(ValueError):
+    """Raised when the question bank does not have enough questions to generate an exam."""
+    pass
+
+def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, seed: int = None) -> Exam:
     """
     Generates a TOEIC exam by selecting questions and question groups from the bank
     (where exam_id is None) according to the TOEIC blueprint and difficulty targets.
     Clones the selected questions and groups into a newly created Exam.
     """
-    # 1. Create a new Exam instance
-    new_exam = Exam(
-        title=title,
-        language="EN",
-        exam_type="TOEIC",
-        duration_minutes=duration_minutes,
-        is_active=True
-    )
-    db.add(new_exam)
-    db.commit()
-    db.refresh(new_exam)
+    local_random = random.Random(seed)
 
-    # 2. Define the blueprint
+    # Define the blueprint
     # Format: (part, total_questions_needed, target_difficulty_dict)
     # Target difficulty dict: {"easy": count, "medium": count, "hard": count}
     standalone_blueprint = {
@@ -38,6 +32,58 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
         4: {"groups": 10, "q_per_group": 3, "easy_groups": 2, "medium_groups": 5, "hard_groups": 3},
         6: {"groups": 4, "q_per_group": 4, "easy_groups": 1, "medium_groups": 2, "hard_groups": 1}
     }
+
+    # --- Pre-check bank sufficiency (Fail-Fast) ---
+    # 1. Verify standalone counts
+    for part, spec in standalone_blueprint.items():
+        available_count = db.query(Question).filter(
+            Question.exam_id.is_(None),
+            Question.group_id.is_(None),
+            Question.part == part,
+            Question.status == "approved"
+        ).count()
+        needed = spec["count"]
+        if available_count < needed:
+            raise InsufficientBankError(
+                f"Insufficient questions in bank for Part {part}: needed {needed}, available {available_count}"
+            )
+
+    # 2. Verify group counts
+    for part, spec in group_blueprint.items():
+        available_groups = db.query(QuestionGroup).filter(
+            QuestionGroup.exam_id.is_(None),
+            QuestionGroup.part == part,
+            QuestionGroup.status == "approved"
+        ).count()
+        needed = spec["groups"]
+        if available_groups < needed:
+            raise InsufficientBankError(
+                f"Insufficient groups in bank for Part {part}: needed {needed}, available {available_groups}"
+            )
+
+    # 3. Verify Part 7 total questions
+    p7_groups_in_bank = db.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None),
+        QuestionGroup.part == 7,
+        QuestionGroup.status == "approved"
+    ).all()
+    p7_total_qs = sum(len(g.questions) for g in p7_groups_in_bank)
+    if p7_total_qs < 54:
+        raise InsufficientBankError(
+            f"Insufficient questions in bank for Part 7: needed 54, available {p7_total_qs}"
+        )
+
+    # --- Create the Exam (Only after all pre-checks pass) ---
+    new_exam = Exam(
+        title=title,
+        language="EN",
+        exam_type="TOEIC",
+        duration_minutes=duration_minutes,
+        is_active=True
+    )
+    db.add(new_exam)
+    db.commit()
+    db.refresh(new_exam)
 
     # Helper function to clone a question
     def clone_question(orig_q: Question, target_group_id: int = None) -> Question:
@@ -55,7 +101,8 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
             clo=orig_q.clo,
             topic=orig_q.topic,
             status="approved",
-            explanation=orig_q.explanation
+            explanation=orig_q.explanation,
+            source_question_id=orig_q.id  # Link to the original question
         )
 
     # Helper function to clone a group and its questions
@@ -88,10 +135,11 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
     for part, spec in standalone_blueprint.items():
         # Query all available standalone questions for this part from the bank
         bank_qs = db.query(Question).filter(
-            Question.exam_id == None,
-            Question.group_id == None,
-            Question.part == part
-        ).all()
+            Question.exam_id.is_(None),
+            Question.group_id.is_(None),
+            Question.part == part,
+            Question.status == "approved"
+        ).order_by(Question.id).all()
 
         # Group by difficulty
         diff_map = {"easy": [], "medium": [], "hard": []}
@@ -108,7 +156,7 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
             needed = spec[diff]
             available = diff_map[diff]
             if len(available) >= needed:
-                selected_qs.extend(random.sample(available, needed))
+                selected_qs.extend(local_random.sample(available, needed))
             else:
                 # If not enough of this difficulty, take all and fill from other difficulties later
                 selected_qs.extend(available)
@@ -118,7 +166,7 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
         if still_needed > 0:
             remaining = [q for q in bank_qs if q not in selected_qs]
             if len(remaining) >= still_needed:
-                selected_qs.extend(random.sample(remaining, still_needed))
+                selected_qs.extend(local_random.sample(remaining, still_needed))
             else:
                 selected_qs.extend(remaining)
 
@@ -131,9 +179,10 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
     for part, spec in group_blueprint.items():
         # Query all available groups for this part from the bank
         bank_groups = db.query(QuestionGroup).filter(
-            QuestionGroup.exam_id == None,
-            QuestionGroup.part == part
-        ).all()
+            QuestionGroup.exam_id.is_(None),
+            QuestionGroup.part == part,
+            QuestionGroup.status == "approved"
+        ).order_by(QuestionGroup.id).all()
 
         # Group by difficulty
         diff_map = {"easy": [], "medium": [], "hard": []}
@@ -154,7 +203,7 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
         for diff, needed in difficulty_specs:
             available = diff_map[diff]
             if len(available) >= needed:
-                selected_groups.extend(random.sample(available, needed))
+                selected_groups.extend(local_random.sample(available, needed))
             else:
                 selected_groups.extend(available)
 
@@ -163,7 +212,7 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
         if still_needed > 0:
             remaining = [g for g in bank_groups if g not in selected_groups]
             if len(remaining) >= still_needed:
-                selected_groups.extend(random.sample(remaining, still_needed))
+                selected_groups.extend(local_random.sample(remaining, still_needed))
             else:
                 selected_groups.extend(remaining)
 
@@ -175,12 +224,13 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120) ->
     # Part 7 can have groups with varying number of questions (e.g. 2, 3, 4, 5)
     # Target: 54 questions total. Difficulty target: 9 Easy, 28 Medium, 17 Hard.
     part7_groups = db.query(QuestionGroup).filter(
-        QuestionGroup.exam_id == None,
-        QuestionGroup.part == 7
-    ).all()
+        QuestionGroup.exam_id.is_(None),
+        QuestionGroup.part == 7,
+        QuestionGroup.status == "approved"
+    ).order_by(QuestionGroup.id).all()
 
-    # Shuffle to ensure randomness
-    random.shuffle(part7_groups)
+    # Shuffle to ensure randomness, using local_random for reproducibility
+    local_random.shuffle(part7_groups)
 
     selected_p7_groups = []
     current_q_count = 0

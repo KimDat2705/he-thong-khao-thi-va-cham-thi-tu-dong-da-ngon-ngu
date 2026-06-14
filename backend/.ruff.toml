@@ -4,7 +4,6 @@ exclude = [".git", ".venv", "venv", "__pycache__"]
 [lint.per-file-ignores]
 "app/main.py" = ["F401"]
 "**/__init__.py" = ["F401"]
-"app/services/toeic_generator.py" = ["E711"]  # SQLAlchemy: == None sinh IS NULL; gỡ ở B1
 # Phân hệ Chấm (đóng băng): bỏ qua lỗi unused import để tránh đụng sửa đổi file
 "app/services/toeic_grader.py" = ["F401"]
 "app/workers/tasks.py" = ["F401"]

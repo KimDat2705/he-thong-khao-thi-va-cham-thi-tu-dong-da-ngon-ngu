@@ -97,7 +97,7 @@
         "Generator có filter status='approved' trong mọi query chọn câu/nhóm"
       ],
       "verification": "pytest",
-      "status": "gap",
+      "status": "active",
       "tests": [
         "tests/test_specs_bank.py::test_SPEC_BANK_001_only_approved_items_generated"
       ],
@@ -232,7 +232,7 @@
         "Seed khác nhau -> đề khác nhau (xác suất trùng không đáng kể)"
       ],
       "verification": "pytest",
-      "status": "planned",
+      "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_GEN_005_seeded_generation_reproducible"
       ],
@@ -248,7 +248,7 @@
         "Không bản ghi đề nào được ghi vào DB khi raise (rollback sạch)"
       ],
       "verification": "pytest",
-      "status": "gap",
+      "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_GEN_006_insufficient_bank_raises"
       ],

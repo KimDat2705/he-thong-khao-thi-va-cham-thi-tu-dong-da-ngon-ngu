@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.database import Base
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
-from app.services.toeic_generator import generate_toeic_exam
+from app.services.toeic_generator import generate_toeic_exam, InsufficientBankError
 
 # Blueprint chuẩn dùng chung cho các assertion
 PART_TARGETS = {1: 6, 2: 25, 3: 39, 4: 30, 5: 30, 6: 16, 7: 54}
@@ -232,10 +232,6 @@ def test_SPEC_GEN_004_cross_exam_overlap(db_session: Session):
             assert overlap <= 0.40, f"Đề {i} và {j} trùng {overlap:.0%} câu nguồn — vượt 40%"
 
 
-@pytest.mark.skip(
-    reason="SPEC-GEN-005: generate_toeic_exam chưa nhận tham số seed "
-    "(đang dùng random module-level không kiểm soát được)"
-)
 def test_SPEC_GEN_005_seeded_generation_reproducible(db_session: Session):
     """SPEC-GEN-005: Hàm sinh đề nhận tham số seed; cùng seed và cùng trạng thái
     bank phải cho ra đề giống hệt nhau (phục vụ debug, audit, kiểm định).
@@ -248,11 +244,6 @@ def test_SPEC_GEN_005_seeded_generation_reproducible(db_session: Session):
     assert sources_a == sources_b, "Cùng seed + cùng bank nhưng hai đề khác nhau"
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="GAP SPEC-GEN-006: generator hiện âm thầm sinh đề thiếu câu khi bank "
-    "không đủ, thay vì raise lỗi rõ ràng",
-)
 def test_SPEC_GEN_006_insufficient_bank_raises():
     """SPEC-GEN-006: Nếu ngân hàng không đủ câu/nhóm đạt blueprint, sinh đề phải
     raise lỗi rõ ràng (nêu part và số lượng thiếu) thay vì âm thầm tạo đề thiếu câu.
@@ -265,7 +256,7 @@ def test_SPEC_GEN_006_insufficient_bank_raises():
     EmptySession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = EmptySession()
     try:
-        with pytest.raises(Exception):
+        with pytest.raises(InsufficientBankError):
             generate_toeic_exam(db, title="Đề từ bank rỗng — phải raise")
     finally:
         db.close()

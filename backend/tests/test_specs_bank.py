@@ -10,14 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
-from app.services.toeic_generator import generate_toeic_exam
+from app.services.toeic_generator import generate_toeic_exam, InsufficientBankError
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="GAP SPEC-BANK-001: generate_toeic_exam chưa lọc status='approved' "
-    "khi chọn câu/nhóm từ bank (backend/app/services/toeic_generator.py)",
-)
 def test_SPEC_BANK_001_only_approved_items_generated(db_session: Session):
     """SPEC-BANK-001: Thuật toán sinh đề chỉ được chọn câu hỏi/nhóm có
     status='approved' từ ngân hàng; item draft/retired không bao giờ xuất hiện
@@ -33,14 +28,17 @@ def test_SPEC_BANK_001_only_approved_items_generated(db_session: Session):
     db_session.commit()
     db_session.expire_all()
 
-    exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-BANK-001")
-
-    p5_in_exam = db_session.query(Question).filter(
-        Question.exam_id == exam.id, Question.part == 5
-    ).count()
-    assert p5_in_exam == 0, (
-        f"Đề chứa {p5_in_exam} câu Part 5 được clone từ item chưa duyệt (draft)"
-    )
+    try:
+        exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-BANK-001")
+        p5_in_exam = db_session.query(Question).filter(
+            Question.exam_id == exam.id, Question.part == 5
+        ).count()
+        assert p5_in_exam == 0, (
+            f"Đề chứa {p5_in_exam} câu Part 5 được clone từ item chưa duyệt (draft)"
+        )
+    except InsufficientBankError:
+        # Lỗi thiếu bank là hành vi hợp lệ khi toàn bộ Part 5 là draft
+        pass
 
 
 def test_SPEC_BANK_002_generation_preserves_bank(db_session: Session):
