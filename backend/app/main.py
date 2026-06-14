@@ -9,6 +9,7 @@ from app.models.submission import Submission, SubmissionDetail
 from app.models.grade import Grade
 from app.models.blueprint import Blueprint
 from app.models.import_batch import ImportBatch
+from app.api.bank import router as bank_router
 
 
 # Auto-create tables (SQLite will create file grading_db.db if it doesn't exist)
@@ -29,6 +30,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(bank_router)
 
 @app.get("/")
 async def root():

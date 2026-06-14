@@ -250,6 +250,24 @@
       "notes": "Đang đạt: generator clone bản ghi mới với exam_id của đề, không sửa bản gốc."
     },
     {
+      "id": "SPEC-BANK-003",
+      "domain": "BANK",
+      "title": "API quản trị ngân hàng câu hỏi",
+      "statement": "Hệ thống cung cấp các endpoint HTTP/REST API đầy đủ phục vụ việc quản trị câu hỏi trong ngân hàng, cho phép lọc câu hỏi, cập nhật thông tin câu hỏi, phê duyệt danh sách câu hỏi từ draft sang approved, và theo dõi thống kê số lượng câu hỏi hiện có đối chiếu với blueprint đề thi.",
+      "acceptance_criteria": [
+        "GET /api/v1/bank/questions lọc câu hỏi trong ngân hàng (exam_id IS NULL) theo part, status, topic, difficulty với phân trang.",
+        "PATCH /api/v1/bank/questions/{id} cho phép cập nhật thông tin câu hỏi trong ngân hàng, trả về 404 nếu câu hỏi thuộc đề (exam_id IS NOT NULL) hoặc không tồn tại.",
+        "POST /api/v1/bank/questions/approve duyệt danh sách câu hỏi từ draft sang approved và tự động duyệt nhóm câu hỏi tương ứng.",
+        "GET /api/v1/bank/stats trả về thống kê số câu hỏi/nhóm theo part và status, đồng thời so sánh độ đủ/thiếu của câu hỏi approved với blueprint TOEIC."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_bank.py::test_SPEC_BANK_003_bank_admin_api"
+      ],
+      "notes": "Đang đạt: Cung cấp đầy đủ các endpoint CRUD, duyệt và thống kê ngân hàng câu hỏi."
+    },
+    {
       "id": "SPEC-GEN-001",
       "domain": "GEN",
       "title": "Tuân thủ blueprint số câu TOEIC",
