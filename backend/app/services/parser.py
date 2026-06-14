@@ -803,4 +803,95 @@ def import_listening_set(db: Session, docx_path: str, key_path: str, audio_dir: 
         raise e
 
 
+def convert_doc_to_docx(filepath: str, out_dir: str = None) -> str:
+    """
+    Convert a legacy Word document (.doc) to XML format (.docx) using headless LibreOffice.
+    
+    - If the input file already has a .docx extension, returns the input filepath unchanged (passthrough).
+    - If the input file has a .doc extension, converts it using `soffice --headless --convert-to docx`.
+    - Caches result: if the target .docx file already exists, skips conversion and returns its path immediately.
+    - If soffice is missing from PATH, raises a clear, helpful FileNotFoundError.
+    """
+    import os
+    import shutil
+    import subprocess
+    
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Source file not found: {filepath}")
+        
+    # Normalize path extension
+    _, ext = os.path.splitext(filepath.lower())
+    
+    # 1. Passthrough: if already docx, return path directly
+    if ext == ".docx":
+        return filepath
+        
+    if ext != ".doc":
+        raise ValueError(f"Unsupported file format for conversion: {ext} (only .doc is supported)")
+        
+    # Determine output directory (default to input file's directory)
+    if out_dir is None:
+        out_dir = os.path.dirname(os.path.abspath(filepath))
+    else:
+        out_dir = os.path.abspath(out_dir)
+        os.makedirs(out_dir, exist_ok=True)
+        
+    # Determine target docx filename
+    base = os.path.basename(filepath)
+    stem, _ = os.path.splitext(base)
+    target_docx = os.path.join(out_dir, f"{stem}.docx")
+    
+    # 2. Cache check: if target docx exists, skip conversion
+    if os.path.exists(target_docx):
+        return target_docx
+        
+    # 3. Tool presence check
+    soffice_path = shutil.which("soffice")
+    if soffice_path is None:
+        # Check common windows installation folder fallback just in case
+        common_paths = [
+            r"C:\Program Files\LibreOffice\program\soffice.exe",
+            r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
+        ]
+        for cp in common_paths:
+            if os.path.exists(cp):
+                soffice_path = cp
+                break
+                
+    if soffice_path is None:
+        raise FileNotFoundError(
+            "LibreOffice 'soffice' executable not found on PATH or standard directories.\n"
+            "Please install LibreOffice (https://www.libreoffice.org) and make sure 'soffice' "
+            "is added to your system environment variables (PATH)."
+        )
+        
+    # 4. Conversion via subprocess (using list of args, no shell=True)
+    cmd = [
+        soffice_path,
+        "--headless",
+        "--convert-to",
+        "docx",
+        "--outdir",
+        out_dir,
+        filepath
+    ]
+    
+    try:
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"LibreOffice conversion failed for {filepath}.\n"
+            f"Exit code: {e.returncode}\n"
+            f"Error output: {e.stderr or e.stdout}"
+        ) from e
+        
+    if not os.path.exists(target_docx):
+        raise RuntimeError(
+            f"LibreOffice command finished successfully, but target file was not created: {target_docx}"
+        )
+        
+    return target_docx
+
+
+
 

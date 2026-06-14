@@ -240,4 +240,53 @@ def test_SPEC_PARSE_007_import_listening_set_success(db_session):
     assert db_session.query(QuestionGroup).count() == 3
 
 
+def test_SPEC_PARSE_008_doc_converter(tmp_path):
+    """SPEC-PARSE-008: Chuyển đổi tệp tin Word .doc legacy sang .docx.
+    Kiểm tra passthrough, missing-tool (ném lỗi) và cache (không chạy soffice).
+    """
+    from app.services.parser import convert_doc_to_docx
+    import os
+    import docx
+    import shutil
+    from unittest.mock import patch
+
+    # 1. Passthrough Test: .docx file
+    # We will use the existing LT_real_sample.docx fixture path
+    fixture_docx = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser", "LT_real_sample.docx"))
+    assert os.path.exists(fixture_docx)
+    
+    res_docx = convert_doc_to_docx(fixture_docx)
+    assert res_docx == fixture_docx
+    # Verify we can open it
+    doc = docx.Document(res_docx)
+    assert len(doc.paragraphs) > 0
+
+    # 2. Missing Tool Test
+    # Create a real dummy.doc file in tmp_path to pass os.path.exists check
+    dummy_doc = tmp_path / "dummy.doc"
+    dummy_doc.write_text("dummy doc content", encoding="utf-8")
+    
+    # We mock shutil.which to return None and verify FileNotFoundError is raised
+    with patch("shutil.which", return_value=None):
+        import pytest
+        with pytest.raises(FileNotFoundError) as exc_info:
+            convert_doc_to_docx(str(dummy_doc), out_dir=str(tmp_path))
+        assert "LibreOffice" in str(exc_info.value)
+        assert "soffice" in str(exc_info.value)
+
+    # 3. Cache Test
+    # Create a dummy.doc and a cached dummy.docx in tmp_path
+    cached_doc = tmp_path / "cached.doc"
+    cached_doc.write_text("cached doc content", encoding="utf-8")
+    cached_docx = tmp_path / "cached.docx"
+    cached_docx.write_text("cached docx content", encoding="utf-8")
+
+    # If cache works, it will skip calling subprocess entirely
+    with patch("subprocess.run") as mock_run:
+        res_cache = convert_doc_to_docx(str(cached_doc), out_dir=str(tmp_path))
+        assert res_cache == str(cached_docx)
+        mock_run.assert_not_called()
+
+
+
 
