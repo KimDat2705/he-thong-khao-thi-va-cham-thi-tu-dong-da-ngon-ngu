@@ -172,8 +172,16 @@
 - **Ghi nhận fragility (theo dõi)**: P1 hardcode `1≤q≤3`=paragraph / `≥4`=table grounded theo layout LT2601 — các LT khác (LT2603..2629) nếu khác layout cần rà lại khi parse cả bộ.
 - **Trạng thái spec sau PARSE-006**: **26 spec — 21 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-006; gap vẫn MATRIX-002 + GRADE-002; planned vẫn GEN-004, GRADE-003, SCALE-003).
 
+### Session 16 -- 2026-06-15 (Claude + Anti — PARSE-007: Merge answers, Import, and fix question-level hash collision)
+- **Việc PARSE-007 HOÀN THÀNH** (`feat/parser-listening-merge` → merge FF vào `Dat`, commit `a6fdf99`). SPEC-PARSE-007 active:
+  - Sửa `parser.py`: đưa `set_id` và `number` (question number) vào `calculate_question_hash`, và `set_id` vào `calculate_group_hash`.
+  - Trong `import_listening_set(db, docx_path, key_path)`, stamp `set_id` lên mọi `item` và `question` trước khi gọi `save_parsed_items`. Lọc và default các giá trị vắng mặt sang chuỗi rỗng để giữ tương thích ngược hoàn toàn với synthetic/legacy path.
+  - Sửa `make_fixtures.py`: Cập nhật `create_real_answer_key_xlsx` để đặt đáp án cho cả Q5 và Q6 thành "A" (cả hai câu thuộc Part 2, có cùng content và options rỗng) nhằm kích hoạt và kiểm chứng lỗi hash collision (bug nuốt câu của Part 1/Part 2 trên dữ liệu thật).
+  - Nghiệm thu: `test_SPEC_PARSE_007_import_listening_set_success` trong `test_specs_parser.py` chạy thành công, xác nhận import đủ 15/15 câu hỏi (không bị nuốt câu nào), và idempotency hoạt động chuẩn (lần 2 bỏ qua 15 câu, 3 nhóm).
+- **Trạng thái spec sau PARSE-007**: **27 spec — 22 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-007; gap vẫn MATRIX-002 + GRADE-002; planned vẫn GEN-004, GRADE-003, SCALE-003).
+
 ## Next Steps
-- **Việc tiếp theo (lộ trình Parser thật)**: ① **parser `.docx` table-based ĐÃ XONG** (PARSE-006, `parse_listening_docx`, verify file thật 100 câu) → ② **merge** `parse_answer_key` (A3) vào `parse_listening_docx` theo Mã đề + số câu rồi **ghi bank** (tái dùng `save_parsed_items`, qua `ImportBatch`, status='draft', idempotent content_hash) — **việc kế tiếp** → ③ **A4 `.doc`→`.docx`** convert (đề Đọc RT*) → ④ **A2-rework audio gộp**. Tôi soạn spec ② grounded dữ liệu thật.
+- **Việc tiếp theo (lộ trình Parser thật)**: ① **parser `.docx` table-based ĐÃ XONG** (PARSE-006) → ② **merge và import đề nghe thực tế** (PARSE-007) **ĐÃ XONG** → ③ **A4 `.doc`→`.docx`** convert (đề Đọc RT*) → ④ **A2-rework audio gộp**.
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
   - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
