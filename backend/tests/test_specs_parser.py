@@ -169,6 +169,11 @@ def test_SPEC_PARSE_006_parse_real_listening_docx():
     # Check question number range
     assert sorted(q_by_num.keys()) == list(range(1, 16))
 
+    # Dash-split: 1 cell Part 3 phải tách ĐÚNG 2 nhóm × 3 câu (guard chống regression gộp nhóm)
+    p3_groups = [it for it in items if it.get("part") == 3 and "questions" in it]
+    assert len(p3_groups) == 2, f"Part 3 phải tách thành 2 nhóm theo dấu '---', thực tế {len(p3_groups)}"
+    assert all(len(g["questions"]) == 3 for g in p3_groups), "Mỗi nhóm Part 3 phải có đúng 3 câu"
+
     # Verify option wrap logic for Q8 Option A
     q8 = q_by_num[8]
     assert q8["options"]["A"] == "Go to the conference center"
