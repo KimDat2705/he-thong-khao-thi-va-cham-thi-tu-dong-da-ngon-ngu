@@ -1,9 +1,9 @@
-# Session Handoff — cập nhật 15/06/2026 (Claude, sau PARSE-011 — 🎉 TRACK PARSER HOÀN TẤT)
+# Session Handoff — cập nhật 15/06/2026 (Claude, sau A5 Bank-Admin API — router REST đầu tiên)
 
 ## Current State & Achievements
 
 1. **Kiến trúc đã chốt**: `docs/kien_truc_he_thong_v2.html` (tổng thể) + `docs/kien_truc_phan_he_ra_de_tieng_anh.html/.md` (phân hệ Ra đề EN — trọng tâm M2). Tài liệu v1 đông lạnh tham chiếu.
-2. **Harness hoạt động**: **31 spec** trong `specs/specs.json` (**26 active / 2 gap / 3 planned** sau PARSE-011) ↔ 7 file test; suite **33 passed / 2 skipped / 2 xfailed / 0 failed**; meta-test traceability xanh; `scripts/check-architecture.sh` PASS. **Baseline 15/06: `origin/Dat` @ `ef2ced4` (+ commit harness Session 20), clean-state toàn xanh.**
+2. **Harness hoạt động**: **32 spec** trong `specs/specs.json` (**27 active / 2 gap / 3 planned** sau A5) ↔ 7 file test; suite **34 passed / 2 skipped / 2 xfailed / 0 failed**; meta-test traceability xanh; `scripts/check-architecture.sh` PASS. **Baseline 15/06: `origin/Dat` @ `696201e` (A5) + commit harness Session 21, clean-state toàn xanh.**
 3. **DỮ LIỆU INPUT THẬT đã đọc được** (`docs/du_lieu_input_links.md`): tải bằng `PYTHONUTF8=1 python -m gdown` về `D:\Dat-Antigravity\drive_input\` (ngoài repo) + parse openpyxl/python-docx; Sheet→export xlsx; bỏ MP3. Ma trận TOEIC (Sheet) XÁC NHẬN blueprint + luật ta đã code. Đáp án=xlsx lưới Câu/Đáp án; đề=Word tables+ảnh (đã map cấu trúc).
 4. **Real Parser Track (PARSE-006 → 011) — 🎉 HOÀN TẤT (Nghe+Đọc · đề+đáp án+audio → bank, dữ liệu đối tác thật)**:
    - **A3 (`d2388e8`)**: `parse_answer_key(filepath)->dict[int,str]` (openpyxl, quét header, gộp 5 block).
@@ -14,6 +14,11 @@
    - **PARSE-009 (`4668e44` + vá `0712a8a`)**: `parse_reading_docx(filepath)->{set_id, items}` — Reading parse-only, số câu 1-100 (P5 đơn / P6 4-blank / P7 passage đơn-đôi-ba + ảnh). Option extraction chắc (inline-A, all-inline `re.DOTALL`+split, sandwich, 4x2 table). **2 bug Claude bắt lúc nghiệm thu** (treo vô hạn ở inner loop + mất options 30/70 câu) — đã vá. Verify RT2605 thật: **100 câu / 0 thiếu options**.
    - **PARSE-010 (`e2941f3`)**: tổng quát `import_listening_set` → `import_exam_set(db, docx_path, key_path, exam_type, audio_dir=None)` (dispatch parser theo exam_type + set_id `(LT|RT)`); `import_listening_set`/`import_reading_set` là wrapper mỏng. **Verify dữ liệu THẬT (Claude)**: LT2601→100 câu/23 nhóm, RT2605→100 câu/20 nhóm, idempotent; LT+RT coexist 1 DB = **200 câu/43 nhóm/0 thiếu đáp án**. 🏗️ pipeline Parser thật ĐỦ Nghe+Đọc→bank.
    - **PARSE-011 (`ef2ced4`)**: `find_audio_file` + `import_exam_set` link MP3 gộp vào `audio_url` **cấp FILE** (dải/đơn, anchored regex, non-fatal, report `audio_ambiguous`). **KHÔNG cắt** (quyết định Đạt: ma trận không yêu cầu, đối tác không có timestamp, models đóng băng). Verify 15 tên file THẬT: 15/15 set map được, chỉ LT2603/LT2605 ambiguous (3 file đầu đè dải). 🎉 **Track Parser HOÀN TẤT** — `feature_list.docx-parser` → active.
+4b. **A5 Bank-Admin API — XONG (`696201e`, SPEC-BANK-003 active) — router REST ĐẦU TIÊN của dự án** (`app/api/` + `app/schemas/` trước đó rỗng):
+   - `app/api/bank.py` prefix `/api/v1/bank`: `GET /questions` (filter part/status/topic/difficulty + phân trang, chỉ `exam_id IS NULL`), `PATCH /questions/{id}` (sửa bank item; 404 cho clone `exam_id IS NOT NULL` / không tồn tại), `POST /questions/approve` (bulk draft→approved + **propagate nhóm cha**), `GET /stats` (đếm part×status đối chiếu `TOEIC_BLUEPRINT`).
+   - `app/services/bank_admin.py` logic thuần (API mỏng) + `app/schemas/bank.py` Pydantic v2. Endpoints CHƯA auth (auth-api not_started) — có TODO marker.
+   - **Propagate nhóm cha là bắt buộc**: parser ghi cả Question lẫn QuestionGroup `status="draft"`; generator lọc CẢ HAI `==approved`. Test SPEC-BANK-003 non-tautological (stats trước seed → seed 2 draft → filter/approve → chứng minh lật nhóm cha). Nghiệm thu: 34/2/2 ×2, ruff/architecture/traceability xanh, no dep mới.
+   - **conftest đổi `StaticPool`** (cần cho `:memory:` cross-thread dưới TestClient — verify thực nghiệm bỏ ra thì gãy). `feature_list.exam-admin-api` → in_progress (còn Exam CRUD + auth).
 5. **SETUP (0a+0b+0c) XONG**: 0a (`2cd7988`); 0b (PR #15 → `1e139c2`) CI+ruff+pytest-cov; 0c (PR #16 → `0c265c9`) Alembic, chạy thật trên PostgreSQL 17. **MODELS ĐÓNG BĂNG từ 0c.**
 6. **Pipeline Ra đề EN (B1+B2+B3+GEN-002) — generator gần hoàn chỉnh**:
    - **B1 (`45ccd09`)**: filter `approved` (BANK-001), `InsufficientBankError` + pre-check (GEN-006), `seed` qua `local_random`+`.order_by(id)` (GEN-005), `source_question_id`.
@@ -22,7 +27,7 @@
    - **GEN-002 (`ca2ce48`)**: cân bằng đáp án A/B/C/D 20-28% qua hoán vị clone.
    - → Đề sinh ra: đúng 200 câu · ma trận độ khó per-part · đa dạng topic · cân bằng đáp án · tái lập theo seed · chỉ câu approved · bank bất biến.
 7. **Hạ tầng máy Đạt**: PostgreSQL 17 tại `D:\Postgres\17` (port 5432, user postgres). `psql`/`createdb` tại `D:\Postgres\17\bin\` (chưa vào PATH).
-8. **Đồng bộ git**: `origin/Dat` @ `6422e5e`. Nhánh feature merge xong là xoá. Working tree sạch.
+8. **Đồng bộ git**: `origin/Dat` @ `696201e` (A5 merged) + commit chốt sổ Session 21. Nhánh `feat/bank-admin-api` đã xoá (local+remote); `feat/parser-audio-link` cũng đã xoá. Working tree sạch.
 
 ## Current Gaps / In Progress
 
@@ -38,9 +43,10 @@
 
 ## Next Session Objectives
 
-1. **Lộ trình tiếp theo (track Parser ĐÃ XONG — PARSE-006→011)**:
+1. **Lộ trình tiếp theo (track Parser XONG + A5 XONG)**:
+   - **A6 bank-admin-UI** (`feat/bank-admin-ui`): trang Next.js `/admin/bank` duyệt draft→approved + xem error report, dùng `/api/v1/bank` của A5 — **phiên đầu tiên đụng frontend** (npm/Next.js 16). Hoặc:
    - **Generator gaps**: MATRIX-002 toàn-đề (reframe per-skill theo Ma trận thật; vướng P7 nghiệm-duy-nhất) + GEN-004 (độ trùng lô, cần đường dẫn generate batch).
-   - Cân nhắc **A5 bank-admin-API** để lộ pipeline ingestion (`import_exam_set`) qua HTTP.
+   - (Sau) **auth-api** để bịt các endpoint A5 đang mở (hiện chỉ TODO marker).
    - 💡 Đối chiếu `TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật → cập nhật giá trị (data, không sửa code).
 2. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → **Claude nghiệm thu XONG mới push** → merge. KHÔNG đụng `backend/app/models/`, phân hệ Chấm, `claude-progress.md`/`session-handoff.md`. ⚠️ Phiên PARSE-007 Anti lại (a) push trước khi Claude nghiệm thu, (b) tự sửa 2 file nhật ký của Claude — nhắc giữ đúng ranh giới lần sau.
 3. Hạ tầng (khi rảnh): postgres service vào `ci.yml`; "Require status checks" cho `main`; hardening PARSE-002.

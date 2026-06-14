@@ -234,9 +234,24 @@
 - **Quyết định dài hạn (đã ghi memory `audio-no-cut-file-level`)**: audio để CẢ FILE, KHÔNG cắt.
 - **Khác**: frontend KHÔNG đụng (npm build N/A); Celery/Redis không chạy local; hạ tầng máy thêm LibreOffice 26.2; nhánh remote `feat/parser-audio-link` đã merge — chờ xoá (tuỳ Đạt). 3 memory nghiệm thu/brief đã ghi phiên này.
 
+### Session 21 -- 2026-06-15 (Claude + Anti — A5: Bank-Admin API, router REST thật đầu tiên)
+- **Dọn nhánh leftover**: xoá remote `feat/parser-audio-link` (đã merge từ S20) + prune. Remote còn `Dat`/`main` sạch.
+- **Việc A5 HOÀN THÀNH** (`feat/bank-admin-api` → FF vào `Dat`, commit `696201e`, đã push; nhánh đã xoá local+remote). SPEC-BANK-003 active. Router REST **đầu tiên** của dự án (`app/api/` và `app/schemas/` trước đó rỗng):
+  - `app/api/bank.py` prefix `/api/v1/bank`: `GET /questions` (filter part/status/topic/difficulty + phân trang, chỉ `exam_id IS NULL`), `PATCH /questions/{id}` (sửa bank item, 404 cho clone/không tồn tại), `POST /questions/approve` (bulk draft→approved + **propagate nhóm cha**), `GET /stats` (đếm part×status đối chiếu `TOEIC_BLUEPRINT`).
+  - `app/services/bank_admin.py` (logic thuần, API mỏng) + `app/schemas/bank.py` (Pydantic v2). `main.py` đăng ký router.
+  - **Propagate nhóm cha là ĐÚNG & CẦN**: parser ghi cả Question lẫn QuestionGroup `status="draft"`, generator lọc CẢ HAI `==approved` → không lật nhóm thì câu approved vẫn không sinh được.
+- **Giao thức plan-review**: Anti grounding → plan v1 → Claude bắt **3 lỗi test** (tautology: conftest seed toàn bộ approved nên filter draft rỗng; TestClient bịt DB sai vì `:memory:` tách connection; stats ordering) → plan v2 → `DUYỆT A5` → code nhánh feature → chờ nghiệm thu.
+- **Nghiệm thu (Claude, độc lập)**: đọc diff từng dòng; pytest **34/2/2** ×2; ruff sạch; architecture PASS (gồm "DB sessions managed correctly in API layers"); traceability 4/4; **không dep mới** (httpx đã có); models KHÔNG đụng.
+  - **2 file ngoài plan — đều chấp nhận**: `database.py` (+1 dòng trống, vô hại); `conftest.py` đổi sang `StaticPool` — **ngoài plan NHƯNG cần thiết thật** (Claude verify thực nghiệm: bỏ StaticPool → test A5 gãy `no such table: questions` do split connection cross-thread `:memory:` dưới TestClient; an toàn cho 33 test cũ). Pattern chuẩn FastAPI test. → nhắc Anti lần sau flag khi tự thêm file ngoài plan.
+  - Self-report Anti "38/38 passed" = gộp tổng (34+2+2) nói lỏng; số thực 34/2/2 đúng kỳ vọng.
+- **Ghi chú thiết kế (không chặn)**: `QuestionUpdate` cho phép PATCH `status` trực tiếp → patch status=approved KHÔNG propagate nhóm; `/approve` là đường chuẩn để duyệt (nên doc/TODO sau).
+- **Trạng thái spec sau A5**: **32 spec — 27 active / 2 gap / 3 planned** (catalog +1: SPEC-BANK-003; gap vẫn MATRIX-002 + GRADE-002; planned vẫn GEN-004, GRADE-003, SCALE-003). `feature_list.exam-admin-api` → **in_progress** (xong nửa bank-admin; còn Exam CRUD + auth).
+
 ## Next Steps
-- 🎉 **Track Parser HOÀN TẤT** (PARSE-006..011). **Việc tiếp theo: generator gaps** — **MATRIX-002 toàn-đề** (reframe per-skill theo Ma trận thật, vướng P7 nghiệm-duy-nhất) + **GEN-004** (độ trùng lô, cần đường dẫn generate batch). Cân nhắc **A5 bank-admin-API** để lộ pipeline ingestion qua HTTP.
-- Sau Parser: quay lại **generator gaps** — MATRIX-002 toàn-đề (reframe per-skill theo Ma trận thật) + GEN-004 (độ trùng lô).
+- ✅ **Track Parser HOÀN TẤT** (PARSE-006..011) · ✅ **A5 Bank-Admin API XONG** (SPEC-BANK-003, `/api/v1/bank` lộ ingestion qua HTTP). **Việc tiếp theo (chọn):**
+  - **A6 bank-admin-UI** (`feat/bank-admin-ui`): trang Next.js `/admin/bank` duyệt draft→approved + xem error report — lộ A5 ra giao diện (đầu tiên đụng frontend phiên này). Hoặc
+  - **generator gaps**: **MATRIX-002 toàn-đề** (reframe per-skill theo Ma trận thật, vướng P7 nghiệm-duy-nhất) + **GEN-004** (độ trùng lô, cần đường dẫn generate batch).
+  - 💡 Cân nhắc end-to-end demo: `import_exam_set` (draft) → `POST /approve` → generate — hiện 1 set thật chưa đủ full bank (LT2601 chỉ Listening) nên cần seed thêm để chạy thật.
 - 💡 Đối chiếu `TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật → cập nhật giá trị (data).
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
   - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
