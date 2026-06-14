@@ -225,6 +225,15 @@
 - **Trạng thái spec sau PARSE-011**: **31 spec — 26 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-011).
 - 🎉 **TRACK PARSER HOÀN TẤT**: pipeline Ra đề THẬT = parse `.docx` Nghe (006) + merge+import Nghe (007) + convert `.doc` (008) + parse Đọc (009) + merge+import chung (010) + link audio (011). Verify dữ liệu đối tác THẬT: LT2601 + RT2605 = 200 câu + audio vào bank, idempotent, coexist. `feature_list.docx-parser` → **active**.
 
+### Chốt phiên 15/06/2026 — CUỐI (marathon Sessions 15-20: PARSE-006→011, 🎉 track Parser HOÀN TẤT)
+- **Phạm vi phiên**: PARSE-006 (parse Nghe) · CI-Pillow fix (`2ee9daa`) · PARSE-007 (merge+import Nghe) · PARSE-008 (convert .doc) · PARSE-009 (parse Đọc) · PARSE-010 (merge+import chung) · PARSE-011 (link audio). Suite **27/2/2 → 33/2/2**.
+- **Clean-state (toàn xanh)**: pytest **33 passed / 2 skipped / 2 xfailed / 0 failed**; traceability **4 passed**; `ruff check app/` sạch; `check-architecture.sh` PASS; KHÔNG file `*.db`; working tree sạch; `Dat` đồng bộ `origin/Dat` @ **fe238cf** (+ commit chốt sổ này).
+- **Rà specs.json (khớp, không bỏ sót)**: **31 spec — 26 active / 2 gap / 3 planned** (gap: MATRIX-002, GRADE-002; planned: GEN-004, GRADE-003, SCALE-003). PARSE-006..011 đều active; traceability xanh xác nhận spec↔test khớp.
+- **Rà feature_list.json**: active = db-migration + ai-grading + **docx-parser (mới active phiên này)**; in_progress = celery-worker + exam-generator; not_started = auth-api, exam-admin-api, exam-room-ui, exam-validator. Ghi đầy đủ, không thiếu.
+- 🎉 **Thành tựu**: pipeline Ra đề THẬT hoàn tất — parse `.docx`/`.doc` Nghe+Đọc + merge đáp án `.xlsx` + link audio MP3 → bank; verify dữ liệu đối tác thật (LT2601 + RT2605 = 200 câu/43 nhóm/**0 thiếu đáp án** + audio, idempotent, coexist). **6 lần verify dữ liệu thật bắt 3 bug ẩn** fixture không lộ.
+- **Quyết định dài hạn (đã ghi memory `audio-no-cut-file-level`)**: audio để CẢ FILE, KHÔNG cắt.
+- **Khác**: frontend KHÔNG đụng (npm build N/A); Celery/Redis không chạy local; hạ tầng máy thêm LibreOffice 26.2; nhánh remote `feat/parser-audio-link` đã merge — chờ xoá (tuỳ Đạt). 3 memory nghiệm thu/brief đã ghi phiên này.
+
 ## Next Steps
 - 🎉 **Track Parser HOÀN TẤT** (PARSE-006..011). **Việc tiếp theo: generator gaps** — **MATRIX-002 toàn-đề** (reframe per-skill theo Ma trận thật, vướng P7 nghiệm-duy-nhất) + **GEN-004** (độ trùng lô, cần đường dẫn generate batch). Cân nhắc **A5 bank-admin-API** để lộ pipeline ingestion qua HTTP.
 - Sau Parser: quay lại **generator gaps** — MATRIX-002 toàn-đề (reframe per-skill theo Ma trận thật) + GEN-004 (độ trùng lô).
