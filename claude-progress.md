@@ -161,8 +161,19 @@
 - **Khác**: frontend KHÔNG đụng phiên này (npm build N/A); Celery/Redis không chạy local; dữ liệu input thật + cấu trúc đề đã ghi `docs/du_lieu_input_links.md` (data tải ngoài repo tại `D:\Dat-Antigravity\drive_input`, không commit).
 - **Memory**: `du-lieu-input-drive` đã cập nhật đủ findings; `project-strategy-and-harness` + `github-repo` vẫn đúng; không có quyết định dài hạn mới cần thêm.
 
+### Session 15 -- 2026-06-15 (Claude + Anti — PARSE-006: parser .docx table-based THẬT, bước ① lộ trình Parser thật)
+- **Việc PARSE-006 HOÀN THÀNH** (Anti commit thẳng `8239a88` trên `Dat` + Claude siết test `c65eb57`; **CHƯA push**). `parser.py` thêm `parse_listening_docx(filepath) -> {set_id, items}` — **parse-only**, KHÔNG ghi DB/đáp án (tách hẳn merge ở bước ②):
+  - Duyệt `doc.element.body` THEO THỨ TỰ (dispatch `CT_P`/`CT_Tbl`) giữ Part hiện hành (bẫy python-docx kinh điển — đọc `doc.paragraphs`/`doc.tables` riêng sẽ mất thứ tự); chuẩn hoá Mã đề "LT.2601"→"LT2601"; tách nhóm P3/P4 theo dòng `---` trong cell; ghép wrap option/câu qua nhiều paragraph (state-machine); P1 ghi image index, P2 options rỗng. **Giữ nguyên hàm cũ** (`parse_docx`/`import_file`) → PARSE-001..005 vẫn xanh.
+  - Fixture MINI table-based (`make_fixtures.create_real_listening_docx`, sinh qua autouse `main()`): 1 cell P3 chứa **2 nhóm** ngăn bởi `---` + Q8 option A **wrap 2 paragraph**. **SPEC-PARSE-006 active**.
+- **Giao thức plan-review chạy tốt**: Anti grounding file thật TRƯỚC khi viết → plan v1 → Claude bắt 1 lỗi quan trọng (fixture MINI quá đơn giản, mỗi cell 1 nhóm + options 1 dòng → KHÔNG test được dash-split + wrap) + 2 nhắc → Anti sửa plan v2 → `DUYỆT PARSE-006` → code.
+- **Nghiệm thu (Claude, độc lập)**: đọc diff từng dòng; ranh giới đúng **4 file** (503+/0− → hàm cũ nguyên vẹn; models/grading/harness/conftest KHÔNG đụng); pytest **28 passed / 2 skipped / 2 xfailed** (×2 ổn định); ruff sạch; architecture PASS; traceability 4/4.
+  - 🎯 **Verify FILE THẬT `LT2601.docx`** (`D:\Dat-Antigravity\drive_input\LT\`): set_id=LT2601 · P1=6 · P2=25 · P3=13 nhóm/39 câu · P4=10 nhóm/30 câu · **TOTAL=100** — khớp chính xác blueprint TOEIC Listening. Parser đúng cả ngoài fixture.
+  - **Lỗ test phát hiện + Claude tự vá** (`c65eb57`): test cũ chỉ **cộng tổng** câu (`part_counts[3]==6`), không bắt được regression gộp 2 nhóm thành 1 → thêm assert P3 == **2 nhóm × 3 câu** (Option 3, đúng tiền lệ Claude tự vá lỗi nhỏ lúc review S6/S7). Logic dash-split đã verify đúng — đây là guard chống regression.
+- **Ghi nhận fragility (theo dõi)**: P1 hardcode `1≤q≤3`=paragraph / `≥4`=table grounded theo layout LT2601 — các LT khác (LT2603..2629) nếu khác layout cần rà lại khi parse cả bộ.
+- **Trạng thái spec sau PARSE-006**: **26 spec — 21 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-006; gap vẫn MATRIX-002 + GRADE-002; planned vẫn GEN-004, GRADE-003, SCALE-003).
+
 ## Next Steps
-- **Việc tiếp theo (lộ trình Parser thật)**: **parser `.docx` table-based** (cấu trúc đã map trong `docs/du_lieu_input_links.md`: trích Mã đề + duyệt tables + regex options P3/4 + ảnh P1) → **merge** đáp án (parse_answer_key) vào câu hỏi theo Mã đề → **A4 `.doc`→`.docx`** convert → **A2-rework audio gộp**. Tôi soạn spec từng bước grounded dữ liệu thật.
+- **Việc tiếp theo (lộ trình Parser thật)**: ① **parser `.docx` table-based ĐÃ XONG** (PARSE-006, `parse_listening_docx`, verify file thật 100 câu) → ② **merge** `parse_answer_key` (A3) vào `parse_listening_docx` theo Mã đề + số câu rồi **ghi bank** (tái dùng `save_parsed_items`, qua `ImportBatch`, status='draft', idempotent content_hash) — **việc kế tiếp** → ③ **A4 `.doc`→`.docx`** convert (đề Đọc RT*) → ④ **A2-rework audio gộp**. Tôi soạn spec ② grounded dữ liệu thật.
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
   - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
