@@ -199,6 +199,24 @@
       "notes": "Đang triển khai: import_reading_set phối hợp thành công parser câu hỏi và parser đáp án, ghi nhận an toàn vào cơ sở dữ liệu."
     },
     {
+      "id": "SPEC-PARSE-011",
+      "domain": "PARSE",
+      "title": "Liên kết tệp âm thanh Listening cấp file",
+      "statement": "Hệ thống hỗ trợ tự động tìm kiếm và liên kết tệp âm thanh gộp (.mp3) tương ứng với mã đề Listening (theo số đơn hoặc dải phủ) để gán vào thuộc tính audio_url của mọi câu hỏi/nhóm câu hỏi, đồng thời báo cáo sự mơ hồ (ambiguous) nếu một đề khớp nhiều file âm thanh, và cho phép bỏ qua nếu không tìm thấy tệp (non-fatal).",
+      "acceptance_criteria": [
+        "Khớp và liên kết tệp MP3 theo dải (start-end) hoặc số đơn tương ứng với set ID",
+        "Gán tên tệp MP3 tìm thấy làm audio_url cho toàn bộ câu hỏi và nhóm câu hỏi",
+        "Nếu không tìm thấy tệp MP3, đặt audio_url thành null mà không ném ngoại lệ",
+        "Báo cáo danh sách tất cả tệp âm thanh trùng lặp nếu phát hiện mơ hồ (hơn 1 tệp khớp) trong thuộc tính audio_ambiguous"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_011_listening_audio_linking"
+      ],
+      "notes": "Đang triển khai: import_exam_set tự động định vị và gán file MP3 theo dải đề thi Listening."
+    },
+    {
       "id": "SPEC-BANK-001",
       "domain": "BANK",
       "title": "Chỉ item đã duyệt được vào đề",

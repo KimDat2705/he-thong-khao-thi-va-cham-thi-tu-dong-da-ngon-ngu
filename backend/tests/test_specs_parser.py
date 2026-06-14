@@ -467,6 +467,85 @@ def test_SPEC_PARSE_010_import_reading_set_success(db_session):
     assert db_session.query(QuestionGroup).count() == 3
 
 
+def test_SPEC_PARSE_011_listening_audio_linking(db_session, tmp_path):
+    """SPEC-PARSE-011: Kiểm tra liên kết tệp âm thanh cấp file cho đề Listening.
+    """
+    from app.services.parser import import_listening_set
+    from app.models.question import Question
+    from app.models.question_group import QuestionGroup
+    import os
+    import shutil
+
+    # Copy files to temp directory
+    fixtures_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser"))
+    orig_docx = os.path.join(fixtures_dir, "LT_real_sample.docx")
+    orig_key = os.path.join(fixtures_dir, "Key_LT9999.xlsx")
+
+    temp_docx = os.path.join(tmp_path, "LT_real_sample.docx")
+    temp_key = os.path.join(tmp_path, "Key_LT9999.xlsx")
+
+    shutil.copy(orig_docx, temp_docx)
+    shutil.copy(orig_key, temp_key)
+
+    # 1. Non-fatal fallback path: NO MP3 file found
+    db_session.query(Question).delete()
+    db_session.query(QuestionGroup).delete()
+    db_session.commit()
+
+    res_missing = import_listening_set(db_session, temp_docx, temp_key, audio_dir=str(tmp_path))
+    assert res_missing["audio_linked"] is None
+    assert res_missing["audio_ambiguous"] == []
+
+    questions = db_session.query(Question).all()
+    groups = db_session.query(QuestionGroup).all()
+    assert len(questions) == 15
+    assert len(groups) == 3
+    assert all(q.audio_url is None for q in questions)
+    assert all(g.audio_url is None for g in groups)
+
+    # 2. Single match path: exactly 1 matching MP3 file
+    db_session.query(Question).delete()
+    db_session.query(QuestionGroup).delete()
+    db_session.commit()
+
+    # Create one matching range MP3 file
+    mp3_file_1 = os.path.join(tmp_path, "9990 - 9999.mp3")
+    with open(mp3_file_1, "wb") as f:
+        f.write(b"MOCK AUDIO")
+
+    res_single = import_listening_set(db_session, temp_docx, temp_key, audio_dir=str(tmp_path))
+    assert res_single["audio_linked"] == "9990 - 9999.mp3"
+    assert res_single["audio_ambiguous"] == []
+
+    questions = db_session.query(Question).all()
+    groups = db_session.query(QuestionGroup).all()
+    assert len(questions) == 15
+    assert len(groups) == 3
+    assert all(q.audio_url == "9990 - 9999.mp3" for q in questions)
+    assert all(g.audio_url == "9990 - 9999.mp3" for g in groups)
+
+    # 3. Ambiguity path: multiple matching MP3 files
+    db_session.query(Question).delete()
+    db_session.query(QuestionGroup).delete()
+    db_session.commit()
+
+    # Create a second matching range MP3 file (alphabetically larger, so "9990 - 9999.mp3" is chosen)
+    mp3_file_2 = os.path.join(tmp_path, "9998 - 9999.mp3")
+    with open(mp3_file_2, "wb") as f:
+        f.write(b"MOCK AUDIO")
+
+    res_ambig = import_listening_set(db_session, temp_docx, temp_key, audio_dir=str(tmp_path))
+    assert res_ambig["audio_linked"] == "9990 - 9999.mp3"
+    assert sorted(res_ambig["audio_ambiguous"]) == ["9990 - 9999.mp3", "9998 - 9999.mp3"]
+
+    questions = db_session.query(Question).all()
+    groups = db_session.query(QuestionGroup).all()
+    assert len(questions) == 15
+    assert len(groups) == 3
+    assert all(q.audio_url == "9990 - 9999.mp3" for q in questions)
+    assert all(g.audio_url == "9990 - 9999.mp3" for g in groups)
+
+
 
 
 

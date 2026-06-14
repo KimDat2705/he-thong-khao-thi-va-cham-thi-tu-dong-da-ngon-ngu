@@ -502,7 +502,13 @@ def main():
     create_real_reading_answer_key_xlsx(os.path.join(dir_path, "Key_RT9999.xlsx"))
     
     # Create mock audio files
-    for audio_file in ["LT_sample_valid_P1_01.mp3", "LT_sample_valid_P3_01.mp3"]:
+    mock_audios = [
+        "LT_sample_valid_P1_01.mp3",
+        "LT_sample_valid_P3_01.mp3",
+        "9990 - 9999.mp3",
+        "9998 - 9999.mp3"
+    ]
+    for audio_file in mock_audios:
         with open(os.path.join(dir_path, audio_file), "wb") as f:
             f.write(b"MOCK MP3 DATA")
             

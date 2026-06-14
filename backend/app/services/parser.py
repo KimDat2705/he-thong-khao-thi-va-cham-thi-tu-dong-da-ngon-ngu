@@ -696,6 +696,64 @@ def parse_listening_docx(filepath: str) -> dict:
     }
 
 
+def find_audio_file(audio_dir: str, set_id: str) -> tuple[str | None, list[str]]:
+    """
+    Search audio_dir for an MP3 file covering set_id.
+    Returns:
+        tuple[str | None, list[str]]: (selected_audio_filename, ambiguous_matches_list)
+    """
+    import os
+    import re
+
+    if not audio_dir or not os.path.exists(audio_dir):
+        return None, []
+
+    # Extract digits from set_id (e.g., 'LT2601' -> 2601)
+    m = re.search(r'\d+', set_id)
+    if not m:
+        return None, []
+    set_num = int(m.group(0))
+
+    candidates = []
+    try:
+        filenames = os.listdir(audio_dir)
+    except OSError:
+        return None, []
+
+    for filename in filenames:
+        if not filename.lower().endswith(".mp3"):
+            continue
+
+        filename_clean = filename.strip()
+        filename_lower = filename_clean.lower()
+
+        # Try to match range: e.g. "2601 - 2604.mp3" strictly anchored
+        range_match = re.match(r'^(\d+)\s*-\s*(\d+)\.mp3$', filename_lower)
+        if range_match:
+            start = int(range_match.group(1))
+            end = int(range_match.group(2))
+            if start <= set_num <= end:
+                candidates.append(filename_clean)
+            continue
+
+        # Try to match single set: e.g. "2601.mp3" strictly anchored
+        single_match = re.match(r'^(\d+)\.mp3$', filename_lower)
+        if single_match:
+            num = int(single_match.group(1))
+            if num == set_num:
+                candidates.append(filename_clean)
+            continue
+
+    if not candidates:
+        return None, []
+
+    # Sort alphabetically for deterministic behavior
+    candidates.sort()
+    selected = candidates[0]
+    ambiguous = candidates if len(candidates) > 1 else []
+    return selected, ambiguous
+
+
 def import_exam_set(db: Session, docx_path: str, key_path: str, exam_type: str, audio_dir: str = None) -> dict:
     """
     Parses, merges answers, validates, and imports a real-format TOEIC exam set (listening or reading) into the Question Bank.
@@ -714,12 +772,23 @@ def import_exam_set(db: Session, docx_path: str, key_path: str, exam_type: str, 
     set_id_docx = docx_res["set_id"]
     items = docx_res["items"]
 
-    # Stamp set_id
+    # Locate and resolve audio file for Listening
+    matched_audio = None
+    ambiguous_audio = []
+    if exam_type == "listening":
+        search_dir = audio_dir if audio_dir is not None else os.path.dirname(docx_path)
+        matched_audio, ambiguous_audio = find_audio_file(search_dir, set_id_docx)
+
+    # Stamp set_id and audio_url
     for item in items:
         item["set_id"] = set_id_docx
+        if exam_type == "listening":
+            item["audio_url"] = matched_audio
         if "questions" in item:
             for q in item["questions"]:
                 q["set_id"] = set_id_docx
+                if exam_type == "listening":
+                    q["audio_url"] = matched_audio
 
     # 2. Parse answer key
     answers = parse_answer_key(key_path)
@@ -803,6 +872,9 @@ def import_exam_set(db: Session, docx_path: str, key_path: str, exam_type: str, 
 
     try:
         result = save_parsed_items(db, items, batch.id)
+        if exam_type == "listening":
+            result["audio_linked"] = matched_audio
+            result["audio_ambiguous"] = ambiguous_audio
         return result
     except Exception as e:
         db.rollback()
