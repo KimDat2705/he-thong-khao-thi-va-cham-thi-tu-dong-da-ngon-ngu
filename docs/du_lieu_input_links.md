@@ -67,3 +67,12 @@ Bỏ qua thư mục audio (~1.5GB MP3). `.doc` legacy: python-docx KHÔNG đọc
 - → Parser thật phải: đọc **tables** (python-docx), trích **ảnh** Part 1 (→image_url), nhận diện Part/Directions/số câu, **merge KEY xlsx theo Mã đề**. Lớn hơn nhiều A1 giả lập (A1/A2 hiện chỉ là scaffolding trên fixture).
 
 > Dữ liệu mẫu đã tải về `D:\Dat-Antigravity\drive_input\` (MatranTOEIC.xlsx, KEY_LT/, LT/) — ngoài repo, không commit.
+
+### Cấu trúc chi tiết đề `LT*.docx` (15 bảng — research cho parser .docx về sau)
+Câu hỏi nằm trong **tables** + ảnh, đánh số 1-100, KHÔNG đáp án (đáp án ở KEY xlsx):
+- TABLE 0: header trường/ĐH/môn. **TABLE 1: "Mã đề thi LT.2601"** (khoá liên kết KEY).
+- TABLE 2: directions "LISTENING TEST".
+- **Part 1 (câu 1-6)**: bảng chứa số câu ("4.","5.","6.") + **ẢNH** (inline_shapes) — không có options dạng text (nhìn tranh, nghe).
+- **Part 2 (câu 7-31)**: bảng "N.  Mark your answer on your answer sheet." — KHÔNG options trong đề (Q + đáp lời qua audio).
+- **Part 3/4 (câu 32-100)**: bảng, mỗi ô = "N. <câu hỏi> / (A) … / (B) … / (C) … / (D) …" — câu hỏi + 4 lựa chọn ngay trong cell. Header "PART 2/Part 3:/Part 4:" xen kẽ paragraph/table.
+- → **Parser `.docx` thật phải**: trích Mã đề (table); duyệt tables; nhận Part qua header; regex tách "số câu + 4 options" ở cell P3/4; trích ảnh P1; câu Part 1-2 không có options text; **merge KEY xlsx theo Mã đề + số câu** để gắn đáp án. (Reading RT*.doc: phần lớn `.doc` legacy cần convert trước.)
