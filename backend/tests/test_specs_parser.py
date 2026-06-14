@@ -95,3 +95,21 @@ def test_SPEC_PARSE_004_failed_import_writes_nothing(db_session):
     assert report["file"].endswith("LT_sample_missing_answer.docx")
     assert len(report["errors"]) > 0
     assert {"location", "type", "message"} <= set(report["errors"][0].keys())
+
+
+def test_SPEC_PARSE_005_answer_key_import():
+    """SPEC-PARSE-005: Đọc và parse tệp đáp án từ Excel (*.xlsx) theo đúng cấu trúc.
+    """
+    from app.services.parser import parse_answer_key
+    import os
+
+    filepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser", "Key_LT2601.xlsx"))
+    assert os.path.exists(filepath), f"File fixture {filepath} không tồn tại"
+
+    answers = parse_answer_key(filepath)
+
+    assert len(answers) == 100, f"Kỳ vọng 100 đáp án, thực tế nhận được {len(answers)}"
+    for q_num in range(1, 101):
+        assert q_num in answers, f"Thiếu đáp án cho câu {q_num}"
+        assert answers[q_num] in {"A", "B", "C", "D"}, f"Đáp án câu {q_num} không hợp lệ: {answers[q_num]}"
+

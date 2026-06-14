@@ -88,6 +88,23 @@
       "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
     },
     {
+      "id": "SPEC-PARSE-005",
+      "domain": "PARSE",
+      "title": "Import đáp án từ file Excel",
+      "statement": "Phần mềm nạp đáp án chính xác từ file mẫu Excel (*.xlsx) chứa ma trận câu hỏi và đáp án đúng lặp theo các khối (block) cột.",
+      "acceptance_criteria": [
+        "Đọc file Excel định dạng nhị phân, tự động định vị dòng tiêu đề và các cột Câu/Đáp án",
+        "Gộp toàn bộ các khối lặp cột thành một cấu trúc duy nhất chứa đầy đủ đáp án của 100 câu hỏi",
+        "Đáp án thu thập được phải chuẩn hóa về dạng chữ hoa và thuộc tập {A, B, C, D}"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_005_answer_key_import"
+      ],
+      "notes": "Đang đạt: parser hỗ trợ phân tích đáp án từ file Excel cấu trúc thực tế."
+    },
+    {
       "id": "SPEC-BANK-001",
       "domain": "BANK",
       "title": "Chỉ item đã duyệt được vào đề",

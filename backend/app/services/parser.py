@@ -351,3 +351,76 @@ def import_file(db: Session, filepath: str, audio_dir: str = None) -> dict:
     except Exception as e:
         db.rollback()
         raise e
+
+
+def parse_answer_key(filepath: str) -> dict[int, str]:
+    """
+    Parses answer key from an Excel (.xlsx) file with a header containing 'Câu' and 'Đáp án'.
+    Supports multiple column blocks (e.g. 5 blocks of 20 rows each).
+    """
+    import openpyxl
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    wb = openpyxl.load_workbook(filepath, data_only=True)
+    sheet = wb.active
+
+    header_row_idx = None
+    column_pairs = []
+
+    for r_idx in range(1, sheet.max_row + 1):
+        row_vals = [sheet.cell(row=r_idx, column=c_idx).value for c_idx in range(1, sheet.max_column + 1)]
+        norm_vals = []
+        for v in row_vals:
+            if isinstance(v, str):
+                norm_vals.append(v.strip().lower())
+            else:
+                norm_vals.append("")
+
+        câu_indices = [i for i, val in enumerate(norm_vals) if "câu" in val]
+        if len(câu_indices) >= 2:
+            header_row_idx = r_idx
+            for c_idx in câu_indices:
+                for offset in range(1, 4):
+                    next_idx = c_idx + offset
+                    if next_idx < len(norm_vals) and ("đáp" in norm_vals[next_idx] or "key" in norm_vals[next_idx] or "ans" in norm_vals[next_idx]):
+                        column_pairs.append((c_idx + 1, next_idx + 1))
+                        break
+            if column_pairs:
+                break
+
+    if header_row_idx is None or not column_pairs:
+        wb.close()
+        raise ValueError("Could not find a valid header row with 'Câu' and 'Đáp án' columns in the Excel file.")
+
+    answers = {}
+    for r_idx in range(header_row_idx + 1, sheet.max_row + 1):
+        for câu_col, ans_col in column_pairs:
+            câu_val = sheet.cell(row=r_idx, column=câu_col).value
+            ans_val = sheet.cell(row=r_idx, column=ans_col).value
+
+            if câu_val is None or ans_val is None:
+                continue
+
+            try:
+                if isinstance(câu_val, str):
+                    digits = "".join(filter(str.isdigit, câu_val))
+                    if not digits:
+                        continue
+                    q_num = int(digits)
+                elif isinstance(câu_val, (int, float)):
+                    q_num = int(câu_val)
+                else:
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            if not isinstance(ans_val, str):
+                ans_val = str(ans_val)
+            ans_str = ans_val.strip().upper()
+            if ans_str in {"A", "B", "C", "D"}:
+                answers[q_num] = ans_str
+
+    wb.close()
+    return answers
+
