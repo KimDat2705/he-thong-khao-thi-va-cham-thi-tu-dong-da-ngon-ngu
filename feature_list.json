@@ -63,8 +63,8 @@
       "name": "TOEIC & B1 Exam Generator",
       "description": "Retrieves questions from the approved question bank and matches exam blueprints dynamically.",
       "status": "in_progress",
-      "evidence": "backend/app/services/toeic_generator.py — TOEIC core works and generator hardened (verified by test_toeic_generator.py + test_specs_generation.py & test_specs_bank.py: status='approved' filtering (BANK-001), seeded reproducibility (GEN-005), and fail-fast pre-checks (GEN-006) active). Known gaps tracked as xfail/skip: SPEC-GEN-001/002/003/004, B1 + blueprint-as-data not implemented.",
-      "testedAt": "2026-06-14T10:55:00Z"
+      "evidence": "backend/app/services/toeic_generator.py — TOEIC core + hardening (verified by test_toeic_generator.py + test_specs_generation.py & test_specs_bank.py): status='approved' filtering (BANK-001), seeded reproducibility (GEN-005), fail-fast pre-checks (GEN-006), and blueprint part counts incl. Part 7 subset-sum to exactly 200 questions (GEN-001) active. Known gaps tracked as xfail: SPEC-GEN-002 (answer balance), GEN-003 (topic diversity), MATRIX-002 whole-exam ratio, GEN-004 (cross-exam overlap, planned/B6). Blueprint-as-data not implemented.",
+      "testedAt": "2026-06-14T20:30:00Z"
     },
     {
       "id": "exam-validator",

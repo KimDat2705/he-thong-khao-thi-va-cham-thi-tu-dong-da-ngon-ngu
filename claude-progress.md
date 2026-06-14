@@ -94,11 +94,19 @@
 - **Nghiệm thu (Claude, độc lập)**: đọc diff `parser.py` từng dòng; ranh giới đúng **4 file** (không đụng models/harness); fixtures gitignored; pytest **22 passed / 2 skipped / 5 xfailed** (×2 ổn định); ruff sạch; architecture PASS.
 - **Lưu ý coverage (không chặn, để theo dõi)**: A2 kiểm audio *khi trường Audio có mặt*, CHƯA bắt buộc mọi block Listening PHẢI có Audio (PARSE-002 AC#1). Hardening sau: thêm fixture Listening-thiếu-Audio + bắt buộc presence.
 - **Trạng thái spec sau A2**: **15 active / 5 gap / 3 planned** (active +1: PARSE-002; gap giữ 5; planned còn GEN-004, GRADE-003, SCALE-003).
+- **Cuối Session 9 (đã push)**: A2 (`c019be0`) + harness Session 9 (`dbe150c`) đã push lên `origin/Dat`; xoá nhánh `feat/parser-audio`.
+
+### Session 10 -- 2026-06-14 (Claude + Anti — hoàn thành B2: Part 7 đúng 54 câu → đề đủ 200)
+- **Việc B2 HOÀN THÀNH** (`feat/generator-part7` → merge fast-forward vào `Dat`, commit `977d4d0`, đã push). SPEC-GEN-001:
+  - `toeic_generator.py`: thay greedy Part 7 (chỉ đạt 52) bằng **subset-sum backtracking** (DFS include-first) tìm tổ hợp nhóm tổng ĐÚNG 54 câu; trộn `part7_groups` bằng `local_random.shuffle` (sau `.order_by(id)` của B1) → **tái lập theo seed**. Không có tổ hợp → `InsufficientBankError`.
+  - **Đã gỡ bẫy fixture B2 phần Part 7**: `conftest.py` đổi Part 7 sang nhóm kích thước đa dạng (2/3/4/5 câu, tổng 60 → tồn tại tổ hợp = 54); GIỮ NGUYÊN Part 1-6 (per-part matrix không vỡ).
+  - `test_toeic_generator.py`: bỏ assert cứng `len(part7_groups)==13` + `len(g)==4` → thay bằng tổng Part 7 == 54 và mỗi nhóm > 0 câu; dọn E711 (`== None`→`.is_(None)`).
+- **Nghiệm thu (Claude, độc lập)**: đọc subset-sum + conftest từng dòng; ranh giới đúng **5 file** (không đụng models/harness); pytest **23 passed / 2 skipped / 4 xfailed** (×2 ổn định, **GEN-005 tái lập VẪN xanh** với thuật toán mới — điểm rủi ro chính); ruff sạch; architecture PASS.
+- **Trạng thái spec sau B2**: **16 active / 4 gap / 3 planned** (active +1: GEN-001; gap còn MATRIX-002 toàn-đề, GEN-002, GEN-003, GRADE-002; planned còn GEN-004, GRADE-003, SCALE-003).
 
 ## Next Steps
-- **Push `Dat` lên `origin`** khi Đạt sẵn sàng: A2 (`c019be0`) + commit harness Session 9 đang local (origin đang ở `b620c32`).
-- **Việc tiếp theo**: A3/A4 (parser nâng cao: parse Excel đáp án, convert `.doc`→`.docx` cho bộ Reading RT26xx) hoặc Generator B2-B6. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → nghiệm thu → merge.
-- ⚠️ **Bẫy fixture cho B2/B3** (đừng quên): conftest hiện có Part 7 TOÀN nhóm 4 câu (không ráp được đúng 54) + topic đơn điệu ("Article" cho cả P7). Gỡ xfail GEN-001/GEN-002/GEN-003 **cần PR mở rộng `conftest.py` được duyệt TRƯỚC**.
+- **Việc tiếp theo**: **B3 (GEN-002 cân bằng đáp án + GEN-003 đa dạng topic)** hoặc A3/A4 (parser: Excel đáp án, `.doc`→`.docx`). Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → nghiệm thu → merge → push.
+- ⚠️ **Bẫy fixture còn lại cho B3** (đừng quên): conftest hiện **topic đơn điệu** (P7 toàn "Article", P3 "Meetings", P4 "Talk") và **đáp án skewed** (P3 toàn "D", P5 toàn "C"...). Gỡ xfail GEN-002 (cân bằng A/B/C/D 20-28%) + GEN-003 (topic ≤20%) **cần mở rộng conftest (đa dạng topic + đáp án) KHAI BÁO trong plan**. (Phần Part 7 size đã xử lý ở B2.)
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
