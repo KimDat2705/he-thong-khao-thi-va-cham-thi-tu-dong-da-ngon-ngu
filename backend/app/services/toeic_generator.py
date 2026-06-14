@@ -175,6 +175,75 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, se
             db.add(clone_question(q))
         db.commit()
 
+    # Helper to validate topic diversity constraint
+    def is_topic_distribution_valid(groups):
+        if not groups:
+            return True
+        total_qs = sum(len(g.questions) for g in groups)
+        if total_qs == 0:
+            return True
+        max_group = max(len(g.questions) for g in groups)
+        cap = max(0.20, max_group / total_qs)
+        
+        topic_counts = {}
+        for g in groups:
+            topic = g.topic
+            q_count = len(g.questions)
+            topic_counts[topic] = topic_counts.get(topic, 0) + q_count
+            
+        for topic, count in topic_counts.items():
+            if count / total_qs > cap + 1e-9:
+                return False
+        return True
+
+    # Backtracking selection for Part 3, 4, 6
+    def select_groups_for_part(easy_groups, medium_groups, hard_groups, spec):
+        local_random.shuffle(easy_groups)
+        local_random.shuffle(medium_groups)
+        local_random.shuffle(hard_groups)
+        
+        target_easy = spec["easy_groups"]
+        target_medium = spec["medium_groups"]
+        target_hard = spec["hard_groups"]
+        total_needed = spec["groups"]
+        
+        n_easy = min(len(easy_groups), target_easy)
+        n_medium = min(len(medium_groups), target_medium)
+        n_hard = min(len(hard_groups), target_hard)
+        
+        shortfall = total_needed - (n_easy + n_medium + n_hard)
+        
+        def get_combinations(items, k):
+            if k == 0:
+                yield []
+                return
+            if not items:
+                return
+            for c in get_combinations(items[1:], k - 1):
+                yield [items[0]] + c
+            for c in get_combinations(items[1:], k):
+                yield c
+
+        for easy_comb in get_combinations(easy_groups, n_easy):
+            leftover_easy = [g for g in easy_groups if g not in easy_comb]
+            for med_comb in get_combinations(medium_groups, n_medium):
+                leftover_med = [g for g in medium_groups if g not in med_comb]
+                for hard_comb in get_combinations(hard_groups, n_hard):
+                    leftover_hard = [g for g in hard_groups if g not in hard_comb]
+                    
+                    base_selection = easy_comb + med_comb + hard_comb
+                    
+                    if shortfall > 0:
+                        leftover_pool = leftover_easy + leftover_med + leftover_hard
+                        for shortfall_comb in get_combinations(leftover_pool, shortfall):
+                            candidate = base_selection + shortfall_comb
+                            if is_topic_distribution_valid(candidate):
+                                return candidate
+                    else:
+                        if is_topic_distribution_valid(base_selection):
+                            return base_selection
+        return None
+
     # --- Select and Clone Part 3, 4, 6 (Grouped) ---
     for part, spec in group_blueprint.items():
         # Query all available groups for this part from the bank
@@ -193,28 +262,15 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, se
             else:
                 diff_map["medium"].append(g)
 
-        selected_groups = []
-        difficulty_specs = [
-            ("easy", spec["easy_groups"]),
-            ("medium", spec["medium_groups"]),
-            ("hard", spec["hard_groups"])
-        ]
-
-        for diff, needed in difficulty_specs:
-            available = diff_map[diff]
-            if len(available) >= needed:
-                selected_groups.extend(local_random.sample(available, needed))
-            else:
-                selected_groups.extend(available)
-
-        # Fill remaining groups needed from any remaining
-        still_needed = spec["groups"] - len(selected_groups)
-        if still_needed > 0:
-            remaining = [g for g in bank_groups if g not in selected_groups]
-            if len(remaining) >= still_needed:
-                selected_groups.extend(local_random.sample(remaining, still_needed))
-            else:
-                selected_groups.extend(remaining)
+        selected_groups = select_groups_for_part(
+            diff_map["easy"], diff_map["medium"], diff_map["hard"],
+            spec
+        )
+        if selected_groups is None:
+            raise InsufficientBankError(
+                f"Insufficient questions in bank for Part {part}: "
+                f"could not find a combination of groups satisfying the topic diversity constraints"
+            )
 
         # Clone the groups and their questions
         for g in selected_groups:
@@ -232,12 +288,23 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, se
     # Shuffle to ensure randomness, using local_random for reproducibility
     local_random.shuffle(part7_groups)
 
-    # Use backtracking to find a subset of groups that sum to exactly 54 questions
+    # Use backtracking to find a subset of groups that sum to exactly 54 questions and satisfy topic cap
     def find_subset_sum(groups, target, start_idx=0, current_sum=0, path=None):
         if path is None:
             path = []
+            
+        # Early pruning: no topic can exceed 10 questions in a valid 54-question solution
+        topic_counts = {}
+        for g in path:
+            topic = g.topic
+            topic_counts[topic] = topic_counts.get(topic, 0) + len(g.questions)
+            if topic_counts[topic] > 10:
+                return None
+                
         if current_sum == target:
-            return path
+            if is_topic_distribution_valid(path):
+                return path
+            return None
         if current_sum > target or start_idx >= len(groups):
             return None
         
@@ -256,7 +323,7 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, se
 
     if selected_p7_groups is None:
         raise InsufficientBankError(
-            "Insufficient questions in bank for Part 7: could not find a combination of groups summing to exactly 54 questions"
+            "Insufficient questions in bank for Part 7: could not find a combination of groups summing to exactly 54 questions satisfying the topic diversity constraints"
         )
 
     # Clone selected Part 7 groups

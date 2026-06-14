@@ -63,9 +63,10 @@ def db_session():
             ))
             
         # Part 3: Grouped - needs 13 groups of 3. Create 15 groups.
+        p3_topics = ["Meetings", "HR", "Finance", "Marketing", "Sales", "Travel", "Purchasing", "Dining", "Office", "IT", "Safety", "Legal", "Planning", "Strategy", "Logistics"]
         for i in range(15):
             group = QuestionGroup(
-                exam_id=None, part=3, topic="Meetings", audio_url=f"http://example.com/audio/p3_{i}.mp3",
+                exam_id=None, part=3, topic=p3_topics[i], audio_url=f"http://example.com/audio/p3_{i}.mp3",
                 difficulty="easy" if i < 4 else ("medium" if i < 11 else "hard")
             )
             db.add(group)
@@ -81,9 +82,15 @@ def db_session():
                 ))
                 
         # Part 4: Grouped - needs 10 groups of 3. Create 12 groups.
+        p4_topics = [
+            "Intro", "Inst", "Ad",          # Easy (0, 1, 2)
+            "Talk", "Talk", "Talk",          # Medium (3, 4, 5)
+            "News", "Weather", "Traffic",    # Medium (6, 7, 8)
+            "Report", "Tour", "Speech"       # Hard (9, 10, 11)
+        ]
         for i in range(12):
             group = QuestionGroup(
-                exam_id=None, part=4, topic="Talk", audio_url=f"http://example.com/audio/p4_{i}.mp3",
+                exam_id=None, part=4, topic=p4_topics[i], audio_url=f"http://example.com/audio/p4_{i}.mp3",
                 difficulty="easy" if i < 3 else ("medium" if i < 9 else "hard")
             )
             db.add(group)
@@ -108,9 +115,10 @@ def db_session():
             ))
             
         # Part 6: Grouped - needs 4 groups of 4. Create 5 groups.
+        p6_topics = ["Memo", "Email", "Notice", "Letter", "Report"]
         for i in range(5):
             group = QuestionGroup(
-                exam_id=None, part=6, topic="Memo", passage_text=f"Memo content {i}",
+                exam_id=None, part=6, topic=p6_topics[i], passage_text=f"Memo content {i}",
                 difficulty="easy" if i < 2 else ("medium" if i < 4 else "hard")
             )
             db.add(group)
@@ -132,9 +140,15 @@ def db_session():
         # - Group 4 to 8: 4 questions each
         # - Group 9 to 14: 5 questions each
         # Total questions in bank = (2*2) + (2*3) + (5*4) + (6*5) = 4 + 6 + 20 + 30 = 60 questions.
+        p7_topics = [
+            "Chat", "Chat",                # Group 0, 1 (size 2)
+            "Memo", "Report",              # Group 2, 3 (size 3)
+            "Memo", "Memo", "Report", "Report", "Webpage", # Group 4, 5, 6, 7, 8 (size 4)
+            "Article", "Article", "Email", "Email", "Notice", "Notice" # Group 9, 10, 11, 12, 13, 14 (size 5)
+        ]
         for i in range(15):
             group = QuestionGroup(
-                exam_id=None, part=7, topic="Article", passage_text=f"Article content {i}",
+                exam_id=None, part=7, topic=p7_topics[i], passage_text=f"Article content {i}",
                 difficulty="easy" if i < 3 else ("medium" if i < 11 else "hard")
             )
             db.add(group)

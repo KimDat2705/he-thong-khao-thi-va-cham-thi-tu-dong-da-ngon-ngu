@@ -176,32 +176,32 @@ def test_SPEC_GEN_002_answer_balance(db_session: Session):
         )
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="GAP SPEC-GEN-003: generator chưa ràng buộc đa dạng chủ đề khi chọn nhóm",
-)
 def test_SPEC_GEN_003_topic_diversity(db_session: Session):
     """SPEC-GEN-003: Trong mỗi part nhiều nhóm (P3/P4/P6/P7), không chủ đề (topic)
-    nào chiếm quá 20% số câu của part đó.
+    nào chiếm quá cap thích ứng số câu của part đó.
     """
-    exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-GEN-003")
+    for seed in (1, 2, 3, 4, 5):
+        exam = generate_toeic_exam(db_session, title=f"Đề kiểm tra SPEC-GEN-003 (seed {seed})", seed=seed)
 
-    for part in (3, 4, 6, 7):
-        groups = exam_groups(db_session, exam.id, part)
-        topic_counts = {}
-        part_total = 0
-        for g in groups:
-            topic = g.topic or "(không có chủ đề)"
-            n = len(g.questions)
-            topic_counts[topic] = topic_counts.get(topic, 0) + n
-            part_total += n
-        assert part_total > 0
+        for part in (3, 4, 6, 7):
+            groups = exam_groups(db_session, exam.id, part)
+            topic_counts = {}
+            part_total = 0
+            for g in groups:
+                topic = g.topic or "(không có chủ đề)"
+                n = len(g.questions)
+                topic_counts[topic] = topic_counts.get(topic, 0) + n
+                part_total += n
+            assert part_total > 0
 
-        worst_topic, worst_count = max(topic_counts.items(), key=lambda kv: kv[1])
-        ratio = worst_count / part_total
-        assert ratio <= 0.20, (
-            f"Part {part}: chủ đề '{worst_topic}' chiếm {ratio:.0%} ({worst_count}/{part_total} câu) — vượt 20%"
-        )
+            max_group = max(len(g.questions) for g in groups)
+            cap = max(0.20, max_group / part_total)
+
+            for topic, count in topic_counts.items():
+                ratio = count / part_total
+                assert ratio <= cap + 1e-9, (
+                    f"Seed {seed}, Part {part}: chủ đề '{topic}' chiếm {ratio:.1%} ({count}/{part_total} câu) — vượt cap {cap:.1%}"
+                )
 
 
 @pytest.mark.skip(

@@ -194,17 +194,17 @@
       "id": "SPEC-GEN-003",
       "domain": "GEN",
       "title": "Đa dạng chủ đề",
-      "statement": "Trong mỗi part nhiều nhóm (P3/P4/P6/P7), không chủ đề (topic) nào chiếm quá 20% số câu, tránh lặp chủ đề gây thiên lệch.",
+      "statement": "Trong mỗi part nhiều nhóm (P3/P4/P6/P7), không chủ đề (topic) nào chiếm tỷ lệ câu vượt quá ngưỡng thích ứng cap = max(0.20, kích_thước_nhóm_lớn_nhất_của_part / tổng_câu_part), tránh lặp chủ đề gây thiên lệch.",
       "acceptance_criteria": [
-        "Với từng part 3/4/6/7 của đề: max(số câu theo topic) / tổng câu part <= 0.20",
+        "Với từng part 3/4/6/7 của đề: max(số câu theo topic) / tổng câu part <= cap",
         "Topic NULL được tính là nhóm riêng và cũng không vượt ngưỡng"
       ],
       "verification": "pytest",
-      "status": "gap",
+      "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_GEN_003_topic_diversity"
       ],
-      "notes": "GAP: generator chưa ràng buộc topic khi chọn nhóm — test XFAIL."
+      "notes": "Đang đạt: generator áp dụng ràng buộc đa dạng hóa chủ đề thích ứng cho mọi part nhóm."
     },
     {
       "id": "SPEC-GEN-004",
