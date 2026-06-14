@@ -193,8 +193,19 @@
 - ✅ **REAL .doc conversion ĐÃ VERIFY** (15/06, Đạt cài LibreOffice 26.2): `convert_doc_to_docx` round-trip 1 `.doc` nhị phân thật → `.docx` giữ đủ **15 tables**, python-docx đọc được (soffice headless qua fallback path `C:\Program Files\LibreOffice\program\soffice.exe`; `soffice` không cần trên PATH). CI test vẫn mock (passthrough/missing-tool/cache). File RT*.doc đối tác sẽ chạy khi làm parser Reading.
 - **Trạng thái spec sau PARSE-008**: **28 spec — 23 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-008; gap MATRIX-002 + GRADE-002; planned GEN-004, GRADE-003, SCALE-003).
 
+### Session 18 -- 2026-06-15 (Claude + Anti — PARSE-009: parser Reading RT*.docx; 2 BUG bắt lúc nghiệm thu)
+- **Việc PARSE-009 HOÀN THÀNH** (`feat/parser-reading-docx` → FF vào `Dat`, code `4668e44` + vá `0712a8a`; đã push). SPEC-PARSE-009 active. `parse_reading_docx(filepath) -> {set_id, items}` — parse-only (như PARSE-006), KHÔNG audio. Reading đánh số **1-100** (P5 1-30 câu đơn; P6 31-46 = 4 đoạn×4 chỗ trống; P7 47-100 passages đơn/đôi/ba + ảnh). Đáp án ở Key RT*.xlsx (merge là task sau).
+- **Giao thức plan-review**: Anti grounding RT2605 (dry-run) → plan v1 → Claude bắt fixture đánh số 101+ trái grounding (Reading thật 1-100) → v2 → DUYỆT.
+- **🎯 2 BUG bắt lúc nghiệm thu Claude (đều FIXTURE-INVISIBLE, lộ nhờ verify dữ liệu THẬT + check process)**:
+  1. **Treo vô hạn**: test chạy ~24 phút không xong → Đạt hỏi. Claude check process (python ngốn 1448s CPU) → `parse_reading_docx` inner loop P6/7 KHÔNG tăng `j` ở nhánh CT_P → quay mãi. Vá: 1 `j += 1` vô điều kiện cuối loop.
+  2. **Mất options 30/70 câu nhóm**: sau khi hết treo, Claude verify RT2605 thật → 100 câu NHƯNG 30 câu ≠4 options (Anti dry-run chỉ ĐẾM câu, không kiểm options). 3 mode: option-A inline cùng dòng số câu (3 opts); cả câu+4 options trong 1 paragraph (0 opts → cần `re.DOTALL` + split); paragraph trích dẫn xen giữa câu↔options (sandwich). Vá: DOTALL + `re.split` theo marker `(A-D)` (trên dòng câu + paragraph option) + append-content khi `opt_count==0`. GIỮ nhánh 4x2 table (không regress 70 câu cũ).
+- **Nghiệm thu cuối (Claude, độc lập)**: đọc logic option mới; verify RT2605 thật → **100 câu, 0 câu thiếu options** (Q39/43/59/71 — các ca lỗi cũ — giờ đủ A-D); pytest **31/2/2** ×2; ruff sạch (10 F841 dọn); architecture PASS; ranh giới 4 file KHÔNG đụng models.
+- ✅ **Anti tuân thủ quy trình cả 2 vòng** (code+push NHÁNH FEATURE, chờ nghiệm thu, không đụng file nhật ký Claude).
+- **Bài học**: Anti dry-run/self-report hay ĐẾM (số câu) chứ không kiểm HOÀN CHỈNH (options đủ 4, có terminate). Nghiệm thu PHẢI verify dữ liệu thật bằng metric ĐÚNG (completeness), + check process (CPU) khi nghi treo.
+- **Trạng thái spec sau PARSE-009**: **29 spec — 24 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-009; gap MATRIX-002 + GRADE-002; planned GEN-004, GRADE-003, SCALE-003).
+
 ## Next Steps
-- **Việc tiếp theo (lộ trình Parser thật)**: ① **PARSE-006 XONG** → ② **PARSE-007 XONG** → ③ **converter `.doc`→`.docx` (PARSE-008) XONG** (cần Đạt cài LibreOffice để verify thật) → **kế tiếp**: **parser Reading `RT*.docx`** (P5/6/7, KHÔNG audio — tương tự `parse_listening_docx`) rồi **merge Key RT** (reuse `import_listening_set`); và ④ **A2-rework audio gộp** cho Nghe.
+- **Việc tiếp theo (lộ trình Parser thật)**: ① PARSE-006 → ② PARSE-007 → ③ converter PARSE-008 → ④ **parser Reading PARSE-009 XONG** (verify RT2605: 100 câu / 0 thiếu options). **Kế tiếp**: **merge đáp án Reading + ghi bank** — nạp `parse_reading_docx` + `parse_answer_key(Key RT)` theo set_id RT + số câu 1-100, ghi bank (cân nhắc tổng quát `import_listening_set` → `import_exam_set` dùng chung Nghe/Đọc); và **A2-rework audio MP3 gộp** cho Nghe.
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
   - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
