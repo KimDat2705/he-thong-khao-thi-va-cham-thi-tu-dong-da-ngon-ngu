@@ -143,8 +143,21 @@
 - **Trạng thái spec sau B-as-D**: **24 spec — 19 active / 2 gap / 3 planned** (catalog +1: SPEC-GEN-007; gap còn MATRIX-002 toàn-đề + GRADE-002; planned còn GEN-004, GRADE-003, SCALE-003).
 - 🏗️ **Nền đa ngôn ngữ đã sẵn**: thêm VSTEP/HSK = thêm Blueprint record (structure JSON) + bank, KHÔNG sửa thuật toán. Giá trị blueprint TOEIC hiện chép từ hardcode — sẽ đối chiếu/cập nhật theo **Ma trận TOEIC (Google Sheet thật)** sau (là data).
 
+### Đọc được DỮ LIỆU THẬT (15/06, Claude) — cơ chế + findings
+- Đạt cấp full link Drive + cho phép truy xuất. Cơ chế CHẠY ĐƯỢC: `PYTHONUTF8=1 python -m gdown` tải về `D:\Dat-Antigravity\drive_input\` (NGOÀI repo) + parse `openpyxl`/`python-docx`; Google Sheet → export `.xlsx`. Bỏ MP3 (~1.5GB). Chi tiết + findings + cấu trúc `.docx`: `docs/du_lieu_input_links.md` (pushed).
+- **Ma trận TOEIC (Sheet) = SPEC THẬT, xác nhận việc đã làm**: số câu/part KHỚP ĐÚNG `TOEIC_BLUEPRINT`; luật trộn xác nhận ISOLATE/GEN-003(topic≤20%)/GEN-002/GEN-004/BANK-001. Refine sau: độ khó 25/50/25 **per-skill** (MATRIX-002 nên reframe) + per-part P3/4/6/7 theo CÂU; khái niệm mới Exposure_Count/Overlap_Group. Đáp án = xlsx lưới Câu/Đáp án (khoá Mã đề). Đề = Word **tables+ảnh** (đã map cấu trúc đầy đủ trong doc).
+
+### Session 14 -- 2026-06-15 (Claude + Anti — A3: parse đáp án Excel, bước đầu Parser thật)
+- **Việc A3 HOÀN THÀNH** (`feat/parser-answer-key` → merge FF vào `Dat`, commit `d2388e8`, đã push). **SPEC-PARSE-005**:
+  - `parser.py`: `parse_answer_key(filepath) -> dict[int,str]` — openpyxl, QUÉT tìm header "Câu"/"Đáp án" (không hardcode dòng), ghép cặp cột, gộp 5 block, chuẩn hoá A/B/C/D. `openpyxl` vào requirements. `make_fixtures` sinh KEY xlsx mô phỏng layout thật; test assert 100 câu/keys 1-100/{A,B,C,D}.
+  - PHẠM VI: chỉ parse (merge vào câu hỏi chờ parser `.docx` thật).
+- **Nghiệm thu (Claude)**: ranh giới đúng **5 file** (models đóng băng); pytest **27 passed / 2 skipped / 2 xfailed** (×2; traceability 4/4); ruff sạch; architecture PASS. 🎯 **BONUS — verify trên DỮ LIỆU THẬT**: chạy `parse_answer_key` trên `Key LT2601.xlsx` thật → 100 câu, câu1=D/câu100=C khớp đúng data thật. → parser đúng cả trên file đối tác, không chỉ fixture.
+- **Trạng thái spec sau A3**: **25 spec — 20 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-005).
+
 ## Next Steps
-- **Việc tiếp theo**: **Parser thật** (chờ mẫu CONTENT từ Đạt: Ma trận Sheet · 1 `KEY*.xlsx` · 1 `LT*.docx`+`RT*.doc`) → spec A3 (merge Excel đáp án) + A4 (`.doc`→`.docx`) + format đề thật + A2-rework audio gộp. Hoặc **MATRIX-002 toàn-đề / GEN-004** (chờ redesign fixture).
+- **Việc tiếp theo (lộ trình Parser thật)**: **parser `.docx` table-based** (cấu trúc đã map trong `docs/du_lieu_input_links.md`: trích Mã đề + duyệt tables + regex options P3/4 + ảnh P1) → **merge** đáp án (parse_answer_key) vào câu hỏi theo Mã đề → **A4 `.doc`→`.docx`** convert → **A2-rework audio gộp**. Tôi soạn spec từng bước grounded dữ liệu thật.
+  - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
+  - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch (Easy=39<45, Hard=56>55). Cần rebalance conftest P7 difficulty hoặc nới nghiệm P7 — sửa fixture rất cẩn thận. Và Ma trận Sheet thật có thể định nghĩa lại luật này.
   - 💡 Đối chiếu **blueprint hardcode ↔ Ma trận TOEIC thật** (Sheet) khi có content — có thể cập nhật giá trị `TOEIC_BLUEPRINT` (data, không sửa code).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
