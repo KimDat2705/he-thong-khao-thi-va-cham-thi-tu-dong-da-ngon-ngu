@@ -131,7 +131,7 @@
         "P3: 13 nhóm x 3 câu; P4: 10 nhóm x 3 câu; P6: 4 nhóm x 4 câu; P7: tổ hợp nhóm 2-5 câu đạt đúng 54"
       ],
       "verification": "pytest",
-      "status": "gap",
+      "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_GEN_001_blueprint_part_counts"
       ],

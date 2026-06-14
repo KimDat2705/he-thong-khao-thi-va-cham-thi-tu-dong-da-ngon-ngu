@@ -232,19 +232,32 @@ def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, se
     # Shuffle to ensure randomness, using local_random for reproducibility
     local_random.shuffle(part7_groups)
 
-    selected_p7_groups = []
-    current_q_count = 0
-    target_q_count = 54
-
-    for g in part7_groups:
+    # Use backtracking to find a subset of groups that sum to exactly 54 questions
+    def find_subset_sum(groups, target, start_idx=0, current_sum=0, path=None):
+        if path is None:
+            path = []
+        if current_sum == target:
+            return path
+        if current_sum > target or start_idx >= len(groups):
+            return None
+        
+        # Try including the current group
+        g = groups[start_idx]
         g_q_count = len(g.questions)
-        if g_q_count == 0:
-            continue
-        if current_q_count + g_q_count <= target_q_count:
-            selected_p7_groups.append(g)
-            current_q_count += g_q_count
-        if current_q_count == target_q_count:
-            break
+        if g_q_count > 0:
+            result = find_subset_sum(groups, target, start_idx + 1, current_sum + g_q_count, path + [g])
+            if result is not None:
+                return result
+                
+        # Try excluding the current group
+        return find_subset_sum(groups, target, start_idx + 1, current_sum, path)
+
+    selected_p7_groups = find_subset_sum(part7_groups, 54)
+
+    if selected_p7_groups is None:
+        raise InsufficientBankError(
+            "Insufficient questions in bank for Part 7: could not find a combination of groups summing to exactly 54 questions"
+        )
 
     # Clone selected Part 7 groups
     for g in selected_p7_groups:

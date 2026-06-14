@@ -36,8 +36,9 @@ def test_generate_toeic_exam_success(db_session: Session):
     assert len(part3_groups) == 13
     assert len(part4_groups) == 10
     assert len(part6_groups) == 4
-    # Part 7 has 13 groups of 4 questions = 52 questions total (as close to 54 as possible with 4-question groups)
-    assert len(part7_groups) == 13
+    # Part 7 has diverse group sizes, total count must be exactly 54 questions
+    part7_qs_total = sum(len(g.questions) for g in part7_groups)
+    assert part7_qs_total == 54
 
     # Check that each group has correct number of questions
     for g in part3_groups:
@@ -54,8 +55,8 @@ def test_generate_toeic_exam_success(db_session: Session):
         assert len(g.questions) == 4
 
     for g in part7_groups:
-        assert len(g.questions) == 4
+        assert len(g.questions) > 0
 
-    # 5. Verify that bank questions (exam_id == None) remain intact
-    bank_qs_count = db_session.query(Question).filter(Question.exam_id == None).count()
+    # 5. Verify that bank questions (exam_id is None) remain intact
+    bank_qs_count = db_session.query(Question).filter(Question.exam_id.is_(None)).count()
     assert bank_qs_count > 0  # Bank should not be cleared or assigned

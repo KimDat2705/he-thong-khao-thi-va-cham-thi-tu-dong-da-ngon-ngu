@@ -125,7 +125,13 @@ def db_session():
                     options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}
                 ))
                 
-        # Part 7: Grouped - needs total 54 questions. Create 15 groups, each with 4 questions (total 60 questions).
+        # Part 7: Grouped - needs total 54 questions. Create 15 groups with diverse sizes (2, 3, 4, 5 questions).
+        # We create 15 groups in total:
+        # - Group 0 to 1: 2 questions each
+        # - Group 2 to 3: 3 questions each
+        # - Group 4 to 8: 4 questions each
+        # - Group 9 to 14: 5 questions each
+        # Total questions in bank = (2*2) + (2*3) + (5*4) + (6*5) = 4 + 6 + 20 + 30 = 60 questions.
         for i in range(15):
             group = QuestionGroup(
                 exam_id=None, part=7, topic="Article", passage_text=f"Article content {i}",
@@ -135,7 +141,17 @@ def db_session():
             db.commit()
             db.refresh(group)
             
-            for j in range(4):
+            # Determine question count based on group index i
+            if i < 2:
+                q_count = 2
+            elif i < 4:
+                q_count = 3
+            elif i < 9:
+                q_count = 4
+            else:
+                q_count = 5
+                
+            for j in range(q_count):
                 db.add(Question(
                     exam_id=None, group_id=group.id, part=7, type="choice",
                     content=f"Part 7 Group {i} Question {j}", reference_answer="C",

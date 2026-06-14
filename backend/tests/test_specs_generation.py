@@ -33,11 +33,6 @@ def exam_groups(db: Session, exam_id: int, part: int = None):
     return q.all()
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="GAP SPEC-GEN-001: thuật toán greedy Part 7 với bank toàn nhóm 4 câu "
-    "chỉ đạt 52 câu (tổng 198/200) — cần thuật toán tổ hợp cho Part 7",
-)
 def test_SPEC_GEN_001_blueprint_part_counts(db_session: Session):
     """SPEC-GEN-001: Đề TOEIC sinh ra phải có đúng số câu từng part theo blueprint:
     P1=6, P2=25, P3=39, P4=30, P5=30, P6=16, P7=54 — tổng 200 câu.
