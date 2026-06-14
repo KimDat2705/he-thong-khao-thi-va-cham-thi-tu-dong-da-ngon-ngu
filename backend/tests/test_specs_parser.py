@@ -179,3 +179,65 @@ def test_SPEC_PARSE_006_parse_real_listening_docx():
     assert q8["options"]["A"] == "Go to the conference center"
 
 
+def test_SPEC_PARSE_007_import_listening_set_success(db_session):
+    """SPEC-PARSE-007: Đọc đề nghe thực tế + file Excel đáp án, ghép đúng câu trả lời và ghi DB.
+    """
+    from app.services.parser import import_listening_set
+    from app.models.question import Question
+    from app.models.question_group import QuestionGroup
+    import os
+
+    docx_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser", "LT_real_sample.docx"))
+    key_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser", "Key_LT9999.xlsx"))
+
+    assert os.path.exists(docx_path)
+    assert os.path.exists(key_path)
+
+    # Clean DB before test
+    db_session.query(Question).delete()
+    db_session.query(QuestionGroup).delete()
+    db_session.commit()
+
+    # Import
+    res = import_listening_set(db_session, docx_path, key_path)
+    
+    # Assert return counts
+    assert res["imported_questions"] == 15
+    assert res["imported_groups"] == 3  # Part 3: 2 groups, Part 4: 1 group
+
+    # Query database and verify
+    questions = db_session.query(Question).all()
+    groups = db_session.query(QuestionGroup).all()
+
+    assert len(questions) == 15
+    assert len(groups) == 3
+
+    # Check that all questions have reference answer in {A, B, C, D} and status == "draft"
+    q_map = {}
+    for q in questions:
+        assert q.status == "draft"
+        assert q.reference_answer in {"A", "B", "C", "D"}
+        q_map[q.part] = q_map.get(q.part, 0) + 1
+
+    # Check question counts per part
+    assert q_map[1] == 4
+    assert q_map[2] == 2
+    assert q_map[3] == 6
+    assert q_map[4] == 3
+
+    # Check group status == "draft"
+    for g in groups:
+        assert g.status == "draft"
+
+    # Test idempotency (Re-importing the same files shouldn't duplicate)
+    res2 = import_listening_set(db_session, docx_path, key_path)
+    assert res2["imported_questions"] == 0
+    assert res2["imported_groups"] == 0
+    assert res2["skipped_questions"] == 15
+    assert res2["skipped_groups"] == 3
+
+    assert db_session.query(Question).count() == 15
+    assert db_session.query(QuestionGroup).count() == 3
+
+
+

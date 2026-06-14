@@ -270,6 +270,40 @@ def create_real_listening_docx(filepath):
         os.remove(temp_img_path)
 
 
+def create_real_answer_key_xlsx(filepath):
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "LT9999 Key"
+    
+    # Title
+    ws["A1"] = "TOEIC - LISTENING -  LT9999"
+    
+    # Block 1 headers
+    ws["A3"] = "Câu"
+    ws["B3"] = "Đáp án"
+    # Block 2 headers
+    ws["D3"] = "Câu"
+    ws["E3"] = "Đáp án"
+    
+    answers = ["A", "B", "C", "D"]
+    
+    # Write Q1-Q8 (Block 1)
+    for idx in range(1, 9):
+        row = idx + 3
+        ws[f"A{row}"] = idx
+        ws[f"B{row}"] = answers[idx % 4]
+        
+    # Write Q9-Q15 (Block 2)
+    for idx in range(9, 16):
+        row = (idx - 9) + 4
+        ws[f"D{row}"] = idx
+        ws[f"E{row}"] = answers[idx % 4]
+        
+    wb.save(filepath)
+    wb.close()
+
+
 def main():
     # Make sure we are writing to the correct absolute directory
     dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser"))
@@ -280,6 +314,7 @@ def main():
     create_missing_answer_docx(os.path.join(dir_path, "LT_sample_missing_answer.docx"))
     create_answer_key_xlsx(os.path.join(dir_path, "Key_LT2601.xlsx"))
     create_real_listening_docx(os.path.join(dir_path, "LT_real_sample.docx"))
+    create_real_answer_key_xlsx(os.path.join(dir_path, "Key_LT9999.xlsx"))
     
     # Create mock audio files
     for audio_file in ["LT_sample_valid_P1_01.mp3", "LT_sample_valid_P3_01.mp3"]:
@@ -290,5 +325,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 

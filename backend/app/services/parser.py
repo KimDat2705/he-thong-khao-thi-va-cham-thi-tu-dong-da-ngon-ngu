@@ -23,7 +23,8 @@ def calculate_file_hash(filepath: str) -> str:
 
 def calculate_group_hash(g_data: dict) -> str:
     """Calculate SHA256 hash of a QuestionGroup's core content."""
-    content_str = f"{g_data.get('part')}|{g_data.get('passage_text') or ''}|{g_data.get('audio_url') or ''}"
+    q_contents = "|".join(f"{q.get('content') or ''}" for q in g_data.get("questions", []))
+    content_str = f"{g_data.get('part')}|{g_data.get('passage_text') or ''}|{g_data.get('audio_url') or ''}|{q_contents}"
     return hashlib.sha256(content_str.encode("utf-8")).hexdigest()
 
 def calculate_question_hash(q_data: dict) -> str:
@@ -693,5 +694,106 @@ def parse_listening_docx(filepath: str) -> dict:
         "set_id": set_id,
         "items": items
     }
+
+
+def import_listening_set(db: Session, docx_path: str, key_path: str, audio_dir: str = None) -> dict:
+    """
+    Parses, merges answers, validates, and imports a real-format TOEIC Listening set into the Question Bank.
+    """
+    import os
+    import re
+    
+    # 1. Parse docx
+    docx_res = parse_listening_docx(docx_path)
+    set_id_docx = docx_res["set_id"]
+    items = docx_res["items"]
+
+    # 2. Parse answer key
+    answers = parse_answer_key(key_path)
+
+    # Sanity check: set_id docx should match set_id from key filename if possible
+    key_filename = os.path.basename(key_path)
+    key_set_id_match = re.search(r'(?i)LT\s*(\d+)', key_filename)
+    if key_set_id_match and set_id_docx:
+        key_set_id = f"LT{key_set_id_match.group(1)}"
+        if set_id_docx != key_set_id:
+            raise ImportError(
+                f"Set ID mismatch between docx '{set_id_docx}' and key '{key_set_id}'",
+                {
+                    "file": docx_path,
+                    "errors": [{
+                        "location": "Set ID Check",
+                        "type": "set_id_mismatch",
+                        "message": f"Set ID mismatch: docx={set_id_docx}, key={key_set_id}"
+                    }]
+                }
+            )
+
+    # 3. Merge and validate answers
+    errors = []
+    for item_idx, item in enumerate(items):
+        if "questions" in item:
+            for q in item["questions"]:
+                q_num = q["number"]
+                location_q = f"Question {q_num}"
+                if q_num not in answers:
+                    errors.append({
+                        "location": location_q,
+                        "type": "missing_answer",
+                        "message": f"No answer found in KEY for Question {q_num}."
+                    })
+                else:
+                    ans = answers[q_num]
+                    q["reference_answer"] = ans
+                    if ans not in {"A", "B", "C", "D"}:
+                        errors.append({
+                            "location": location_q,
+                            "type": "invalid_answer",
+                            "message": f"Invalid answer '{ans}' in KEY for Question {q_num}."
+                        })
+        else:
+            q_num = item["number"]
+            location_q = f"Question {q_num}"
+            if q_num not in answers:
+                errors.append({
+                    "location": location_q,
+                    "type": "missing_answer",
+                    "message": f"No answer found in KEY for Question {q_num}."
+                })
+            else:
+                ans = answers[q_num]
+                item["reference_answer"] = ans
+                if ans not in {"A", "B", "C", "D"}:
+                    errors.append({
+                        "location": location_q,
+                        "type": "invalid_answer",
+                        "message": f"Invalid answer '{ans}' in KEY for Question {q_num}."
+                    })
+
+    if errors:
+        raise ImportError(f"Validation failed during merging for {docx_path}", {
+            "file": docx_path,
+            "errors": errors
+        })
+
+    # 4. Create ImportBatch (Atomic database transactions)
+    file_hash = calculate_file_hash(docx_path)
+    
+    batch = ImportBatch(
+        source_file=docx_path,
+        content_hash=file_hash,
+        status="imported"
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+
+    try:
+        result = save_parsed_items(db, items, batch.id)
+        return result
+    except Exception as e:
+        db.rollback()
+        raise e
+
 
 
