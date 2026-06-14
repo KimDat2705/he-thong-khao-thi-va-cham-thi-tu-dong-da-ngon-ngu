@@ -7,7 +7,7 @@ def create_valid_docx(filepath):
         "[Group]",
         "Part: 3",
         "Topic: Meetings",
-        "Audio: 2601_Part3_01.mp3",
+        "Audio: LT_sample_valid_P3_01.mp3",
         "Passage: Hello, this is a talk about meetings.",
         "Difficulty: medium",
         "",
@@ -28,7 +28,7 @@ def create_valid_docx(filepath):
         "C: They are talking.",
         "D: They are writing.",
         "Answer: C",
-        "Audio: 2601_Part1.mp3",
+        "Audio: LT_sample_valid_P1_01.mp3",
         "Difficulty: easy"
     ]
     for line in lines:
@@ -41,7 +41,7 @@ def create_missing_audio_docx(filepath):
         "[Group]",
         "Part: 3",
         "Topic: Talk",
-        "Audio: non_existent_file.mp3",
+        "Audio: LT_sample_missing_audio_P3_01.mp3",
         "Passage: Hello.",
         "",
         "[Question]",
@@ -84,7 +84,7 @@ def main():
     create_missing_answer_docx(os.path.join(dir_path, "LT_sample_missing_answer.docx"))
     
     # Create mock audio files
-    for audio_file in ["2601_Part1.mp3", "2601_Part3_01.mp3"]:
+    for audio_file in ["LT_sample_valid_P1_01.mp3", "LT_sample_valid_P3_01.mp3"]:
         with open(os.path.join(dir_path, audio_file), "wb") as f:
             f.write(b"MOCK MP3 DATA")
             

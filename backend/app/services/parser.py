@@ -61,7 +61,7 @@ def parse_docx(filepath: str) -> list:
 
     return blocks
 
-def process_blocks(blocks: list, filepath: str) -> list:
+def process_blocks(blocks: list, filepath: str, audio_dir: str) -> list:
     """Validate raw blocks and structure them into parsed groups and questions."""
     parsed_items = []
     current_group = None
@@ -90,6 +90,17 @@ def process_blocks(blocks: list, filepath: str) -> list:
                     "message": f"Group Part '{part}' is not an integer."
                 })
                 continue
+
+            # Validate audio file existence for Listening (Part 1, 2, 3, 4)
+            audio = fields.get("Audio")
+            if audio and part_val in [1, 2, 3, 4]:
+                audio_path = os.path.join(audio_dir, audio)
+                if not os.path.exists(audio_path):
+                    errors.append({
+                        "location": location,
+                        "type": "missing_audio",
+                        "message": f"Audio file '{audio}' not found in directory '{audio_dir}'."
+                    })
 
             group_data = {
                 "part": part_val,
@@ -126,6 +137,17 @@ def process_blocks(blocks: list, filepath: str) -> list:
                     "message": f"Question Part '{part}' is not an integer."
                 })
                 continue
+
+            # Validate audio file existence for Listening (Part 1, 2, 3, 4)
+            audio = fields.get("Audio")
+            if audio and part_val in [1, 2, 3, 4]:
+                audio_path = os.path.join(audio_dir, audio)
+                if not os.path.exists(audio_path):
+                    errors.append({
+                        "location": location,
+                        "type": "missing_audio",
+                        "message": f"Audio file '{audio}' not found in directory '{audio_dir}'."
+                    })
 
             # Validate options
             if not options:
@@ -173,7 +195,11 @@ def process_blocks(blocks: list, filepath: str) -> list:
                 parsed_items.append(q_data)
 
     if errors:
-        raise ImportError(f"Validation failed for {filepath}", {
+        has_mp3_error = any(err["type"] == "missing_audio" for err in errors)
+        msg = f"Validation failed for {filepath}"
+        if has_mp3_error:
+            msg += " (Missing MP3 audio files)"
+        raise ImportError(msg, {
             "file": filepath,
             "errors": errors
         })
@@ -295,15 +321,18 @@ def save_parsed_items(db: Session, parsed_items: list, batch_id: int) -> dict:
         "skipped_groups": skipped_g_count
     }
 
-def import_file(db: Session, filepath: str) -> dict:
+def import_file(db: Session, filepath: str, audio_dir: str = None) -> dict:
     """Parse, validate, and import a .docx file into the Question Bank."""
     file_hash = calculate_file_hash(filepath)
+
+    if audio_dir is None:
+        audio_dir = os.path.dirname(filepath)
 
     # 1. Parse docx
     blocks = parse_docx(filepath)
 
     # 2. Validate blocks (raises ImportError if fails)
-    parsed_items = process_blocks(blocks, filepath)
+    parsed_items = process_blocks(blocks, filepath, audio_dir)
 
     # 3. Create ImportBatch (Atomic database transactions)
     batch = ImportBatch(

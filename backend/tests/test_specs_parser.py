@@ -43,9 +43,6 @@ def test_SPEC_PARSE_001_no_incomplete_questions_after_import(db_session):
     assert incomplete == 0, "Tồn tại câu hỏi trắc nghiệm khuyết đáp án/options sau import"
 
 
-@pytest.mark.skip(
-    reason="SPEC-PARSE-002: Liên kết audio Listening chưa được kiểm định trong A1 (chờ quy ước MP3 từ đối tác)"
-)
 def test_SPEC_PARSE_002_listening_audio_link_resolves(db_session):
     """SPEC-PARSE-002: Mỗi nhóm câu hỏi Listening import từ LTxxxx.docx phải được
     liên kết tới file MP3 tồn tại theo quy ước đặt tên; nếu file âm thanh thiếu,
