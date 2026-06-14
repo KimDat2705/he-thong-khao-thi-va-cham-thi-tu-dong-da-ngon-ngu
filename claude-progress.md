@@ -103,10 +103,20 @@
   - `test_toeic_generator.py`: bỏ assert cứng `len(part7_groups)==13` + `len(g)==4` → thay bằng tổng Part 7 == 54 và mỗi nhóm > 0 câu; dọn E711 (`== None`→`.is_(None)`).
 - **Nghiệm thu (Claude, độc lập)**: đọc subset-sum + conftest từng dòng; ranh giới đúng **5 file** (không đụng models/harness); pytest **23 passed / 2 skipped / 4 xfailed** (×2 ổn định, **GEN-005 tái lập VẪN xanh** với thuật toán mới — điểm rủi ro chính); ruff sạch; architecture PASS.
 - **Trạng thái spec sau B2**: **16 active / 4 gap / 3 planned** (active +1: GEN-001; gap còn MATRIX-002 toàn-đề, GEN-002, GEN-003, GRADE-002; planned còn GEN-004, GRADE-003, SCALE-003).
+- **Cuối Session 10 (đã push)**: B2 (`977d4d0`) + harness Session 10 (`f4ef0fc`) đã push lên `origin/Dat`; xoá nhánh `feat/generator-part7`.
+
+### Session 11 -- 2026-06-14 (Claude + Anti — hoàn thành B3: đa dạng topic thích ứng)
+- **ĐÍNH CHÍNH spec GEN-003 (Claude quyết, Đạt uỷ quyền)**: ngưỡng 20% cứng **bất khả thi cho P6** (4 nhóm × 4 câu → tối thiểu 25%). Chốt **ngưỡng thích ứng**: `cap = max(0.20, nhóm_lớn_nhất_của_part / tổng_câu_part)` → P3/P4/P7 = 20%, P6 = 25% (ép 4 passage P6 khác topic). Là quy tắc nguyên lý, không phải số ma thuật.
+- **Việc B3 HOÀN THÀNH** (`feat/generator-topic` → merge fast-forward vào `Dat`, commit `3c7be1f`, đã push). SPEC-GEN-003:
+  - `toeic_generator.py`: `select_groups_for_part` (backtracking giữ ma trận độ khó + lọc topic theo cap) cho P3/4/6; subset-sum P7 thêm **prune theo topic** (>10 câu/topic) + `is_topic_distribution_valid`. Tái lập theo seed (local_random). Không có tổ hợp hợp lệ → `InsufficientBankError`.
+  - `conftest.py`: **lặp topic CÓ KIỂM SOÁT** để test thực sự kiểm chứng (không tautology): P4 có 3 nhóm medium "Talk"; P7 có Memo=11/Report=11 câu → ép loại đúng G2+G3 (**lời giải subset-sum duy nhất**). P3/P6 distinct.
+  - `test_specs_generation.py`: GEN-003 **lặp 5 seed cố định** (qua `seed=`, KHÔNG `random.seed`), assert mọi topic ≤ cap thích ứng; gỡ xfail.
+- **Nghiệm thu (Claude, độc lập)**: tự verify chứng minh khả thi (Option B P7 là nghiệm DUY NHẤT — đúng); xác minh generator P7 prune topic (điểm dễ sai nhất); ranh giới đúng **4 file**; pytest **24 passed / 2 skipped / 3 xfailed** (×2; GEN-005 tái lập + MATRIX per-part xanh; MATRIX toàn-đề vẫn xfail, không flip); ruff sạch; architecture PASS.
+- ⚠️ **Lưu ý bảo trì**: fixture P7 trong conftest có **lời giải subset-sum DUY NHẤT** (loại G2,G3) — rất giòn. Chứng minh nằm trong commit `3c7be1f` + task.md/walkthrough của Anti. Sửa conftest P7 tương lai phải kiểm lại tính khả thi.
+- **Trạng thái spec sau B3**: **17 active / 3 gap / 3 planned** (active +1: GEN-003; gap còn GEN-002 (cân bằng đáp án), MATRIX-002 toàn-đề, GRADE-002; planned còn GEN-004, GRADE-003, SCALE-003).
 
 ## Next Steps
-- **Việc tiếp theo**: **B3 (GEN-002 cân bằng đáp án + GEN-003 đa dạng topic)** hoặc A3/A4 (parser: Excel đáp án, `.doc`→`.docx`). Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → nghiệm thu → merge → push.
-- ⚠️ **Bẫy fixture còn lại cho B3** (đừng quên): conftest hiện **topic đơn điệu** (P7 toàn "Article", P3 "Meetings", P4 "Talk") và **đáp án skewed** (P3 toàn "D", P5 toàn "C"...). Gỡ xfail GEN-002 (cân bằng A/B/C/D 20-28%) + GEN-003 (topic ≤20%) **cần mở rộng conftest (đa dạng topic + đáp án) KHAI BÁO trong plan**. (Phần Part 7 size đã xử lý ở B2.)
+- **Việc tiếp theo (gợi ý)**: **GEN-002 (cân bằng đáp án A/B/C/D 20-28%)** — gap generator còn khả thi; cần hoán vị đáp án khi clone + có thể mở rộng conftest đáp án. Hoặc A3/A4 (parser: Excel đáp án, `.doc`→`.docx`, chưa có spec → cần viết spec+test). Hoặc MATRIX-002 toàn-đề (ràng buộc độ khó P7).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
