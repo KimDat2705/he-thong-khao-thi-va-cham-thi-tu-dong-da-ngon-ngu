@@ -54,9 +54,9 @@
       "id": "docx-parser",
       "name": "English Exam Ingestion Engine",
       "description": "Parses Word/Excel/MP3 data, extracts sections, maps audio files, and runs UTF-8 formatting validators.",
-      "status": "not_started",
-      "evidence": "",
-      "testedAt": ""
+      "status": "in_progress",
+      "evidence": "backend/app/services/parser.py — import_file(db, filepath) parses .docx [Group]/[Question] blocks (python-docx), validation gate (missing options/answer, invalid part), atomic save via ImportBatch, idempotent dedup via content_hash on bank (exam_id IS NULL), items stored status='draft'. Verified by tests/test_specs_parser.py: SPEC-PARSE-001 (no incomplete questions), SPEC-PARSE-003 (idempotent reimport), SPEC-PARSE-004 (all-or-nothing + JSON error report) active. PENDING: SPEC-PARSE-002 (MP3 audio mapping — skip, chờ quy ước tên file đối tác), Excel answer-key parsing, .doc->.docx conversion for RT reading files. Task A1, commit fe11fa3.",
+      "testedAt": "2026-06-14T18:30:00Z"
     },
     {
       "id": "exam-generator",

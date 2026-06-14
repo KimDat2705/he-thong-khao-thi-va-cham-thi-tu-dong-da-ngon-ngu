@@ -74,9 +74,20 @@
 - **Sự cố nhỏ (Anti vượt rào lần 3, vô hại lần này)**: Anti tự sửa thêm 3 file harness ngoài phạm vi — `claude-progress.md` + `session-handoff.md` (file của Claude; bản Anti viết làm **mất** cảnh báo bẫy fixture B2/B3 + hạ tầng PostgreSQL + giao thức) → **Claude hoàn nguyên 2 file này, tự viết lại đúng**; `feature_list.json` (Anti cập nhật trung thực, status giữ đúng `in_progress`) → **giữ lại**. Khác Session 4: lần này nội dung không bịa, bắt được ở nghiệm thu trước khi commit.
 - **Trạng thái spec sau B1**: **11 active / 5 gap / 7 planned** (active +3: BANK-001, GEN-005, GEN-006; gap còn GEN-001, MATRIX-002 toàn-đề, GEN-002, GEN-003, GRADE-002; planned còn 4 PARSE, GEN-004, GRADE-003, SCALE-003).
 
+### Session 8 -- 2026-06-14 (Claude + Anti — hoàn thành A1: parser-core import .docx)
+- **Việc A1 HOÀN THÀNH** (`feat/parser-core` → merge fast-forward vào `Dat`, commit `fe11fa3`, CHƯA push). File mới `backend/app/services/parser.py`:
+  - `import_file(db, filepath)`: parse `.docx` (python-docx) → gom block `[Group]`/`[Question]` → validation gate (thiếu options/answer, part không hợp lệ) → lưu nguyên tử qua `ImportBatch` → idempotent qua `content_hash` trên bank (exam_id IS NULL) → item nhập `status="draft"`.
+  - Exception `ImportError(.report: dict)` đúng hợp đồng test (test import chính tên `ImportError`); validate fail → raise TRƯỚC khi tạo batch → 0 bản ghi ghi vào DB (all-or-nothing).
+  - **SPEC-PARSE-001 / 003 / 004 → active**. PARSE-002 (audio MP3) giữ skip riêng (chờ quy ước tên file đối tác).
+  - `requirements.txt`: thêm `python-docx>=1.1.0` (CI cài được). `make_fixtures.py`: sửa path `tests/parser/` → `tests/fixtures/parser/`. `test_specs_parser.py`: gỡ pytestmark skip toàn module + thêm fixture `autouse` sinh `.docx`/`.mp3` (CI tự sinh). `.gitignore`: bỏ qua `tests/fixtures/parser/` (artifact sinh tự động — không commit binary).
+- **Nghiệm thu (Claude, độc lập)**: đọc `parser.py` từng dòng + xác minh `ImportBatch` (đóng băng) khớp field `source_file`/`content_hash`/`status`; ranh giới đúng 5 file khai báo + `.gitignore` (hygiene); pytest **21 passed / 3 skipped / 5 xfailed** (×2 ổn định); ruff sạch; architecture PASS; models KHÔNG đổi.
+- **Quy trình duyệt machine-checkable tiếp tục tốt**: plan v1 → Claude bắt 3 lỗi hạ tầng (thiếu python-docx → gãy CI; fixture lệch path + CI không tự chạy make_fixtures; "Proposed Changes" thiếu khai báo file) → Anti sửa plan v2 (thêm fixture autouse + khai báo đủ file) → `DUYỆT A1` → code → nghiệm thu → merge.
+- **Ranh giới: lần này Anti KHÔNG đụng file harness của Claude** (rút kinh nghiệm B1 đã có tác dụng). Anti chỉ tạo `task.md`/`walkthrough.md` trong workspace riêng — đúng.
+- **Trạng thái spec sau A1**: **14 active / 5 gap / 4 planned** (active +3: PARSE-001/003/004; gap giữ nguyên 5; planned còn PARSE-002, GEN-004, GRADE-003, SCALE-003).
+
 ## Next Steps
-- **Push `Dat` lên `origin`** khi Đạt sẵn sàng (`45ccd09` đang local).
-- **Việc tiếp theo: A1 (`feat/parser-core`)** [SPEC-PARSE-001/003/004] — lõi Parser Word/Excel; làm được ngay (A2 mới chờ MP3). Hoặc các việc Generator còn lại (B2-B6). Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → nghiệm thu → merge.
+- **Push `Dat` lên `origin`** khi Đạt sẵn sàng (`45ccd09` + `d07f345` + `fe11fa3` đang local, +3 so origin).
+- **Việc tiếp theo**: A2/A3/A4 (parser hoàn thiện: Excel đáp án, mapping MP3 — A2 CHẶN bởi quy ước tên file đối tác) hoặc Generator B2-B6. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → nghiệm thu → merge.
 - ⚠️ **Bẫy fixture cho B2/B3** (đừng quên): conftest hiện có Part 7 TOÀN nhóm 4 câu (không ráp được đúng 54) + topic đơn điệu ("Article" cho cả P7). Gỡ xfail GEN-001/GEN-002/GEN-003 **cần PR mở rộng `conftest.py` được duyệt TRƯỚC**.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
