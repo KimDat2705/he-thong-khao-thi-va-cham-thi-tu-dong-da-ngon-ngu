@@ -255,6 +255,23 @@
       "notes": "GAP: generator chưa kiểm tồn kho fail-fast — test XFAIL."
     },
     {
+      "id": "SPEC-GEN-007",
+      "domain": "GEN",
+      "title": "Sinh đề data-driven theo Blueprint",
+      "statement": "Thuật toán sinh đề động dựa hoàn toàn trên cấu trúc Blueprint (structure) được định nghĩa trong dữ liệu cấu hình hoặc database, thay vì hardcode cấu trúc đề thi.",
+      "acceptance_criteria": [
+        "Sinh đề sử dụng cấu trúc Blueprint structure động được truyền vào hàm lõi",
+        "Các part sinh ra phải khớp chính xác số câu, nhóm và độ khó theo cấu hình của structure truyền vào",
+        "Tồn tại wrapper mỏng cho đề thi TOEIC chuẩn để giữ nguyên các API cũ"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_GEN_007_data_driven_generation"
+      ],
+      "notes": "Đang đạt: refactor thành công thuật toán sinh đề lõi và wrapper TOEIC."
+    },
+    {
       "id": "SPEC-GRADE-001",
       "domain": "GRADE",
       "title": "Bảng quy đổi điểm TOEIC chuẩn",

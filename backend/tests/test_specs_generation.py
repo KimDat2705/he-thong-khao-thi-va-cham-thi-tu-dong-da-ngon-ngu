@@ -252,3 +252,64 @@ def test_SPEC_GEN_006_insufficient_bank_raises():
     finally:
         db.close()
         Base.metadata.drop_all(bind=engine)
+
+
+def test_SPEC_GEN_007_data_driven_generation(db_session: Session):
+    """SPEC-GEN-007: Sinh đề data-driven theo Blueprint structure cấu hình trong DB.
+    """
+    # Create a mini blueprint structure that is satisfiable by the conftest.py bank
+    mini_structure = {
+        "exam_type": "MINI_TOEIC",
+        "language": "EN",
+        "parts": {
+            "1": {
+                "type": "standalone",
+                "count": 2,
+                "difficulty": {"easy": 1, "medium": 1, "hard": 0}
+            },
+            "3": {
+                "type": "grouped",
+                "groups": 2,
+                "q_per_group": 3,
+                "difficulty": {"easy": 1, "medium": 1, "hard": 0}
+            },
+            "7": {
+                "type": "subset_sum",
+                "target_questions": 10,
+                "difficulty": {"easy": 2, "medium": 0, "hard": 0}
+            }
+        },
+        "balance_answers": True
+    }
+    
+    # Save the Blueprint to DB
+    from app.models.blueprint import Blueprint
+    bp = Blueprint(
+        exam_type="MINI_TOEIC",
+        language="EN",
+        structure=mini_structure,
+        is_active=True
+    )
+    db_session.add(bp)
+    db_session.commit()
+    db_session.refresh(bp)
+    
+    # Generate exam using the structure from the saved Blueprint record
+    from app.services.toeic_generator import generate_exam
+    exam = generate_exam(db_session, bp.structure, title="Đề Mini Data-Driven", seed=42)
+    
+    # Assertions to prove data-driven works
+    assert exam.exam_type == "MINI_TOEIC"
+    assert exam.language == "EN"
+    
+    # Check question counts
+    qs = db_session.query(Question).filter(Question.exam_id == exam.id).all()
+    part_counts = {}
+    for q in qs:
+        part_counts[q.part] = part_counts.get(q.part, 0) + 1
+        
+    assert part_counts.get(1, 0) == 2
+    assert part_counts.get(3, 0) == 6  # 2 groups of 3
+    assert part_counts.get(7, 0) == 10  # target 10 questions
+    assert sum(part_counts.values()) == 18 # 2 + 6 + 10 = 18 questions in total
+
