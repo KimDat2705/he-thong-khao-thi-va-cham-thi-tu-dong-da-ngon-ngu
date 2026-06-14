@@ -216,8 +216,17 @@
 - 🏗️ **MỐC: pipeline Parser thật ĐỦ Nghe + Đọc → bank** (trên dữ liệu đối tác THẬT: parse `.docx`/`.doc` + merge đáp án xlsx + ghi bank idempotent). Còn lại track Parser: chỉ ④ audio MP3 gộp.
 - **Trạng thái spec sau PARSE-010**: **30 spec — 25 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-010; gap MATRIX-002 + GRADE-002; planned GEN-004, GRADE-003, SCALE-003).
 
+### Session 20 -- 2026-06-15 (Claude + Anti — PARSE-011: link audio cấp file; 🎉 TRACK PARSER HOÀN TẤT)
+- **Việc PARSE-011 HOÀN THÀNH** (`feat/parser-audio-link` → FF vào `Dat`, commit `ef2ced4`; đã push). SPEC-PARSE-011 active. `find_audio_file(audio_dir, set_id) -> (selected, ambiguous_list)` + tích hợp `import_exam_set` (listening + audio_dir): map set→file MP3 gộp theo TÊN (dải/đơn, regex anchored), set `audio_url` cấp FILE trên mọi item Nghe; **NON-FATAL** (không file → None); report `audio_linked` + `audio_ambiguous`.
+- **QUYẾT ĐỊNH CHỐT (Đạt+Claude): KHÔNG cắt audio** — ma trận không yêu cầu (đã quét MatranTOEIC.xlsx), đối tác không có timestamp, models đóng băng, cắt cần dep mới. Chèn cả file như đối tác đưa. Giữ PARSE-002 synthetic (per-unit fail-fast) riêng.
+- **Grounding**: Anti list 15 tên MP3 thật (không tải 1.5GB) — 3 file đầu ĐÈ DẢI (2601-2604 / 2602-2605 / 2603-2606).
+- **Nghiệm thu (Claude, độc lập)**: đọc `find_audio_file`; pytest **33/2/2** ×2; ruff sạch; architecture PASS; ranh giới 4 file không models; **không dep mới**. **Verify mapping trên 15 tên file THẬT**: 15/15 set có audio; ambiguity bắt đúng CHỈ LT2603 (3 file) + LT2605 (2 file); còn lại khớp đúng 1 file.
+- ✅ Anti tuân thủ quy trình.
+- **Trạng thái spec sau PARSE-011**: **31 spec — 26 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-011).
+- 🎉 **TRACK PARSER HOÀN TẤT**: pipeline Ra đề THẬT = parse `.docx` Nghe (006) + merge+import Nghe (007) + convert `.doc` (008) + parse Đọc (009) + merge+import chung (010) + link audio (011). Verify dữ liệu đối tác THẬT: LT2601 + RT2605 = 200 câu + audio vào bank, idempotent, coexist. `feature_list.docx-parser` → **active**.
+
 ## Next Steps
-- **Lộ trình Parser thật ① → ⑤ XONG** (PARSE-006..010: parse Nghe + convert .doc + parse Đọc + merge+import chung) — verify dữ liệu thật LT2601 + RT2605 = 200 câu vào bank, coexist, idempotent. **Còn lại track Parser**: **A2-rework audio MP3 gộp** (mapping đề→file+đoạn/timestamp) cho Nghe — mục cuối.
+- 🎉 **Track Parser HOÀN TẤT** (PARSE-006..011). **Việc tiếp theo: generator gaps** — **MATRIX-002 toàn-đề** (reframe per-skill theo Ma trận thật, vướng P7 nghiệm-duy-nhất) + **GEN-004** (độ trùng lô, cần đường dẫn generate batch). Cân nhắc **A5 bank-admin-API** để lộ pipeline ingestion qua HTTP.
 - Sau Parser: quay lại **generator gaps** — MATRIX-002 toàn-đề (reframe per-skill theo Ma trận thật) + GEN-004 (độ trùng lô).
 - 💡 Đối chiếu `TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật → cập nhật giá trị (data).
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
