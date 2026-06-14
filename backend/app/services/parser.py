@@ -24,13 +24,13 @@ def calculate_file_hash(filepath: str) -> str:
 def calculate_group_hash(g_data: dict) -> str:
     """Calculate SHA256 hash of a QuestionGroup's core content."""
     q_contents = "|".join(f"{q.get('content') or ''}" for q in g_data.get("questions", []))
-    content_str = f"{g_data.get('part')}|{g_data.get('passage_text') or ''}|{g_data.get('audio_url') or ''}|{q_contents}"
+    content_str = f"{g_data.get('set_id') or ''}|{g_data.get('part')}|{g_data.get('passage_text') or ''}|{g_data.get('audio_url') or ''}|{q_contents}"
     return hashlib.sha256(content_str.encode("utf-8")).hexdigest()
 
 def calculate_question_hash(q_data: dict) -> str:
     """Calculate SHA256 hash of a Question's core content."""
     sorted_options = json.dumps(q_data.get("options") or {}, sort_keys=True)
-    content_str = f"{q_data.get('part')}|{q_data.get('type')}|{q_data.get('content') or ''}|{sorted_options}|{q_data.get('reference_answer') or ''}"
+    content_str = f"{q_data.get('set_id') or ''}|{q_data.get('number') or ''}|{q_data.get('part')}|{q_data.get('type')}|{q_data.get('content') or ''}|{sorted_options}|{q_data.get('reference_answer') or ''}"
     return hashlib.sha256(content_str.encode("utf-8")).hexdigest()
 
 def parse_docx(filepath: str) -> list:
@@ -707,6 +707,13 @@ def import_listening_set(db: Session, docx_path: str, key_path: str, audio_dir: 
     docx_res = parse_listening_docx(docx_path)
     set_id_docx = docx_res["set_id"]
     items = docx_res["items"]
+
+    # Stamp set_id
+    for item in items:
+        item["set_id"] = set_id_docx
+        if "questions" in item:
+            for q in item["questions"]:
+                q["set_id"] = set_id_docx
 
     # 2. Parse answer key
     answers = parse_answer_key(key_path)

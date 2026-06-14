@@ -292,7 +292,10 @@ def create_real_answer_key_xlsx(filepath):
     for idx in range(1, 9):
         row = idx + 3
         ws[f"A{row}"] = idx
-        ws[f"B{row}"] = answers[idx % 4]
+        if idx in (5, 6):
+            ws[f"B{row}"] = "A"
+        else:
+            ws[f"B{row}"] = answers[idx % 4]
         
     # Write Q9-Q15 (Block 2)
     for idx in range(9, 16):
