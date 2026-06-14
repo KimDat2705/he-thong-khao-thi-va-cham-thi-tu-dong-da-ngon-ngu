@@ -973,16 +973,16 @@ def parse_reading_docx(filepath: str) -> dict:
                 continue
 
             if current_part == 5:
-                q_match = re.match(r'^\s*(\d+)\.\s*(.*)', text)
+                q_match = re.match(r'^\s*(\d+)\.\s*(.*)', text, re.DOTALL)
                 if q_match:
                     q_num = int(q_match.group(1))
-                    q_content = q_match.group(2).strip()
+                    q_rest = q_match.group(2).strip()
                     
                     q_item = {
                         "number": q_num,
                         "part": 5,
                         "type": "choice",
-                        "content": q_content,
+                        "content": "",
                         "options": {},
                         "reference_answer": None,
                         "audio_url": None,
@@ -993,19 +993,29 @@ def parse_reading_docx(filepath: str) -> dict:
                         "explanation": None
                     }
                     
-                    opt_count = 0
+                    parts = re.split(r'\s*\(([A-D])\)\s*', q_rest)
+                    q_item["content"] = parts[0].strip()
+                    if len(parts) >= 3:
+                        for idx_opt in range(1, len(parts), 2):
+                            letter = parts[idx_opt]
+                            val = parts[idx_opt+1].strip()
+                            q_item["options"][letter] = val
+                            
+                    opt_count = len(q_item["options"])
                     j = i + 1
                     while j < len(body_elements) and opt_count < 4:
                         next_child = body_elements[j]
                         if isinstance(next_child, CT_P):
                             next_p = Paragraph(next_child, doc)
                             next_text = next_p.text.strip()
-                            opt_match = re.match(r'^\s*\(([A-D])\)\s*(.*)', next_text)
-                            if opt_match:
-                                letter = opt_match.group(1)
-                                opt_val = opt_match.group(2).strip()
-                                q_item["options"][letter] = opt_val
-                                opt_count += 1
+                            if re.match(r'^\s*\(([A-D])\)\s*', next_text):
+                                opt_parts = re.split(r'\s*\(([A-D])\)\s*', next_text)
+                                if len(opt_parts) >= 3:
+                                    for idx_opt in range(1, len(opt_parts), 2):
+                                        letter = opt_parts[idx_opt]
+                                        val = opt_parts[idx_opt+1].strip()
+                                        q_item["options"][letter] = val
+                                opt_count = len(q_item["options"])
                                 j += 1
                                 continue
                         break
@@ -1048,7 +1058,7 @@ def parse_reading_docx(filepath: str) -> dict:
                             if re.search(r'(?i)Questions\s+(\d+)\s*[-–]\s*(\d+)', next_text):
                                 break
                                 
-                            q_start_match = re.match(r'^\s*(\d+)\.\s*(.*)', next_text)
+                            q_start_match = re.match(r'^\s*(\d+)\.\s*(.*)', next_text, re.DOTALL)
                             if q_start_match:
                                 q_num = int(q_start_match.group(1))
                                 if start_q <= q_num <= end_q:
@@ -1095,16 +1105,16 @@ def parse_reading_docx(filepath: str) -> dict:
                             if re.search(r'(?i)Questions\s+(\d+)\s*[-–]\s*(\d+)', next_text):
                                 break
                                 
-                            q_match = re.match(r'^\s*(\d+)\.\s*(.*)', next_text)
+                            q_match = re.match(r'^\s*(\d+)\.\s*(.*)', next_text, re.DOTALL)
                             if q_match:
                                 q_num = int(q_match.group(1))
-                                q_content = q_match.group(2).strip()
+                                q_rest = q_match.group(2).strip()
                                 
                                 q_item = {
                                     "number": q_num,
                                     "part": current_part,
                                     "type": "choice",
-                                    "content": q_content,
+                                    "content": "",
                                     "options": {},
                                     "reference_answer": None,
                                     "audio_url": None,
@@ -1115,21 +1125,46 @@ def parse_reading_docx(filepath: str) -> dict:
                                     "explanation": None
                                 }
                                 
-                                opt_count = 0
+                                parts = re.split(r'\s*\(([A-D])\)\s*', q_rest)
+                                q_item["content"] = parts[0].strip()
+                                if len(parts) >= 3:
+                                    for idx_opt in range(1, len(parts), 2):
+                                        letter = parts[idx_opt]
+                                        val = parts[idx_opt+1].strip()
+                                        q_item["options"][letter] = val
+                                        
+                                opt_count = len(q_item["options"])
                                 k = j + 1
                                 while k < len(body_elements) and opt_count < 4:
                                     opt_child = body_elements[k]
                                     if isinstance(opt_child, CT_P):
                                         opt_p = Paragraph(opt_child, doc)
                                         opt_text = opt_p.text.strip()
-                                        opt_match = re.match(r'^\s*\(([A-D])\)\s*(.*)', opt_text)
-                                        if opt_match:
-                                            letter = opt_match.group(1)
-                                            opt_val = opt_match.group(2).strip()
-                                            q_item["options"][letter] = opt_val
-                                            opt_count += 1
+                                        
+                                        if check_part(opt_text):
+                                            break
+                                        if re.search(r'(?i)Questions\s+(\d+)\s*[-–]\s*(\d+)', opt_text):
+                                            break
+                                        if re.match(r'^\s*\d+\.', opt_text):
+                                            break
+                                            
+                                        if re.match(r'^\s*\(([A-D])\)\s*', opt_text):
+                                            opt_parts = re.split(r'\s*\(([A-D])\)\s*', opt_text)
+                                            if len(opt_parts) >= 3:
+                                                for idx_opt in range(1, len(opt_parts), 2):
+                                                    letter = opt_parts[idx_opt]
+                                                    val = opt_parts[idx_opt+1].strip()
+                                                    q_item["options"][letter] = val
+                                            opt_count = len(q_item["options"])
                                             k += 1
                                             continue
+                                            
+                                        if opt_count == 0:
+                                            if opt_text:
+                                                q_item["content"] += "\n" + opt_text
+                                            k += 1
+                                            continue
+                                            
                                     elif isinstance(opt_child, CT_Tbl):
                                         opt_t = Table(opt_child, doc)
                                         if len(opt_t.rows) == 4 and len(opt_t.columns) == 2:
@@ -1140,7 +1175,7 @@ def parse_reading_docx(filepath: str) -> dict:
                                                 if letter_match:
                                                     letter = letter_match.group(1)
                                                     q_item["options"][letter] = text_cell
-                                                    opt_count += 1
+                                            opt_count = len(q_item["options"])
                                             k += 1
                                             break
                                     break
@@ -1196,8 +1231,3 @@ def parse_reading_docx(filepath: str) -> dict:
         "set_id": set_id,
         "items": items
     }
-
-
-
-
-

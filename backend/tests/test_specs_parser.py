@@ -329,6 +329,8 @@ def test_SPEC_PARSE_009_parse_real_reading_docx():
             part_counts[p] += 1
             q_count += 1
             assert item["part"] == p
+            assert len(item["options"]) == 4
+            assert set(item["options"].keys()) == {"A", "B", "C", "D"}
             assert item["reference_answer"] is None
             q_by_num[item["number"]] = item
             if p == 5:
@@ -350,6 +352,14 @@ def test_SPEC_PARSE_009_parse_real_reading_docx():
     assert q1["options"]["B"] == "Option B1"
     assert q1["options"]["C"] == "Option C1"
     assert q1["options"]["D"] == "Option D1"
+
+    # Verify inline options for Q2
+    q2 = q_by_num[2]
+    assert q2["part"] == 5
+    assert q2["options"]["A"] == "Option A2"
+    assert q2["options"]["B"] == "Option B2"
+    assert q2["options"]["C"] == "Option C2"
+    assert q2["options"]["D"] == "Option D2"
 
     # Verify Part 6 group has passage_text and correct options
     p6_groups = [it for it in items if it.get("part") == 6 and "questions" in it]
@@ -377,6 +387,9 @@ def test_SPEC_PARSE_009_parse_real_reading_docx():
     
     q7 = q_by_num[7]
     assert q7["options"]["A"] == "Renovation"
+    assert q7["options"]["B"] == "Class"
+    assert q7["options"]["C"] == "Holiday"
+    assert q7["options"]["D"] == "Meeting"
 
     # Group 2 (Q9-12): advertisement and review + 4x2 tables
     g2 = p7_groups[1]
@@ -384,7 +397,10 @@ def test_SPEC_PARSE_009_parse_real_reading_docx():
     assert "Review:" in g2["passage_text"]
     assert g2["image_url"] is None
     
+    # Q9: Sandwich layout
     q9 = q_by_num[9]
+    assert "What is being advertised?" in q9["content"]
+    assert "Buy our product" in q9["content"]
     assert q9["options"]["A"] == "A product"
     assert q9["options"]["B"] == "A service"
     assert q9["options"]["C"] == "A company"

@@ -340,16 +340,16 @@ def create_real_reading_docx(filepath):
     doc.add_paragraph("")
     
     # --- PART 5 ---
-    p5_hdr = doc.add_paragraph("READING TEST\nPART 5\nDirections: ...")
+    doc.add_paragraph("READING TEST\nPART 5\nDirections: ...")
     
-    p1 = doc.add_paragraph("1. Question one content here _______.")
+    doc.add_paragraph("1. Question one content here _______.")
     doc.add_paragraph("(A) Option A1")
     doc.add_paragraph("(B) Option B1")
     doc.add_paragraph("(C) Option C1")
     doc.add_paragraph("(D) Option D1")
     
-    p2 = doc.add_paragraph("2. Question two content here _______.")
-    doc.add_paragraph("(A) Option A2")
+    # Q2: Option-A-inline format
+    doc.add_paragraph("2. Question two content here _______ (A) Option A2")
     doc.add_paragraph("(B) Option B2")
     doc.add_paragraph("(C) Option C2")
     doc.add_paragraph("(D) Option D2")
@@ -357,8 +357,8 @@ def create_real_reading_docx(filepath):
     doc.add_paragraph("")
     
     # --- PART 6 ---
-    p6_hdr = doc.add_paragraph("PART 6\nDirections: ...")
-    p6_intro = doc.add_paragraph("Questions 3-6 refer to the following email.")
+    doc.add_paragraph("PART 6\nDirections: ...")
+    doc.add_paragraph("Questions 3-6 refer to the following email.")
     
     # Passage text paragraphs
     doc.add_paragraph("To: employee@company.com")
@@ -384,48 +384,33 @@ def create_real_reading_docx(filepath):
     doc.add_paragraph("")
     
     # --- PART 7 ---
-    p7_hdr = doc.add_paragraph("PART 7\nDirections: ...")
+    doc.add_paragraph("PART 7\nDirections: ...")
     
-    # Group 1 (Q7-8) - 1x1 table passage + inline drawing + paragraph options
-    p7_g1_intro = doc.add_paragraph("Questions 7-8 refer to the following announcement.")
+    # Group 1 (Q7-8) - 1x1 table passage + inline drawing + all-inline paragraph options
+    doc.add_paragraph("Questions 7-8 refer to the following announcement.")
     
     t_passage1 = doc.add_table(rows=1, cols=1)
     p_cell = t_passage1.cell(0, 0).paragraphs[0]
     p_cell.text = "ANNOUNCEMENT: Office renovation is starting tomorrow."
     p_cell.add_run().add_picture(temp_img_path)
     
-    p7_q7 = doc.add_paragraph("7. What is starting tomorrow?")
-    doc.add_paragraph("(A) Renovation")
-    doc.add_paragraph("(B) Class")
-    doc.add_paragraph("(C) Holiday")
-    doc.add_paragraph("(D) Meeting")
-    
-    p7_q8 = doc.add_paragraph("8. Who is affected?")
-    doc.add_paragraph("(A) Staff")
-    doc.add_paragraph("(B) Students")
-    doc.add_paragraph("(C) Visitors")
-    doc.add_paragraph("(D) Clients")
+    # All-options-inline paragraph format
+    doc.add_paragraph("7. What is starting tomorrow?\n(A) Renovation\n(B) Class\n(C) Holiday\n(D) Meeting")
+    doc.add_paragraph("8. Who is affected?\n(A) Staff\n(B) Students\n(C) Visitors\n(D) Clients")
     
     doc.add_paragraph("")
     
-    # Group 2 (Q9-12) - Double passage + 4x2 options tables
-    p7_g2_intro = doc.add_paragraph("Questions 9-12 refer to the following advertisement and review.")
+    # Group 2 (Q9-12) - Double passage + sandwich question (Q9) + table options (Q10-12)
+    doc.add_paragraph("Questions 9-12 refer to the following advertisement and review.")
     doc.add_paragraph("Advertisement:")
     doc.add_paragraph("Buy our product. It is the best.")
     doc.add_paragraph("Review:")
     doc.add_paragraph("I bought it and it works great.")
     
-    # Q9
+    # Q9: Sandwich layout (question paragraph, quote paragraph, options paragraph)
     doc.add_paragraph("9. What is being advertised?")
-    t_opt9 = doc.add_table(rows=4, cols=2)
-    t_opt9.cell(0, 0).text = "(A)"
-    t_opt9.cell(0, 1).text = "A product"
-    t_opt9.cell(1, 0).text = "(B)"
-    t_opt9.cell(1, 1).text = "A service"
-    t_opt9.cell(2, 0).text = "(C)"
-    t_opt9.cell(2, 1).text = "A company"
-    t_opt9.cell(3, 0).text = "(D)"
-    t_opt9.cell(3, 1).text = "A store"
+    doc.add_paragraph("“Buy our product. It is the best.”")
+    doc.add_paragraph("(A) A product\n(B) A service\n(C) A company\n(D) A store")
     
     # Q10
     doc.add_paragraph("10. What does the review say?")
