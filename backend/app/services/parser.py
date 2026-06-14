@@ -1,0 +1,324 @@
+import os
+import docx
+import hashlib
+import json
+from sqlalchemy.orm import Session
+from app.models.import_batch import ImportBatch
+from app.models.question import Question
+from app.models.question_group import QuestionGroup
+
+class ImportError(Exception):
+    """Raised when parsing or validation fails during file import."""
+    def __init__(self, message: str, report: dict = None):
+        super().__init__(message)
+        self.report = report or {}
+
+def calculate_file_hash(filepath: str) -> str:
+    """Calculate SHA256 hash of a file's binary content."""
+    sha256 = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        while chunk := f.read(8192):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+def calculate_group_hash(g_data: dict) -> str:
+    """Calculate SHA256 hash of a QuestionGroup's core content."""
+    content_str = f"{g_data.get('part')}|{g_data.get('passage_text') or ''}|{g_data.get('audio_url') or ''}"
+    return hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+
+def calculate_question_hash(q_data: dict) -> str:
+    """Calculate SHA256 hash of a Question's core content."""
+    sorted_options = json.dumps(q_data.get("options") or {}, sort_keys=True)
+    content_str = f"{q_data.get('part')}|{q_data.get('type')}|{q_data.get('content') or ''}|{sorted_options}|{q_data.get('reference_answer') or ''}"
+    return hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+
+def parse_docx(filepath: str) -> list:
+    """Parse docx paragraphs into a list of raw block dicts."""
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    doc = docx.Document(filepath)
+    blocks = []
+    current_block = None
+
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if not text:
+            continue
+
+        if text in ["[Group]", "[Question]"]:
+            if current_block:
+                blocks.append(current_block)
+            current_block = {"type": text[1:-1], "fields": {}}
+        elif current_block and ":" in text:
+            parts = text.split(":", 1)
+            key = parts[0].strip()
+            val = parts[1].strip()
+            current_block["fields"][key] = val
+
+    if current_block:
+        blocks.append(current_block)
+
+    return blocks
+
+def process_blocks(blocks: list, filepath: str) -> list:
+    """Validate raw blocks and structure them into parsed groups and questions."""
+    parsed_items = []
+    current_group = None
+    errors = []
+
+    for idx, block in enumerate(blocks):
+        b_type = block["type"]
+        fields = block["fields"]
+        location = f"Block {idx + 1} ({b_type})"
+
+        if b_type == "Group":
+            part = fields.get("Part")
+            if not part:
+                errors.append({
+                    "location": location,
+                    "type": "missing_part",
+                    "message": "Group is missing 'Part' field."
+                })
+                continue
+            try:
+                part_val = int(part)
+            except ValueError:
+                errors.append({
+                    "location": location,
+                    "type": "invalid_part",
+                    "message": f"Group Part '{part}' is not an integer."
+                })
+                continue
+
+            group_data = {
+                "part": part_val,
+                "topic": fields.get("Topic"),
+                "passage_text": fields.get("Passage"),
+                "audio_url": fields.get("Audio"),
+                "image_url": fields.get("Image"),
+                "difficulty": fields.get("Difficulty", "medium"),
+                "questions": []
+            }
+            current_group = group_data
+            parsed_items.append(group_data)
+
+        elif b_type == "Question":
+            options = {}
+            for opt_key in ["A", "B", "C", "D"]:
+                if opt_key in fields:
+                    options[opt_key] = fields[opt_key]
+
+            part = fields.get("Part")
+            if not part:
+                errors.append({
+                    "location": location,
+                    "type": "missing_part",
+                    "message": "Question is missing 'Part' field."
+                })
+                continue
+            try:
+                part_val = int(part)
+            except ValueError:
+                errors.append({
+                    "location": location,
+                    "type": "invalid_part",
+                    "message": f"Question Part '{part}' is not an integer."
+                })
+                continue
+
+            # Validate options
+            if not options:
+                errors.append({
+                    "location": location,
+                    "type": "missing_options",
+                    "message": "Question is missing options (A, B, C, D)."
+                })
+
+            # Validate answer
+            answer = fields.get("Answer")
+            if not answer:
+                errors.append({
+                    "location": location,
+                    "type": "missing_answer",
+                    "message": "Question is missing 'Answer' field."
+                })
+            elif answer not in options:
+                errors.append({
+                    "location": location,
+                    "type": "invalid_answer",
+                    "message": f"Answer '{answer}' is not in options keys {list(options.keys())}."
+                })
+
+            q_data = {
+                "part": part_val,
+                "type": fields.get("Type", "choice"),
+                "content": fields.get("Content", ""),
+                "audio_url": fields.get("Audio"),
+                "image_url": fields.get("Image"),
+                "options": options,
+                "reference_answer": answer,
+                "difficulty": fields.get("Difficulty", "medium"),
+                "clo": fields.get("CLO"),
+                "topic": fields.get("Topic"),
+                "explanation": fields.get("Explanation")
+            }
+
+            # Link question to the current group if it is grouped part and matches current group part
+            is_grouped = part_val in [3, 4, 6, 7]
+            if is_grouped and current_group and current_group["part"] == part_val:
+                current_group["questions"].append(q_data)
+            else:
+                current_group = None
+                parsed_items.append(q_data)
+
+    if errors:
+        raise ImportError(f"Validation failed for {filepath}", {
+            "file": filepath,
+            "errors": errors
+        })
+
+    return parsed_items
+
+def save_parsed_items(db: Session, parsed_items: list, batch_id: int) -> dict:
+    """Save structured parsed items to database, checking content hash for idempotency."""
+    skipped_q_count = 0
+    skipped_g_count = 0
+    imported_q_count = 0
+    imported_g_count = 0
+
+    for item in parsed_items:
+        if "questions" in item:
+            # It's a Group
+            g_hash = calculate_group_hash(item)
+
+            existing_g = db.query(QuestionGroup).filter(
+                QuestionGroup.exam_id.is_(None),
+                QuestionGroup.content_hash == g_hash
+            ).first()
+
+            if existing_g:
+                skipped_g_count += 1
+                skipped_q_count += len(item["questions"])
+                continue
+
+            new_g = QuestionGroup(
+                exam_id=None,
+                part=item["part"],
+                topic=item["topic"],
+                passage_text=item["passage_text"],
+                audio_url=item["audio_url"],
+                image_url=item["image_url"],
+                difficulty=item["difficulty"],
+                status="draft",
+                content_hash=g_hash,
+                import_batch_id=batch_id
+            )
+            db.add(new_g)
+            db.commit()
+            db.refresh(new_g)
+            imported_g_count += 1
+
+            for q_data in item["questions"]:
+                q_hash = calculate_question_hash(q_data)
+
+                existing_q = db.query(Question).filter(
+                    Question.exam_id.is_(None),
+                    Question.content_hash == q_hash
+                ).first()
+
+                if existing_q:
+                    skipped_q_count += 1
+                    continue
+
+                new_q = Question(
+                    exam_id=None,
+                    group_id=new_g.id,
+                    part=q_data["part"],
+                    type=q_data["type"],
+                    content=q_data["content"],
+                    audio_url=q_data["audio_url"],
+                    image_url=q_data["image_url"],
+                    options=q_data["options"],
+                    reference_answer=q_data["reference_answer"],
+                    difficulty=q_data["difficulty"],
+                    clo=q_data["clo"],
+                    topic=q_data["topic"],
+                    explanation=q_data["explanation"],
+                    status="draft",
+                    content_hash=q_hash,
+                    import_batch_id=batch_id
+                )
+                db.add(new_q)
+                imported_q_count += 1
+            db.commit()
+
+        else:
+            # It's a Standalone Question
+            q_hash = calculate_question_hash(item)
+
+            existing_q = db.query(Question).filter(
+                Question.exam_id.is_(None),
+                Question.content_hash == q_hash
+            ).first()
+
+            if existing_q:
+                skipped_q_count += 1
+                continue
+
+            new_q = Question(
+                exam_id=None,
+                group_id=None,
+                part=item["part"],
+                type=item["type"],
+                content=item["content"],
+                audio_url=item["audio_url"],
+                image_url=item["image_url"],
+                options=item["options"],
+                reference_answer=item["reference_answer"],
+                difficulty=item["difficulty"],
+                clo=item["clo"],
+                topic=item["topic"],
+                explanation=item["explanation"],
+                status="draft",
+                content_hash=q_hash,
+                import_batch_id=batch_id
+            )
+            db.add(new_q)
+            db.commit()
+            imported_q_count += 1
+
+    return {
+        "imported_questions": imported_q_count,
+        "imported_groups": imported_g_count,
+        "skipped_questions": skipped_q_count,
+        "skipped_groups": skipped_g_count
+    }
+
+def import_file(db: Session, filepath: str) -> dict:
+    """Parse, validate, and import a .docx file into the Question Bank."""
+    file_hash = calculate_file_hash(filepath)
+
+    # 1. Parse docx
+    blocks = parse_docx(filepath)
+
+    # 2. Validate blocks (raises ImportError if fails)
+    parsed_items = process_blocks(blocks, filepath)
+
+    # 3. Create ImportBatch (Atomic database transactions)
+    batch = ImportBatch(
+        source_file=filepath,
+        content_hash=file_hash,
+        status="imported"
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+
+    # 4. Save items
+    try:
+        result = save_parsed_items(db, parsed_items, batch.id)
+        return result
+    except Exception as e:
+        db.rollback()
+        raise e

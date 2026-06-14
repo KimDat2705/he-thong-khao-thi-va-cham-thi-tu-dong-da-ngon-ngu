@@ -76,7 +76,7 @@ def create_missing_answer_docx(filepath):
 
 def main():
     # Make sure we are writing to the correct absolute directory
-    dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "parser"))
+    dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser"))
     os.makedirs(dir_path, exist_ok=True)
     
     create_valid_docx(os.path.join(dir_path, "LT_sample_valid.docx"))

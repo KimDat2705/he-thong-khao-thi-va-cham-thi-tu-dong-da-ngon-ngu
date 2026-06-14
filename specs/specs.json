@@ -30,7 +30,7 @@
         "File nguồn chứa câu khuyết đáp án phải bị từ chối ở validation gate (xem SPEC-PARSE-004)"
       ],
       "verification": "pytest",
-      "status": "planned",
+      "status": "active",
       "tests": [
         "tests/test_specs_parser.py::test_SPEC_PARSE_001_no_incomplete_questions_after_import"
       ],
@@ -64,7 +64,7 @@
         "Lần import thứ 2 báo cáo số bản ghi bị bỏ qua do trùng"
       ],
       "verification": "pytest",
-      "status": "planned",
+      "status": "active",
       "tests": [
         "tests/test_specs_parser.py::test_SPEC_PARSE_003_reimport_is_idempotent"
       ],
@@ -81,7 +81,7 @@
         "Mọi item import thành công vào bank ở trạng thái status='draft' chờ duyệt"
       ],
       "verification": "pytest",
-      "status": "planned",
+      "status": "active",
       "tests": [
         "tests/test_specs_parser.py::test_SPEC_PARSE_004_failed_import_writes_nothing"
       ],
