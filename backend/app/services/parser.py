@@ -424,3 +424,274 @@ def parse_answer_key(filepath: str) -> dict[int, str]:
     wb.close()
     return answers
 
+
+def parse_listening_docx(filepath: str) -> dict:
+    """
+    Parses a TOEIC Listening test .docx file in the real table-based format.
+    Returns:
+        dict: {
+            "set_id": "LT2601",
+            "items": [...]
+        }
+    """
+    import os
+    import re
+    import docx
+    from docx.oxml import CT_P, CT_Tbl
+    from docx.text.paragraph import Paragraph
+    from docx.table import Table
+
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    doc = docx.Document(filepath)
+
+    # 1. Extract Set ID
+    set_id = None
+    for p in doc.paragraphs:
+        if "Mã đề thi" in p.text:
+            set_id = "".join(c for c in p.text.split("Mã đề thi")[-1] if c.isalnum()).upper()
+            break
+    if not set_id:
+        for t in doc.tables:
+            for row in t.rows:
+                for cell in row.cells:
+                    if "Mã đề thi" in cell.text:
+                        set_id = "".join(c for c in cell.text.split("Mã đề thi")[-1] if c.isalnum()).upper()
+                        break
+                if set_id:
+                    break
+            if set_id:
+                break
+
+    # Helper to check if a paragraph/table contains Part header
+    def check_part(text):
+        m = re.search(r'(?i)part\s*(\d+)', text)
+        if m:
+            return int(m.group(1))
+        return None
+
+    # Helper to check drawings
+    def get_drawings(element):
+        return element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}inline') + \
+               element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}anchor')
+
+    current_part = None
+    items = []
+    part1_questions = {}
+    drawings_found = []
+
+    body_elements = list(doc.element.body)
+    i = 0
+    while i < len(body_elements):
+        child = body_elements[i]
+        if isinstance(child, CT_P):
+            p = Paragraph(child, doc)
+            text = p.text.strip()
+            
+            # Check for part change
+            new_part = check_part(text)
+            if new_part:
+                current_part = new_part
+                
+            # If we are in Part 1, check for question paragraph
+            if current_part == 1:
+                q_match = re.match(r'^\s*(\d+)\.', text)
+                if q_match:
+                    q_num = int(q_match.group(1))
+                    if 1 <= q_num <= 3:
+                        drawings = get_drawings(p._element)
+                        img_idx = None
+                        if drawings:
+                            img_idx = len(drawings_found)
+                            drawings_found.append(drawings[0])
+                        else:
+                            # Peek next paragraph for drawing
+                            if i + 1 < len(body_elements) and isinstance(body_elements[i+1], CT_P):
+                                next_p = Paragraph(body_elements[i+1], doc)
+                                next_drawings = get_drawings(next_p._element)
+                                if next_drawings:
+                                    img_idx = len(drawings_found)
+                                    drawings_found.append(next_drawings[0])
+                        
+                        part1_questions[q_num] = {
+                            "number": q_num,
+                            "part": 1,
+                            "type": "choice",
+                            "content": "",
+                            "options": {},
+                            "reference_answer": None,
+                            "image_url": str(img_idx) if img_idx is not None else None,
+                            "audio_url": None,
+                            "difficulty": "medium",
+                            "clo": None,
+                            "topic": None,
+                            "explanation": None
+                        }
+            
+        elif isinstance(child, CT_Tbl):
+            t = Table(child, doc)
+            first_cell_text = t.rows[0].cells[0].text.strip()
+            new_part = check_part(first_cell_text)
+            if new_part:
+                current_part = new_part
+                
+            if current_part == 1:
+                # Process Part 1 table rows
+                for row in t.rows:
+                    cell_0_text = row.cells[0].text.strip()
+                    q_match = re.match(r'^\s*(\d+)\.', cell_0_text)
+                    if q_match:
+                        q_num = int(q_match.group(1))
+                        if q_num >= 4:
+                            row_drawings = []
+                            for cell in row.cells:
+                                for cp in cell.paragraphs:
+                                    row_drawings.extend(get_drawings(cp._element))
+                            img_idx = None
+                            if row_drawings:
+                                img_idx = len(drawings_found)
+                                drawings_found.append(row_drawings[0])
+                                
+                            part1_questions[q_num] = {
+                                "number": q_num,
+                                "part": 1,
+                                "type": "choice",
+                                "content": "",
+                                "options": {},
+                                "reference_answer": None,
+                                "image_url": str(img_idx) if img_idx is not None else None,
+                                "audio_url": None,
+                                "difficulty": "medium",
+                                "clo": None,
+                                "topic": None,
+                                "explanation": None
+                            }
+                            
+            elif current_part == 2:
+                # Process Part 2 table
+                for row in t.rows:
+                    for cell in row.cells:
+                        text = cell.text.strip()
+                        q_match = re.match(r'^\s*(\d+)\.\s*(.*)', text, re.DOTALL)
+                        if q_match:
+                            q_num = int(q_match.group(1))
+                            q_content = q_match.group(2).strip().replace('\n', ' ')
+                            q_content = re.sub(r'\s+', ' ', q_content)
+                            items.append({
+                                "number": q_num,
+                                "part": 2,
+                                "type": "choice",
+                                "content": q_content,
+                                "options": {},
+                                "reference_answer": None,
+                                "image_url": None,
+                                "audio_url": None,
+                                "difficulty": "medium",
+                                "clo": None,
+                                "topic": None,
+                                "explanation": None
+                            })
+                            
+            elif current_part in [3, 4]:
+                # Process Part 3 and Part 4 tables
+                has_questions = False
+                for row in t.rows:
+                    for cell in row.cells:
+                        if re.search(r'^\s*\d+\.', cell.text):
+                            has_questions = True
+                            break
+                    if has_questions:
+                        break
+                        
+                if has_questions:
+                    for row in t.rows:
+                        for cell in row.cells:
+                            cell_drawings = []
+                            for cp in cell.paragraphs:
+                                cell_drawings.extend(get_drawings(cp._element))
+                            
+                            img_idx = None
+                            if cell_drawings:
+                                img_idx = len(drawings_found)
+                                drawings_found.append(cell_drawings[0])
+                                
+                            # Parse groups separated by dash lines
+                            blocks_paragraphs = [[]]
+                            for p in cell.paragraphs:
+                                p_text = p.text.strip()
+                                if re.match(r'^[-_]{3,}', p_text):
+                                    blocks_paragraphs.append([])
+                                else:
+                                    blocks_paragraphs[-1].append(p)
+                                    
+                            for bp_list in blocks_paragraphs:
+                                block_questions = []
+                                curr_q = None
+                                
+                                for p in bp_list:
+                                    p_text = p.text.strip()
+                                    if not p_text:
+                                        continue
+                                        
+                                    q_match = re.match(r'^\s*(\d+)\.\s*(.*)', p_text)
+                                    if q_match:
+                                        if curr_q:
+                                            block_questions.append(curr_q)
+                                        q_num = int(q_match.group(1))
+                                        q_content = q_match.group(2).strip()
+                                        curr_q = {
+                                            "number": q_num,
+                                            "part": current_part,
+                                            "type": "choice",
+                                            "content": q_content,
+                                            "options": {},
+                                            "reference_answer": None,
+                                            "image_url": None,
+                                            "audio_url": None,
+                                            "difficulty": "medium",
+                                            "clo": None,
+                                            "topic": None,
+                                            "explanation": None
+                                        }
+                                    elif curr_q is not None:
+                                        opt_match = re.match(r'^\s*\(([A-D])\)\s*(.*)', p_text)
+                                        if opt_match:
+                                            opt_letter = opt_match.group(1)
+                                            opt_text = opt_match.group(2).strip()
+                                            curr_q["options"][opt_letter] = opt_text
+                                        else:
+                                            if not curr_q["options"]:
+                                                curr_q["content"] += " " + p_text
+                                            else:
+                                                last_opt = list(curr_q["options"].keys())[-1]
+                                                curr_q["options"][last_opt] += " " + p_text
+                                                
+                                if curr_q:
+                                    block_questions.append(curr_q)
+                                    
+                                if block_questions:
+                                    group_img = str(img_idx) if img_idx is not None else None
+                                    group_data = {
+                                        "part": current_part,
+                                        "topic": None,
+                                        "passage_text": None,
+                                        "audio_url": None,
+                                        "image_url": group_img,
+                                        "difficulty": "medium",
+                                        "questions": block_questions
+                                    }
+                                    items.append(group_data)
+                                    
+        i += 1
+
+    # Insert Part 1 questions in sorted order at the beginning of items list
+    for q_num in sorted(part1_questions.keys(), reverse=True):
+        items.insert(0, part1_questions[q_num])
+
+    return {
+        "set_id": set_id,
+        "items": items
+    }
+
+

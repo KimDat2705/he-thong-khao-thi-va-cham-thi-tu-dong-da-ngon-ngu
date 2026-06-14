@@ -113,3 +113,64 @@ def test_SPEC_PARSE_005_answer_key_import():
         assert q_num in answers, f"Thiếu đáp án cho câu {q_num}"
         assert answers[q_num] in {"A", "B", "C", "D"}, f"Đáp án câu {q_num} không hợp lệ: {answers[q_num]}"
 
+
+def test_SPEC_PARSE_006_parse_real_listening_docx():
+    """SPEC-PARSE-006: Đọc và parse tệp câu hỏi .docx đề Nghe TOEIC định dạng thật (table-based).
+    """
+    from app.services.parser import parse_listening_docx
+    import os
+
+    filepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser", "LT_real_sample.docx"))
+    assert os.path.exists(filepath), f"File fixture {filepath} không tồn tại"
+
+    result = parse_listening_docx(filepath)
+    assert result["set_id"] == "LT9999"
+    items = result["items"]
+
+    # Tổng số câu
+    q_count = 0
+    part_counts = {1: 0, 2: 0, 3: 0, 4: 0}
+    q_by_num = {}
+
+    for item in items:
+        p = item["part"]
+        if "questions" in item:
+            part_counts[p] += len(item["questions"])
+            q_count += len(item["questions"])
+            assert item["difficulty"] == "medium"
+            # Cell image_url can be None or string
+            for q in item["questions"]:
+                assert q["part"] == p
+                assert len(q["options"]) == 4
+                assert set(q["options"].keys()) == {"A", "B", "C", "D"}
+                assert q["reference_answer"] is None
+                q_by_num[q["number"]] = q
+        else:
+            part_counts[p] += 1
+            q_count += 1
+            assert item["part"] == p
+            assert item["reference_answer"] is None
+            q_by_num[item["number"]] = item
+            if p == 1:
+                assert item["image_url"] is not None
+                assert item["options"] == {}
+            elif p == 2:
+                assert item["options"] == {}
+                assert item["image_url"] is None
+                assert "Mark your answer" in item["content"]
+
+    # Verify counts per part (Mini structure)
+    assert q_count == 15
+    assert part_counts[1] == 4
+    assert part_counts[2] == 2
+    assert part_counts[3] == 6
+    assert part_counts[4] == 3
+
+    # Check question number range
+    assert sorted(q_by_num.keys()) == list(range(1, 16))
+
+    # Verify option wrap logic for Q8 Option A
+    q8 = q_by_num[8]
+    assert q8["options"]["A"] == "Go to the conference center"
+
+

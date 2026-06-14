@@ -105,6 +105,25 @@
       "notes": "Đang đạt: parser hỗ trợ phân tích đáp án từ file Excel cấu trúc thực tế."
     },
     {
+      "id": "SPEC-PARSE-006",
+      "domain": "PARSE",
+      "title": "Parse đề Nghe TOEIC định dạng thật",
+      "statement": "Hệ thống hỗ trợ parse tệp đề Nghe TOEIC định dạng thực tế (.docx chứa bảng biểu, ảnh và các lựa chọn trắc nghiệm), bóc tách chính xác set_id, các câu hỏi đơn lẻ (Part 1, 2) và câu hỏi nhóm (Part 3, 4) phân tách nhóm bằng dòng gạch ngang.",
+      "acceptance_criteria": [
+        "Trích xuất và chuẩn hóa set_id từ bảng chứa Mã đề thi (ví dụ: 'Mã đề thi LT.2601' -> 'LT2601')",
+        "Duyệt các phần tử XML theo thứ tự xuất hiện thực tế để xác định đúng ranh giới của các Part 1, 2, 3, 4",
+        "Part 1: Trích xuất đúng 6 câu hỏi, gán đúng chỉ mục (index) hình ảnh đi kèm",
+        "Part 2: Trích xuất đúng 25 câu hỏi đơn lẻ, options để trống và nội dung chỉ dẫn mặc định",
+        "Part 3 và Part 4: Bóc tách các câu hỏi và các lựa chọn A/B/C/D từ cell của bảng, gom các câu hỏi thành nhóm phân tách bằng dòng gạch ngang, tự động ghép dòng khi câu hỏi hoặc đáp án bị xuống dòng, gán đúng hình ảnh nhóm (nếu có)"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_006_parse_real_listening_docx"
+      ],
+      "notes": "Đang đạt: parser thực tế bóc tách thành công câu hỏi từ tệp đề Nghe Word table-based và trích xuất đúng set_id."
+    },
+    {
       "id": "SPEC-BANK-001",
       "domain": "BANK",
       "title": "Chỉ item đã duyệt được vào đề",
