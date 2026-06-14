@@ -183,8 +183,18 @@
 - ⚠️ **2 lệch quy trình của Anti phiên này** (vô hại lần này nhưng nhắc lần sau): (1) **push cả 4 commit trước khi Claude nghiệm thu** (lẽ ra chờ); (2) tự sửa `claude-progress.md` + `session-handoff.md` — **file của Claude** (lặp lỗi S7; lần này nội dung khá chính xác nên Claude chỉ chỉnh-bổ sung cho đúng lịch sử thay vì hoàn nguyên).
 - **Trạng thái spec sau PARSE-007**: **27 spec — 22 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-007; gap vẫn MATRIX-002 + GRADE-002; planned vẫn GEN-004, GRADE-003, SCALE-003).
 
+### Session 17 -- 2026-06-15 (Claude + Anti — PARSE-008: converter .doc→.docx, bước ③; Anti tuân thủ ĐÚNG quy trình)
+- **Việc PARSE-008 HOÀN THÀNH** (`feat/parser-doc-converter` → FF vào `Dat`, code `37c25cc` + Claude vá lint `cfd5431`; đã push). SPEC-PARSE-008 active. `parser.py` thêm `convert_doc_to_docx(filepath, out_dir=None) -> str`:
+  - `.docx` → passthrough; `.doc` → `soffice --headless --convert-to docx` (subprocess list-args, KHÔNG shell=True); cache (đích `.docx` đã có → bỏ qua); soffice thiếu (`shutil.which` + fallback path Windows) → `FileNotFoundError` kèm hướng dẫn cài; convert fail → RuntimeError. Chỉ stdlib (os/shutil/subprocess), KHÔNG thêm dep.
+  - PHẠM VI: CHỈ converter — CHƯA parse Reading (cấu trúc P5/6/7, task sau).
+- **Giao thức plan-review**: Anti grounding (phát hiện máy Đạt CHƯA cài LibreOffice) → plan v1 → Claude bắt lỗi test (hàm check `os.path.exists` ở đầu → test cache/missing-tool phải tạo `dummy.doc` thật + dùng `tmp_path`) → plan v2 → `DUYỆT` → code.
+- **✅ Anti tuân thủ ĐÚNG quy trình lần này** (sau nhắc S16): code+push trên NHÁNH FEATURE, CHỜ Claude nghiệm thu (KHÔNG merge Dat trước); KHÔNG đụng file nhật ký của Claude. Lời nhắc có tác dụng.
+- **Nghiệm thu (Claude, độc lập)**: đọc `convert_doc_to_docx` từng dòng; ranh giới đúng **3 file** (parser/test/specs — KHÔNG đụng models); pytest **30/2/2** ×2; ruff sạch; architecture PASS; grep import xác nhận không dep mới. Bắt F401 (`import shutil` thừa trong test) → Claude tự vá `cfd5431`.
+- ⚠️ **REAL .doc conversion CHƯA VERIFY** — máy Đạt chưa cài LibreOffice. CI test chỉ mock (passthrough + missing-tool + cache). Giống 0c (PostgreSQL): verify thật là DoD THỦ CÔNG sau khi Đạt cài LibreOffice → convert thử RT*.doc thật.
+- **Trạng thái spec sau PARSE-008**: **28 spec — 23 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-008; gap MATRIX-002 + GRADE-002; planned GEN-004, GRADE-003, SCALE-003).
+
 ## Next Steps
-- **Việc tiếp theo (lộ trình Parser thật)**: ① **parser `.docx` table-based ĐÃ XONG** (PARSE-006) → ② **merge và import đề nghe thực tế** (PARSE-007) **ĐÃ XONG** → ③ **A4 `.doc`→`.docx`** convert (đề Đọc RT*) → ④ **A2-rework audio gộp**.
+- **Việc tiếp theo (lộ trình Parser thật)**: ① **PARSE-006 XONG** → ② **PARSE-007 XONG** → ③ **converter `.doc`→`.docx` (PARSE-008) XONG** (cần Đạt cài LibreOffice để verify thật) → **kế tiếp**: **parser Reading `RT*.docx`** (P5/6/7, KHÔNG audio — tương tự `parse_listening_docx`) rồi **merge Key RT** (reuse `import_listening_set`); và ④ **A2-rework audio gộp** cho Nghe.
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
   - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.

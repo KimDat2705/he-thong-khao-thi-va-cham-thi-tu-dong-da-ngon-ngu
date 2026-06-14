@@ -1,9 +1,9 @@
-# Session Handoff — cập nhật 15/06/2026 (Claude, sau PARSE-007 hoàn thành)
+# Session Handoff — cập nhật 15/06/2026 (Claude, sau PARSE-008 hoàn thành)
 
 ## Current State & Achievements
 
 1. **Kiến trúc đã chốt**: `docs/kien_truc_he_thong_v2.html` (tổng thể) + `docs/kien_truc_phan_he_ra_de_tieng_anh.html/.md` (phân hệ Ra đề EN — trọng tâm M2). Tài liệu v1 đông lạnh tham chiếu.
-2. **Harness hoạt động**: **27 spec** trong `specs/specs.json` (**22 active / 2 gap / 3 planned** sau PARSE-007) ↔ 7 file test; suite **29 passed / 2 skipped / 2 xfailed / 0 failed**; meta-test traceability xanh; `scripts/check-architecture.sh` PASS. **Baseline cuối phiên 15/06: `origin/Dat` @ `6422e5e`, clean-state checklist toàn xanh.**
+2. **Harness hoạt động**: **28 spec** trong `specs/specs.json` (**23 active / 2 gap / 3 planned** sau PARSE-008) ↔ 7 file test; suite **30 passed / 2 skipped / 2 xfailed / 0 failed**; meta-test traceability xanh; `scripts/check-architecture.sh` PASS. **Baseline 15/06: `origin/Dat` @ `cfd5431`, clean-state toàn xanh.**
 3. **DỮ LIỆU INPUT THẬT đã đọc được** (`docs/du_lieu_input_links.md`): tải bằng `PYTHONUTF8=1 python -m gdown` về `D:\Dat-Antigravity\drive_input\` (ngoài repo) + parse openpyxl/python-docx; Sheet→export xlsx; bỏ MP3. Ma trận TOEIC (Sheet) XÁC NHẬN blueprint + luật ta đã code. Đáp án=xlsx lưới Câu/Đáp án; đề=Word tables+ảnh (đã map cấu trúc).
 4. **Real Parser Track (PARSE-006 & PARSE-007) — HOÀN THÀNH**:
    - **A3 (`d2388e8`)**: `parse_answer_key(filepath)->dict[int,str]` (openpyxl, quét header, gộp 5 block).
@@ -26,7 +26,7 @@
   - **SPEC-MATRIX-002 toàn-đề (gap/xfail)**: tỷ lệ độ khó 25/50/25 toàn đề. ⚠️ **Giờ VƯỚNG**: sau B3, P7 có nghiệm subset-sum DUY NHẤT → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch (Easy=39<45, Hard=56>55). Cần **rebalance conftest P7 difficulty** (giữ topic+size đã chốt ở B2/B3) hoặc nới nghiệm P7. Task này sửa conftest rất cẩn thận.
   - **SPEC-GEN-004 (planned, B6)**: độ trùng giữa các đề trong lô ≤40% — `source_question_id` đã sẵn từ B1; cần API/đường dẫn generate LÔ nhiều đề rồi so source giữa các cặp.
 - **Parser — Đọc/Listening thật tiếp tục**:
-  - Đề Đọc nhiều **`.doc` legacy** → cần **convert `.doc`→`.docx`** (A4 THẬT).
+  - ✅ **Converter `.doc`→`.docx` (PARSE-008, `cfd5431`) XONG** — `convert_doc_to_docx` qua LibreOffice headless (passthrough/cache/missing-tool error). ⚠️ Convert THẬT CHƯA verify (máy Đạt **chưa cài LibreOffice** — cài rồi convert thử RT*.doc, giống 0c PostgreSQL). **Kế tiếp: parser Reading `RT*.docx`** (P5/6/7, không audio — tương tự `parse_listening_docx`) rồi merge Key RT (reuse `import_listening_set`).
   - Audio thật là **MP3 gộp ~100MB theo dải** ("2601-2604.mp3") → quy ước A2 per-câu không khớp; mô hình audio (mapping đề→file+đoạn/timestamp) cần thiết kế lại.
 - ⚠️ **FIXTURE conftest RẤT NHẠY (bảo trì)** — KHÔNG "dọn" thành đơn giản:
   - **Part 7**: topic+size có **nghiệm subset-sum DUY NHẤT** (loại G2+G3). Sửa phải verify lại (chứng minh trong commit `3c7be1f`).
