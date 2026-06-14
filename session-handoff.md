@@ -1,9 +1,10 @@
-# Session Handoff — cập nhật 14/06/2026 (Claude, sau B1+A1+A2+B2+B3+GEN-002 — Generator gần hoàn chỉnh)
+# Session Handoff — cập nhật 15/06/2026 (Claude, sau B1+A1+A2+B2+B3+GEN-002+Blueprint-as-Data)
 
 ## Current State & Achievements
 
 1. **Kiến trúc đã chốt**: `docs/kien_truc_he_thong_v2.html` (tổng thể) + `docs/kien_truc_phan_he_ra_de_tieng_anh.html/.md` (phân hệ Ra đề EN — trọng tâm M2). Tài liệu v1 đông lạnh tham chiếu.
-2. **Harness hoạt động**: 23 spec trong `specs/specs.json` (**18 active / 2 gap / 3 planned** sau GEN-002) ↔ 7 file test; suite **25 passed / 2 skipped / 2 xfailed / 0 failed**; meta-test traceability xanh; `scripts/check-architecture.sh` PASS.
+2. **Harness hoạt động**: **24 spec** trong `specs/specs.json` (**19 active / 2 gap / 3 planned** sau Blueprint-as-Data) ↔ 7 file test; suite **26 passed / 2 skipped / 2 xfailed / 0 failed**; meta-test traceability xanh; `scripts/check-architecture.sh` PASS.
+2b. **Blueprint-as-Data (`3db0273`)**: `generate_exam(db, structure, ...)` lõi data-driven + hằng `TOEIC_BLUEPRINT`; `generate_toeic_exam` là wrapper mỏng. **SPEC-GEN-007 active**. Thêm VSTEP/HSK = thêm Blueprint record (structure JSON) + bank, KHÔNG sửa thuật toán. P7 difficulty trong blueprint KHÔNG enforce (giữ behavior). Giá trị TOEIC chép từ hardcode — sẽ đối chiếu Ma trận Sheet thật sau (data).
 3. **SETUP (0a+0b+0c) XONG**: 0a (`2cd7988`); 0b (PR #15 → `1e139c2`) CI+ruff+pytest-cov; 0c (PR #16 → `0c265c9`) Alembic, chạy thật trên PostgreSQL 17. **MODELS ĐÓNG BĂNG từ 0c.**
 4. **Pipeline Ra đề EN (B1+B2+B3+GEN-002) — generator gần hoàn chỉnh**:
    - **B1 (`45ccd09`)**: filter `approved` (BANK-001), `InsufficientBankError` + pre-check (GEN-006), `seed` qua `local_random`+`.order_by(id)` (GEN-005), `source_question_id`.
@@ -39,10 +40,10 @@
 
 ## Next Session Objectives
 
-1. **Thứ tự việc (đã rõ sau khi đối chiếu input thật 15/06)**:
-   - **NGAY (không phụ thuộc gì): Blueprint-as-Data** — refactor blueprint hardcode → data-driven (model `Blueprint` đã sẵn). Giá trị nền cho đa ngôn ngữ. Brief đã soạn.
-   - **CHỜ MẪU CONTENT từ Đạt → Parser thật** (A4 `.doc`→`.docx`, A3 merge `.xlsx` đáp án, format đề thật, A2-rework audio gộp). Cao giá trị (nạp dữ liệu thật) nhưng phải xem nội dung file mới spec đúng.
+1. **Thứ tự việc** (Blueprint-as-Data ĐÃ XONG ở Session 13):
+   - **CHỜ MẪU CONTENT từ Đạt → Parser thật** (A4 `.doc`→`.docx`, A3 merge `.xlsx` đáp án, format đề thật, A2-rework audio gộp). Cao giá trị (nạp dữ liệu thật) nhưng phải xem nội dung file (Ma trận Sheet · 1 `KEY*.xlsx` · 1 `LT*.docx`+`RT*.doc`) mới spec đúng.
    - **CHỜ REDESIGN FIXTURE + đối chiếu Ma trận**: MATRIX-002 toàn-đề, GEN-004 (vướng P7 nghiệm-duy-nhất + bank nhỏ; Ma trận Sheet có thể định nghĩa lại luật).
+   - 💡 Đối chiếu `TOEIC_BLUEPRINT` (hardcode) ↔ Ma trận TOEIC Sheet thật khi có content → cập nhật giá trị (data, không sửa code).
 2. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → Claude nghiệm thu → merge → push. KHÔNG đụng `backend/app/models/`, phân hệ Chấm, `claude-progress.md`/`session-handoff.md`.
 3. Hạ tầng (khi rảnh): postgres service vào `ci.yml`; "Require status checks" cho `main`; hardening PARSE-002.
 4. Chờ sếp xác nhận quy đổi độ khó câu→nhóm.

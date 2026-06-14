@@ -134,9 +134,19 @@
   - Generator (B1/B2/B3/GEN-002) + khung Parser (ImportBatch/idempotent/validation) **không bị ảnh hưởng**, dùng lại được.
   - Cần **mẫu CONTENT** (Sheet ma trận, 1 KEY.xlsx, 1 LT.docx + 1 RT.doc) để spec parser thật — công cụ chỉ đọc được tên file, không đọc nội dung.
 
+### Session 13 -- 2026-06-15 (Claude + Anti — Blueprint-as-Data: sinh đề data-driven)
+- **Việc Blueprint-as-Data HOÀN THÀNH** (commit `3db0273` trực tiếp trên `Dat` — Anti sửa uncommitted trên Dat, không có nhánh feature thật; commit thẳng = tương đương FF). Hiện thực luật kiến trúc lõi:
+  - `toeic_generator.py`: tách blueprint hardcode → hằng `TOEIC_BLUEPRINT` (chép đúng từng số); thêm `generate_exam(db, structure, title, ...)` lõi data-driven, dispatch theo `part.type` (standalone/grouped/subset_sum). `generate_toeic_exam` → **wrapper mỏng** gọi `generate_exam(TOEIC_BLUEPRINT)` → 25 test cũ giữ nguyên + xanh.
+  - **BEHAVIOR-PRESERVING (chốt quan trọng)**: P1-6 difficulty VẪN enforce; **P7 (subset_sum) difficulty trong blueprint chỉ là tài liệu — generate_exam BỎ QUA** (giữ count+topic) → không vỡ nghiệm-duy-nhất P7; MATRIX-002 toàn-đề vẫn xfail.
+  - **SPEC-GEN-007 (mới, active)**: test seed Blueprint MINI vào DB → `generate_exam(db, bp.structure, seed=42)` đọc structure từ record → assert counts khớp MINI (2/6/10, total 18). Generator hardcode sẽ ra TOEIC 200 → fail → test chứng minh data-driven THẬT (không tautology).
+- **Nghiệm thu (Claude, độc lập)**: đọc toàn bộ generator refactor; verify `TOEIC_BLUEPRINT` khớp số cũ + P7 difficulty không enforce + thứ tự part đổi (1-7) không phá test (chỉ kiểm count/constraint); ranh giới đúng **3 file** (model Blueprint chỉ DÙNG); pytest **26 passed / 2 skipped / 2 xfailed** (×2; 25 test cũ + traceability 4/4 + GEN-005 vẫn xanh); ruff sạch; architecture PASS.
+- **Trạng thái spec sau B-as-D**: **24 spec — 19 active / 2 gap / 3 planned** (catalog +1: SPEC-GEN-007; gap còn MATRIX-002 toàn-đề + GRADE-002; planned còn GEN-004, GRADE-003, SCALE-003).
+- 🏗️ **Nền đa ngôn ngữ đã sẵn**: thêm VSTEP/HSK = thêm Blueprint record (structure JSON) + bank, KHÔNG sửa thuật toán. Giá trị blueprint TOEIC hiện chép từ hardcode — sẽ đối chiếu/cập nhật theo **Ma trận TOEIC (Google Sheet thật)** sau (là data).
+
 ## Next Steps
-- **Việc tiếp theo (đã rõ thứ tự sau đối chiếu input)**: **Blueprint-as-Data NGAY** (độc lập dữ liệu, model `Blueprint` sẵn — brief đã soạn). Sau đó: **Parser thật** (chờ mẫu content từ Đạt). Để cuối: **MATRIX-002 toàn-đề / GEN-004** (chờ redesign fixture + đối chiếu Ma trận thật).
+- **Việc tiếp theo**: **Parser thật** (chờ mẫu CONTENT từ Đạt: Ma trận Sheet · 1 `KEY*.xlsx` · 1 `LT*.docx`+`RT*.doc`) → spec A3 (merge Excel đáp án) + A4 (`.doc`→`.docx`) + format đề thật + A2-rework audio gộp. Hoặc **MATRIX-002 toàn-đề / GEN-004** (chờ redesign fixture).
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch (Easy=39<45, Hard=56>55). Cần rebalance conftest P7 difficulty hoặc nới nghiệm P7 — sửa fixture rất cẩn thận. Và Ma trận Sheet thật có thể định nghĩa lại luật này.
+  - 💡 Đối chiếu **blueprint hardcode ↔ Ma trận TOEIC thật** (Sheet) khi có content — có thể cập nhật giá trị `TOEIC_BLUEPRINT` (data, không sửa code).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
