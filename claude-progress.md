@@ -154,12 +154,17 @@
 - **Nghiệm thu (Claude)**: ranh giới đúng **5 file** (models đóng băng); pytest **27 passed / 2 skipped / 2 xfailed** (×2; traceability 4/4); ruff sạch; architecture PASS. 🎯 **BONUS — verify trên DỮ LIỆU THẬT**: chạy `parse_answer_key` trên `Key LT2601.xlsx` thật → 100 câu, câu1=D/câu100=C khớp đúng data thật. → parser đúng cả trên file đối tác, không chỉ fixture.
 - **Trạng thái spec sau A3**: **25 spec — 20 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-005).
 
+### Chốt phiên 15/06/2026 (clean-state checklist toàn xanh)
+- **Phạm vi phiên** (Sessions 7-14 + đối chiếu dữ liệu thật): B1 · A1 · A2 · B2 · B3 · GEN-002 · Blueprint-as-Data · A3. Suite **15/7/7 → 27/2/2**.
+- **Clean-state**: pytest **27 passed / 2 skipped / 2 xfailed / 0 failed**; meta-test traceability 4 passed; `ruff check app/` sạch; `check-architecture.sh` PASS; không file `*.db`; working tree sạch; `Dat` đồng bộ `origin/Dat` @ **7a072aa**.
+- **Rà trạng thái (khớp, không bỏ sót)**: `specs.json` **25 spec — 20 active / 2 gap / 3 planned** (gap: MATRIX-002, GRADE-002; planned: GEN-004, GRADE-003, SCALE-003). `feature_list.json`: active = db-migration + ai-grading; in_progress = celery-worker + docx-parser + exam-generator (đã cập nhật evidence); 4 feature not_started — đúng thực tế.
+- **Khác**: frontend KHÔNG đụng phiên này (npm build N/A); Celery/Redis không chạy local; dữ liệu input thật + cấu trúc đề đã ghi `docs/du_lieu_input_links.md` (data tải ngoài repo tại `D:\Dat-Antigravity\drive_input`, không commit).
+- **Memory**: `du-lieu-input-drive` đã cập nhật đủ findings; `project-strategy-and-harness` + `github-repo` vẫn đúng; không có quyết định dài hạn mới cần thêm.
+
 ## Next Steps
 - **Việc tiếp theo (lộ trình Parser thật)**: **parser `.docx` table-based** (cấu trúc đã map trong `docs/du_lieu_input_links.md`: trích Mã đề + duyệt tables + regex options P3/4 + ảnh P1) → **merge** đáp án (parse_answer_key) vào câu hỏi theo Mã đề → **A4 `.doc`→`.docx`** convert → **A2-rework audio gộp**. Tôi soạn spec từng bước grounded dữ liệu thật.
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
   - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
-  - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch (Easy=39<45, Hard=56>55). Cần rebalance conftest P7 difficulty hoặc nới nghiệm P7 — sửa fixture rất cẩn thận. Và Ma trận Sheet thật có thể định nghĩa lại luật này.
-  - 💡 Đối chiếu **blueprint hardcode ↔ Ma trận TOEIC thật** (Sheet) khi có content — có thể cập nhật giá trị `TOEIC_BLUEPRINT` (data, không sửa code).
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
