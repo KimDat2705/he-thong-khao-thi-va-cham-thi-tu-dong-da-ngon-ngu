@@ -109,10 +109,20 @@ def create_answer_key_xlsx(filepath):
     wb.save(filepath)
     wb.close()
 def create_real_listening_docx(filepath):
-    from PIL import Image
+    import zlib
+    import struct
+    # Ảnh PNG 1x1 sinh bằng stdlib — KHÔNG dùng Pillow (Pillow không có trong requirements/CI).
+    def _png_1px():
+        def _chunk(tag, data):
+            c = tag + data
+            return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
+        sig = b"\x89PNG\r\n\x1a\n"
+        ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+        idat = zlib.compress(b"\x00\xff\x00\x00")
+        return sig + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", idat) + _chunk(b"IEND", b"")
     temp_img_path = os.path.join(os.path.dirname(filepath), "temp_mock_img.png")
-    img = Image.new('RGB', (1, 1), color='red')
-    img.save(temp_img_path)
+    with open(temp_img_path, "wb") as f:
+        f.write(_png_1px())
     
     doc = docx.Document()
     
@@ -146,7 +156,7 @@ def create_real_listening_docx(filepath):
     p2 = doc.add_paragraph("2.")
     p2.add_run().add_picture(temp_img_path)
     
-    p3 = doc.add_paragraph("3.")
+    doc.add_paragraph("3.")
     p4 = doc.add_paragraph("")
     p4.add_run().add_picture(temp_img_path)
     
