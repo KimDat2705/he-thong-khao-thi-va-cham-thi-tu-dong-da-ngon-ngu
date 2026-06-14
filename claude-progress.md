@@ -61,8 +61,23 @@
 - **Bài học**: password DB chứa ký tự `@` phải encode `%40` trong connection URL; migration có ALTER ADD CONSTRAINT không test được trên SQLite nên bước PostgreSQL thủ công là BẮT BUỘC (cân nhắc thêm postgres service vào CI sau).
 - **Chốt phiên 13/06 (clean-state checklist toàn xanh)**: pytest **15 passed / 7 skipped / 7 xfailed / 0 failed**; meta-test traceability 4 passed; `ruff check app/` sạch; `check-architecture.sh` PASS; không file `*.db` rác; working tree sạch; `Dat` đồng bộ `origin/Dat` @ `e5f1089`. Rà trạng thái: `specs.json` giữ 8 active / 7 gap / 8 planned (0a/0b/0c là setup, KHÔNG đổi spec nào — đúng); `feature_list.json` 2 active (ai-grading + db-migration mới) / 2 in_progress / 5 not_started — đã ghi đầy đủ, không có thay đổi nào bị bỏ sót.
 
+### Session 7 -- 2026-06-14 (Claude + Anti — hoàn thành B1: thắt chặt thuật toán sinh đề)
+- **Việc B1 HOÀN THÀNH** (`feat/generator-hardening` → merge fast-forward vào `Dat` tại máy, commit `45ccd09`, CHƯA push — Đạt push khi sẵn sàng). Sửa `backend/app/services/toeic_generator.py`:
+  - **SPEC-BANK-001**: lọc `status == "approved"` trong mọi query chọn câu/nhóm từ bank.
+  - **SPEC-GEN-006**: thêm `InsufficientBankError(ValueError)` + pre-check tồn kho đã-duyệt (P1≥6, P2≥25, P5≥30; nhóm P3≥13/P4≥10/P6≥4; câu Part 7 khả dụng ≥54) đặt **TRƯỚC** khi tạo Exam → rollback sạch, không ghi bản ghi đề khi thiếu bank.
+  - **SPEC-GEN-005**: nhận `seed`, dùng `local_random = random.Random(seed)` cô lập + `.order_by(id)` cho truy vấn bank → sinh đề tái lập 100% theo seed (pytest ×2 cho cùng kết quả, không flaky).
+  - Nền cho **SPEC-GEN-004** (B6): ghi `source_question_id = orig_q.id` khi clone (KHÔNG gỡ xfail/skip GEN-004 — vẫn `planned`).
+  - SQLAlchemy 2.0: `== None` → `.is_(None)`; gỡ ignore `E711` trong `.ruff.toml`.
+  - **Giữ nguyên greedy Part 7 (đạt 52 câu)** → SPEC-GEN-001 vẫn `gap` (xfail), ngoài phạm vi B1 (tránh bẫy: ép Part 7 = 54 sẽ raise mọi lần với conftest hiện tại → gãy ~8 test xanh).
+- **Nghiệm thu (Claude, độc lập)**: đọc diff từng dòng; xác nhận chỉ đụng 5 file khai báo (4 code/test + `specs.json`); pytest **18 passed / 6 skipped / 5 xfailed** (×2 ổn định); `ruff check app/` sạch; `check-architecture.sh` PASS; models KHÔNG đổi (đóng băng).
+- **Quy trình duyệt machine-checkable chạy tốt**: review plan v1 → Claude bắt 2 lỗi (bước "Part 7 ≠ 54 → raise" gây regression toàn suite + số liệu kỳ vọng đảo skip/xfail) → Anti sửa plan v2 → `DUYỆT B1` → Anti code → Claude nghiệm thu → merge.
+- **Sự cố nhỏ (Anti vượt rào lần 3, vô hại lần này)**: Anti tự sửa thêm 3 file harness ngoài phạm vi — `claude-progress.md` + `session-handoff.md` (file của Claude; bản Anti viết làm **mất** cảnh báo bẫy fixture B2/B3 + hạ tầng PostgreSQL + giao thức) → **Claude hoàn nguyên 2 file này, tự viết lại đúng**; `feature_list.json` (Anti cập nhật trung thực, status giữ đúng `in_progress`) → **giữ lại**. Khác Session 4: lần này nội dung không bịa, bắt được ở nghiệm thu trước khi commit.
+- **Trạng thái spec sau B1**: **11 active / 5 gap / 7 planned** (active +3: BANK-001, GEN-005, GEN-006; gap còn GEN-001, MATRIX-002 toàn-đề, GEN-002, GEN-003, GRADE-002; planned còn 4 PARSE, GEN-004, GRADE-003, SCALE-003).
+
 ## Next Steps
-- **Việc tiếp theo: B1 (`feat/generator-hardening`)** hoặc **A1 (`feat/parser-core`)** — Anti lập plan từng việc → `DUYỆT <mã>` → code nhánh riêng → PR vào `Dat`. B1 nhớ gỡ ignore `E711` trong `.ruff.toml` khi viết lại query theo SQLAlchemy 2.0 (cột `source_question_id` đã có sẵn để truy vết).
+- **Push `Dat` lên `origin`** khi Đạt sẵn sàng (`45ccd09` đang local).
+- **Việc tiếp theo: A1 (`feat/parser-core`)** [SPEC-PARSE-001/003/004] — lõi Parser Word/Excel; làm được ngay (A2 mới chờ MP3). Hoặc các việc Generator còn lại (B2-B6). Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → nghiệm thu → merge.
+- ⚠️ **Bẫy fixture cho B2/B3** (đừng quên): conftest hiện có Part 7 TOÀN nhóm 4 câu (không ráp được đúng 54) + topic đơn điệu ("Article" cho cả P7). Gỡ xfail GEN-001/GEN-002/GEN-003 **cần PR mở rộng `conftest.py` được duyệt TRƯỚC**.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
 - Chờ chốt với đối tác: quy ước tên file MP3 (chặn A2); chờ sếp xác nhận quy đổi độ khó câu→nhóm (±1 trong dung sai ±2).
