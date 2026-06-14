@@ -696,15 +696,21 @@ def parse_listening_docx(filepath: str) -> dict:
     }
 
 
-def import_listening_set(db: Session, docx_path: str, key_path: str, audio_dir: str = None) -> dict:
+def import_exam_set(db: Session, docx_path: str, key_path: str, exam_type: str, audio_dir: str = None) -> dict:
     """
-    Parses, merges answers, validates, and imports a real-format TOEIC Listening set into the Question Bank.
+    Parses, merges answers, validates, and imports a real-format TOEIC exam set (listening or reading) into the Question Bank.
     """
     import os
     import re
     
     # 1. Parse docx
-    docx_res = parse_listening_docx(docx_path)
+    if exam_type == "listening":
+        docx_res = parse_listening_docx(docx_path)
+    elif exam_type == "reading":
+        docx_res = parse_reading_docx(docx_path)
+    else:
+        raise ValueError(f"Unsupported exam_type: {exam_type}")
+
     set_id_docx = docx_res["set_id"]
     items = docx_res["items"]
 
@@ -720,9 +726,9 @@ def import_listening_set(db: Session, docx_path: str, key_path: str, audio_dir: 
 
     # Sanity check: set_id docx should match set_id from key filename if possible
     key_filename = os.path.basename(key_path)
-    key_set_id_match = re.search(r'(?i)LT\s*(\d+)', key_filename)
+    key_set_id_match = re.search(r'(?i)(LT|RT)\.?\s*(\d+)', key_filename)
     if key_set_id_match and set_id_docx:
-        key_set_id = f"LT{key_set_id_match.group(1)}"
+        key_set_id = f"{key_set_id_match.group(1).upper()}{key_set_id_match.group(2)}"
         if set_id_docx != key_set_id:
             raise ImportError(
                 f"Set ID mismatch between docx '{set_id_docx}' and key '{key_set_id}'",
@@ -801,6 +807,20 @@ def import_listening_set(db: Session, docx_path: str, key_path: str, audio_dir: 
     except Exception as e:
         db.rollback()
         raise e
+
+
+def import_listening_set(db: Session, docx_path: str, key_path: str, audio_dir: str = None) -> dict:
+    """
+    Parses, merges answers, validates, and imports a real-format TOEIC Listening set into the Question Bank.
+    """
+    return import_exam_set(db, docx_path, key_path, "listening", audio_dir)
+
+
+def import_reading_set(db: Session, docx_path: str, key_path: str) -> dict:
+    """
+    Parses, merges answers, validates, and imports a real-format TOEIC Reading set into the Question Bank.
+    """
+    return import_exam_set(db, docx_path, key_path, "reading")
 
 
 def convert_doc_to_docx(filepath: str, out_dir: str = None) -> str:

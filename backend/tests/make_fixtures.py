@@ -307,6 +307,40 @@ def create_real_answer_key_xlsx(filepath):
     wb.close()
 
 
+def create_real_reading_answer_key_xlsx(filepath):
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "RT9999 Key"
+    
+    # Title
+    ws["A1"] = "TOEIC - READING -  RT9999"
+    
+    # Block 1 headers
+    ws["A3"] = "Câu"
+    ws["B3"] = "Đáp án"
+    # Block 2 headers
+    ws["D3"] = "Câu"
+    ws["E3"] = "Đáp án"
+    
+    answers = ["A", "B", "C", "D"]
+    
+    # Write Q1-Q6 (Block 1)
+    for idx in range(1, 7):
+        row = idx + 3
+        ws[f"A{row}"] = idx
+        ws[f"B{row}"] = answers[idx % 4]
+        
+    # Write Q7-Q12 (Block 2)
+    for idx in range(7, 13):
+        row = (idx - 7) + 4
+        ws[f"D{row}"] = idx
+        ws[f"E{row}"] = answers[idx % 4]
+        
+    wb.save(filepath)
+    wb.close()
+
+
 def create_real_reading_docx(filepath):
     import zlib
     import struct
@@ -465,6 +499,7 @@ def main():
     create_real_listening_docx(os.path.join(dir_path, "LT_real_sample.docx"))
     create_real_answer_key_xlsx(os.path.join(dir_path, "Key_LT9999.xlsx"))
     create_real_reading_docx(os.path.join(dir_path, "RT_real_sample.docx"))
+    create_real_reading_answer_key_xlsx(os.path.join(dir_path, "Key_RT9999.xlsx"))
     
     # Create mock audio files
     for audio_file in ["LT_sample_valid_P1_01.mp3", "LT_sample_valid_P3_01.mp3"]:

@@ -180,6 +180,25 @@
       "notes": "Đang triển khai: parser thực tế bóc tách thành công đề Đọc TOEIC từ tệp Word .docx."
     },
     {
+      "id": "SPEC-PARSE-010",
+      "domain": "PARSE",
+      "title": "Import đề đọc thực tế và trộn đáp án",
+      "statement": "Hệ thống hỗ trợ nhập đề thi đọc TOEIC định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
+      "acceptance_criteria": [
+        "Ghép chính xác đáp án từ tệp Excel vào câu hỏi tương ứng trong tệp Word theo số thứ tự câu hỏi",
+        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào hoặc đáp án không thuộc tập {A, B, C, D}, từ chối ghi nhận và trả về báo cáo lỗi",
+        "Ghi nhận bản ghi tệp Word/Excel vào bảng ImportBatch để kiểm soát lịch sử",
+        "Ghi nhận toàn bộ câu hỏi và nhóm câu hỏi ở trạng thái draft chờ duyệt",
+        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash cải tiến chứa thông tin câu hỏi)"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_010_import_reading_set_success"
+      ],
+      "notes": "Đang triển khai: import_reading_set phối hợp thành công parser câu hỏi và parser đáp án, ghi nhận an toàn vào cơ sở dữ liệu."
+    },
+    {
       "id": "SPEC-BANK-001",
       "domain": "BANK",
       "title": "Chỉ item đã duyệt được vào đề",
