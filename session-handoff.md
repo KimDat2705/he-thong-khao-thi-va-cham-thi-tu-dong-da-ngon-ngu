@@ -26,7 +26,7 @@
   - **SPEC-MATRIX-002 toàn-đề (gap/xfail)**: tỷ lệ độ khó 25/50/25 toàn đề. ⚠️ **Giờ VƯỚNG**: sau B3, P7 có nghiệm subset-sum DUY NHẤT → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch (Easy=39<45, Hard=56>55). Cần **rebalance conftest P7 difficulty** (giữ topic+size đã chốt ở B2/B3) hoặc nới nghiệm P7. Task này sửa conftest rất cẩn thận.
   - **SPEC-GEN-004 (planned, B6)**: độ trùng giữa các đề trong lô ≤40% — `source_question_id` đã sẵn từ B1; cần API/đường dẫn generate LÔ nhiều đề rồi so source giữa các cặp.
 - **Parser — Đọc/Listening thật tiếp tục**:
-  - ✅ **Converter `.doc`→`.docx` (PARSE-008, `cfd5431`) XONG** — `convert_doc_to_docx` qua LibreOffice headless (passthrough/cache/missing-tool error). ⚠️ Convert THẬT CHƯA verify (máy Đạt **chưa cài LibreOffice** — cài rồi convert thử RT*.doc, giống 0c PostgreSQL). **Kế tiếp: parser Reading `RT*.docx`** (P5/6/7, không audio — tương tự `parse_listening_docx`) rồi merge Key RT (reuse `import_listening_set`).
+  - ✅ **Converter `.doc`→`.docx` (PARSE-008, `cfd5431`) XONG** — `convert_doc_to_docx` qua LibreOffice headless (passthrough/cache/missing-tool error). ✅ Convert THẬT đã verify (Đạt cài LibreOffice 26.2; round-trip `.doc` nhị phân → `.docx` giữ 15 tables, python-docx đọc được). **Kế tiếp: parser Reading `RT*.docx`** (P5/6/7, không audio — tương tự `parse_listening_docx`) rồi merge Key RT (reuse `import_listening_set`).
   - Audio thật là **MP3 gộp ~100MB theo dải** ("2601-2604.mp3") → quy ước A2 per-câu không khớp; mô hình audio (mapping đề→file+đoạn/timestamp) cần thiết kế lại.
 - ⚠️ **FIXTURE conftest RẤT NHẠY (bảo trì)** — KHÔNG "dọn" thành đơn giản:
   - **Part 7**: topic+size có **nghiệm subset-sum DUY NHẤT** (loại G2+G3). Sửa phải verify lại (chứng minh trong commit `3c7be1f`).

@@ -190,7 +190,7 @@
 - **Giao thức plan-review**: Anti grounding (phát hiện máy Đạt CHƯA cài LibreOffice) → plan v1 → Claude bắt lỗi test (hàm check `os.path.exists` ở đầu → test cache/missing-tool phải tạo `dummy.doc` thật + dùng `tmp_path`) → plan v2 → `DUYỆT` → code.
 - **✅ Anti tuân thủ ĐÚNG quy trình lần này** (sau nhắc S16): code+push trên NHÁNH FEATURE, CHỜ Claude nghiệm thu (KHÔNG merge Dat trước); KHÔNG đụng file nhật ký của Claude. Lời nhắc có tác dụng.
 - **Nghiệm thu (Claude, độc lập)**: đọc `convert_doc_to_docx` từng dòng; ranh giới đúng **3 file** (parser/test/specs — KHÔNG đụng models); pytest **30/2/2** ×2; ruff sạch; architecture PASS; grep import xác nhận không dep mới. Bắt F401 (`import shutil` thừa trong test) → Claude tự vá `cfd5431`.
-- ⚠️ **REAL .doc conversion CHƯA VERIFY** — máy Đạt chưa cài LibreOffice. CI test chỉ mock (passthrough + missing-tool + cache). Giống 0c (PostgreSQL): verify thật là DoD THỦ CÔNG sau khi Đạt cài LibreOffice → convert thử RT*.doc thật.
+- ✅ **REAL .doc conversion ĐÃ VERIFY** (15/06, Đạt cài LibreOffice 26.2): `convert_doc_to_docx` round-trip 1 `.doc` nhị phân thật → `.docx` giữ đủ **15 tables**, python-docx đọc được (soffice headless qua fallback path `C:\Program Files\LibreOffice\program\soffice.exe`; `soffice` không cần trên PATH). CI test vẫn mock (passthrough/missing-tool/cache). File RT*.doc đối tác sẽ chạy khi làm parser Reading.
 - **Trạng thái spec sau PARSE-008**: **28 spec — 23 active / 2 gap / 3 planned** (catalog +1: SPEC-PARSE-008; gap MATRIX-002 + GRADE-002; planned GEN-004, GRADE-003, SCALE-003).
 
 ## Next Steps
