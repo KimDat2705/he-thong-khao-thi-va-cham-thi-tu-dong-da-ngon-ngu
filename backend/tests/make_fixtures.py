@@ -307,6 +307,167 @@ def create_real_answer_key_xlsx(filepath):
     wb.close()
 
 
+def create_real_reading_docx(filepath):
+    import zlib
+    import struct
+    # PNG 1px
+    def _png_1px():
+        def _chunk(tag, data):
+            c = tag + data
+            return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
+        sig = b"\x89PNG\r\n\x1a\n"
+        ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+        idat = zlib.compress(b"\x00\xff\x00\x00")
+        return sig + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", idat) + _chunk(b"IEND", b"")
+    temp_img_path = os.path.join(os.path.dirname(filepath), "temp_mock_img_reading.png")
+    with open(temp_img_path, "wb") as f:
+        f.write(_png_1px())
+    
+    doc = docx.Document()
+    
+    # 1. Header table (Table 0)
+    t0 = doc.add_table(rows=1, cols=2)
+    t0.cell(0, 0).text = "BỘ GIÁO DỤC & ĐÀO TẠO TRƯỜNG ĐẠI HỌC THÀNH ĐÔNG"
+    t0.cell(0, 1).text = "ĐỀ THI CHUẨN ĐẦU RA TIẾNG ANH Môn: Reading"
+    
+    doc.add_paragraph("")
+    
+    # 2. Set ID table (Table 1)
+    t1 = doc.add_table(rows=1, cols=2)
+    t1.cell(0, 0).text = ""
+    t1.cell(0, 1).text = "Mã đề thi RT.9999"
+    
+    doc.add_paragraph("")
+    
+    # --- PART 5 ---
+    p5_hdr = doc.add_paragraph("READING TEST\nPART 5\nDirections: ...")
+    
+    p1 = doc.add_paragraph("1. Question one content here _______.")
+    doc.add_paragraph("(A) Option A1")
+    doc.add_paragraph("(B) Option B1")
+    doc.add_paragraph("(C) Option C1")
+    doc.add_paragraph("(D) Option D1")
+    
+    p2 = doc.add_paragraph("2. Question two content here _______.")
+    doc.add_paragraph("(A) Option A2")
+    doc.add_paragraph("(B) Option B2")
+    doc.add_paragraph("(C) Option C2")
+    doc.add_paragraph("(D) Option D2")
+    
+    doc.add_paragraph("")
+    
+    # --- PART 6 ---
+    p6_hdr = doc.add_paragraph("PART 6\nDirections: ...")
+    p6_intro = doc.add_paragraph("Questions 3-6 refer to the following email.")
+    
+    # Passage text paragraphs
+    doc.add_paragraph("To: employee@company.com")
+    doc.add_paragraph("From: hr@company.com")
+    doc.add_paragraph("Subject: Policy change")
+    doc.add_paragraph("Dear staff, we are writing to inform you that the policy will _______ (3) change next week. Please _______ (4) the new rules.")
+    doc.add_paragraph("This is very _______ (5) for everyone. If you have questions, please _______ (6) us.")
+    
+    # Part 6 4x2 table for options
+    t_opt6 = doc.add_table(rows=4, cols=2)
+    t_opt6.cell(0, 0).text = "3."
+    t_opt6.cell(0, 1).text = "(A) quick (B) quickly (C) quicker (D) quickest"
+    
+    t_opt6.cell(1, 0).text = "4."
+    t_opt6.cell(1, 1).text = "(A) read (B) reads (C) reading (D) to read"
+    
+    t_opt6.cell(2, 0).text = "5."
+    t_opt6.cell(2, 1).text = "(A) important (B) import (C) importance (D) importantly"
+    
+    t_opt6.cell(3, 0).text = "6."
+    t_opt6.cell(3, 1).text = "(A) contact (B) contacts (C) contacting (D) contacted"
+    
+    doc.add_paragraph("")
+    
+    # --- PART 7 ---
+    p7_hdr = doc.add_paragraph("PART 7\nDirections: ...")
+    
+    # Group 1 (Q7-8) - 1x1 table passage + inline drawing + paragraph options
+    p7_g1_intro = doc.add_paragraph("Questions 7-8 refer to the following announcement.")
+    
+    t_passage1 = doc.add_table(rows=1, cols=1)
+    p_cell = t_passage1.cell(0, 0).paragraphs[0]
+    p_cell.text = "ANNOUNCEMENT: Office renovation is starting tomorrow."
+    p_cell.add_run().add_picture(temp_img_path)
+    
+    p7_q7 = doc.add_paragraph("7. What is starting tomorrow?")
+    doc.add_paragraph("(A) Renovation")
+    doc.add_paragraph("(B) Class")
+    doc.add_paragraph("(C) Holiday")
+    doc.add_paragraph("(D) Meeting")
+    
+    p7_q8 = doc.add_paragraph("8. Who is affected?")
+    doc.add_paragraph("(A) Staff")
+    doc.add_paragraph("(B) Students")
+    doc.add_paragraph("(C) Visitors")
+    doc.add_paragraph("(D) Clients")
+    
+    doc.add_paragraph("")
+    
+    # Group 2 (Q9-12) - Double passage + 4x2 options tables
+    p7_g2_intro = doc.add_paragraph("Questions 9-12 refer to the following advertisement and review.")
+    doc.add_paragraph("Advertisement:")
+    doc.add_paragraph("Buy our product. It is the best.")
+    doc.add_paragraph("Review:")
+    doc.add_paragraph("I bought it and it works great.")
+    
+    # Q9
+    doc.add_paragraph("9. What is being advertised?")
+    t_opt9 = doc.add_table(rows=4, cols=2)
+    t_opt9.cell(0, 0).text = "(A)"
+    t_opt9.cell(0, 1).text = "A product"
+    t_opt9.cell(1, 0).text = "(B)"
+    t_opt9.cell(1, 1).text = "A service"
+    t_opt9.cell(2, 0).text = "(C)"
+    t_opt9.cell(2, 1).text = "A company"
+    t_opt9.cell(3, 0).text = "(D)"
+    t_opt9.cell(3, 1).text = "A store"
+    
+    # Q10
+    doc.add_paragraph("10. What does the review say?")
+    t_opt10 = doc.add_table(rows=4, cols=2)
+    t_opt10.cell(0, 0).text = "(A)"
+    t_opt10.cell(0, 1).text = "It works great"
+    t_opt10.cell(1, 0).text = "(B)"
+    t_opt10.cell(1, 1).text = "It is bad"
+    t_opt10.cell(2, 0).text = "(C)"
+    t_opt10.cell(2, 1).text = "It is cheap"
+    t_opt10.cell(3, 0).text = "(D)"
+    t_opt10.cell(3, 1).text = "It is expensive"
+    
+    # Q11
+    doc.add_paragraph("11. Question eleven content?")
+    t_opt11 = doc.add_table(rows=4, cols=2)
+    t_opt11.cell(0, 0).text = "(A)"
+    t_opt11.cell(0, 1).text = "Option A"
+    t_opt11.cell(1, 0).text = "(B)"
+    t_opt11.cell(1, 1).text = "Option B"
+    t_opt11.cell(2, 0).text = "(C)"
+    t_opt11.cell(2, 1).text = "Option C"
+    t_opt11.cell(3, 0).text = "(D)"
+    t_opt11.cell(3, 1).text = "Option D"
+    
+    # Q12
+    doc.add_paragraph("12. Question twelve content?")
+    t_opt12 = doc.add_table(rows=4, cols=2)
+    t_opt12.cell(0, 0).text = "(A)"
+    t_opt12.cell(0, 1).text = "Option A"
+    t_opt12.cell(1, 0).text = "(B)"
+    t_opt12.cell(1, 1).text = "Option B"
+    t_opt12.cell(2, 0).text = "(C)"
+    t_opt12.cell(2, 1).text = "Option C"
+    t_opt12.cell(3, 0).text = "(D)"
+    t_opt12.cell(3, 1).text = "Option D"
+    
+    doc.save(filepath)
+    if os.path.exists(temp_img_path):
+        os.remove(temp_img_path)
+
+
 def main():
     # Make sure we are writing to the correct absolute directory
     dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser"))
@@ -318,6 +479,7 @@ def main():
     create_answer_key_xlsx(os.path.join(dir_path, "Key_LT2601.xlsx"))
     create_real_listening_docx(os.path.join(dir_path, "LT_real_sample.docx"))
     create_real_answer_key_xlsx(os.path.join(dir_path, "Key_LT9999.xlsx"))
+    create_real_reading_docx(os.path.join(dir_path, "RT_real_sample.docx"))
     
     # Create mock audio files
     for audio_file in ["LT_sample_valid_P1_01.mp3", "LT_sample_valid_P3_01.mp3"]:

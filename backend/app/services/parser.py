@@ -893,5 +893,311 @@ def convert_doc_to_docx(filepath: str, out_dir: str = None) -> str:
     return target_docx
 
 
+def parse_reading_docx(filepath: str) -> dict:
+    """
+    Parses a TOEIC Reading test .docx file in the real table/paragraph-based format.
+    Returns:
+        dict: {
+            "set_id": "RT2605",
+            "items": [...]
+        }
+    """
+    import os
+    import re
+    import docx
+    from docx.oxml.table import CT_Tbl
+    from docx.oxml.text.paragraph import CT_P
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    doc = docx.Document(filepath)
+
+    def check_part(text: str) -> int:
+        m = re.search(r'(?i)PART\s*(\d+)', text)
+        if m:
+            return int(m.group(1))
+        return None
+
+    def get_drawings(element):
+        return element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}inline') + \
+               element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}anchor')
+
+    set_id = None
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                m = re.search(r'(?i)RT\.?\s*(\d+)', cell.text)
+                if m:
+                    set_id = f"RT{m.group(1)}"
+                    break
+            if set_id:
+                break
+        if set_id:
+            break
+
+    if not set_id:
+        for p in doc.paragraphs:
+            m = re.search(r'(?i)RT\.?\s*(\d+)', p.text)
+            if m:
+                set_id = f"RT{m.group(1)}"
+                break
+
+    if not set_id:
+        filename = os.path.basename(filepath)
+        m = re.search(r'(?i)RT\.?\s*(\d+)', filename)
+        if m:
+            set_id = f"RT{m.group(1)}"
+        else:
+            set_id = "RT9999"
+
+    current_part = None
+    items = []
+    drawings_found = []
+
+    body_elements = list(doc.element.body)
+    i = 0
+    while i < len(body_elements):
+        child = body_elements[i]
+        
+        if isinstance(child, CT_P):
+            p = Paragraph(child, doc)
+            text = p.text.strip()
+            
+            new_part = check_part(text)
+            if new_part:
+                current_part = new_part
+                i += 1
+                continue
+
+            if current_part == 5:
+                q_match = re.match(r'^\s*(\d+)\.\s*(.*)', text)
+                if q_match:
+                    q_num = int(q_match.group(1))
+                    q_content = q_match.group(2).strip()
+                    
+                    q_item = {
+                        "number": q_num,
+                        "part": 5,
+                        "type": "choice",
+                        "content": q_content,
+                        "options": {},
+                        "reference_answer": None,
+                        "audio_url": None,
+                        "image_url": None,
+                        "difficulty": "medium",
+                        "clo": None,
+                        "topic": None,
+                        "explanation": None
+                    }
+                    
+                    opt_count = 0
+                    j = i + 1
+                    while j < len(body_elements) and opt_count < 4:
+                        next_child = body_elements[j]
+                        if isinstance(next_child, CT_P):
+                            next_p = Paragraph(next_child, doc)
+                            next_text = next_p.text.strip()
+                            opt_match = re.match(r'^\s*\(([A-D])\)\s*(.*)', next_text)
+                            if opt_match:
+                                letter = opt_match.group(1)
+                                opt_val = opt_match.group(2).strip()
+                                q_item["options"][letter] = opt_val
+                                opt_count += 1
+                                j += 1
+                                continue
+                        break
+                    
+                    if opt_count > 0:
+                        i = j - 1
+                    items.append(q_item)
+
+            elif current_part in (6, 7):
+                ref_match = re.search(r'(?i)Questions\s+(\d+)\s*[-–]\s*(\d+)', text)
+                if ref_match:
+                    start_q = int(ref_match.group(1))
+                    end_q = int(ref_match.group(2))
+                    
+                    group_data = {
+                        "part": current_part,
+                        "topic": None,
+                        "passage_text": "",
+                        "audio_url": None,
+                        "image_url": None,
+                        "difficulty": "medium",
+                        "questions": []
+                    }
+                    
+                    passage_parts = []
+                    group_drawings = []
+                    
+                    j = i + 1
+                    questions_started = False
+                    
+                    while j < len(body_elements):
+                        next_child = body_elements[j]
+                        
+                        if isinstance(next_child, CT_P):
+                            next_p = Paragraph(next_child, doc)
+                            next_text = next_p.text.strip()
+                            
+                            if check_part(next_text):
+                                break
+                            if re.search(r'(?i)Questions\s+(\d+)\s*[-–]\s*(\d+)', next_text):
+                                break
+                                
+                            q_start_match = re.match(r'^\s*(\d+)\.\s*(.*)', next_text)
+                            if q_start_match:
+                                q_num = int(q_start_match.group(1))
+                                if start_q <= q_num <= end_q:
+                                    questions_started = True
+                                    
+                            if questions_started:
+                                break
+                                
+                            if next_text:
+                                passage_parts.append(next_text)
+                                p_drawings = get_drawings(next_child)
+                                if p_drawings:
+                                    group_drawings.extend(p_drawings)
+                                    
+                        elif isinstance(next_child, CT_Tbl):
+                            next_t = Table(next_child, doc)
+                            if len(next_t.rows) == 1 and len(next_t.columns) == 1:
+                                cell_text = next_t.cell(0, 0).text.strip()
+                                if cell_text:
+                                    passage_parts.append(cell_text)
+                                for cp in next_t.cell(0, 0).paragraphs:
+                                    p_drawings = get_drawings(cp._element)
+                                    if p_drawings:
+                                        group_drawings.extend(p_drawings)
+                            else:
+                                break
+                                
+                        j += 1
+                        
+                    group_data["passage_text"] = "\n".join(passage_parts)
+                    if group_drawings:
+                        img_idx = len(drawings_found)
+                        drawings_found.append(group_drawings[0])
+                        group_data["image_url"] = str(img_idx)
+                        
+                    while j < len(body_elements):
+                        next_child = body_elements[j]
+                        
+                        if isinstance(next_child, CT_P):
+                            next_p = Paragraph(next_child, doc)
+                            next_text = next_p.text.strip()
+                            if check_part(next_text):
+                                break
+                            if re.search(r'(?i)Questions\s+(\d+)\s*[-–]\s*(\d+)', next_text):
+                                break
+                                
+                            q_match = re.match(r'^\s*(\d+)\.\s*(.*)', next_text)
+                            if q_match:
+                                q_num = int(q_match.group(1))
+                                q_content = q_match.group(2).strip()
+                                
+                                q_item = {
+                                    "number": q_num,
+                                    "part": current_part,
+                                    "type": "choice",
+                                    "content": q_content,
+                                    "options": {},
+                                    "reference_answer": None,
+                                    "audio_url": None,
+                                    "image_url": None,
+                                    "difficulty": "medium",
+                                    "clo": None,
+                                    "topic": None,
+                                    "explanation": None
+                                }
+                                
+                                opt_count = 0
+                                k = j + 1
+                                while k < len(body_elements) and opt_count < 4:
+                                    opt_child = body_elements[k]
+                                    if isinstance(opt_child, CT_P):
+                                        opt_p = Paragraph(opt_child, doc)
+                                        opt_text = opt_p.text.strip()
+                                        opt_match = re.match(r'^\s*\(([A-D])\)\s*(.*)', opt_text)
+                                        if opt_match:
+                                            letter = opt_match.group(1)
+                                            opt_val = opt_match.group(2).strip()
+                                            q_item["options"][letter] = opt_val
+                                            opt_count += 1
+                                            k += 1
+                                            continue
+                                    elif isinstance(opt_child, CT_Tbl):
+                                        opt_t = Table(opt_child, doc)
+                                        if len(opt_t.rows) == 4 and len(opt_t.columns) == 2:
+                                            for r_idx, row in enumerate(opt_t.rows):
+                                                letter_cell = row.cells[0].text.strip()
+                                                text_cell = row.cells[1].text.strip()
+                                                letter_match = re.search(r'([A-D])', letter_cell)
+                                                if letter_match:
+                                                    letter = letter_match.group(1)
+                                                    q_item["options"][letter] = text_cell
+                                                    opt_count += 1
+                                            k += 1
+                                            break
+                                    break
+                                
+                                if opt_count > 0:
+                                    j = k - 1
+                                group_data["questions"].append(q_item)
+                                
+                        elif isinstance(next_child, CT_Tbl):
+                            opt_t = Table(next_child, doc)
+                            if len(opt_t.rows) > 0 and len(opt_t.columns) == 2:
+                                first_cell_text = opt_t.cell(0, 0).text.strip()
+                                if re.match(r'^\s*\d+\.', first_cell_text):
+                                    for row in opt_t.rows:
+                                        num_text = row.cells[0].text.strip()
+                                        opts_text = row.cells[1].text.strip()
+                                        num_match = re.match(r'^\s*(\d+)\.', num_text)
+                                        if num_match:
+                                            q_num = int(num_match.group(1))
+                                            
+                                            options_dict = {}
+                                            opt_parts = re.split(r'\s*\(([A-D])\)\s*', opts_text)
+                                            if len(opt_parts) >= 3:
+                                                for idx_opt in range(1, len(opt_parts), 2):
+                                                    letter = opt_parts[idx_opt]
+                                                    val = opt_parts[idx_opt+1].strip()
+                                                    options_dict[letter] = val
+                                                    
+                                            q_item = {
+                                                "number": q_num,
+                                                "part": current_part,
+                                                "type": "choice",
+                                                "content": "",
+                                                "options": options_dict,
+                                                "reference_answer": None,
+                                                "audio_url": None,
+                                                "image_url": None,
+                                                "difficulty": "medium",
+                                                "clo": None,
+                                                "topic": None,
+                                                "explanation": None
+                                            }
+                                            group_data["questions"].append(q_item)
+                        j += 1
+                        
+                    i = j - 1
+                    if group_data["questions"]:
+                        items.append(group_data)
+
+        i += 1
+
+    return {
+        "set_id": set_id,
+        "items": items
+    }
+
+
+
 
 

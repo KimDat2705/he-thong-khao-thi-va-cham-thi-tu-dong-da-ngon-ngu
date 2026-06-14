@@ -161,6 +161,25 @@
       "notes": "Đang triển khai: converter hỗ trợ chuyển đổi .doc bằng công cụ hệ thống soffice."
     },
     {
+      "id": "SPEC-PARSE-009",
+      "domain": "PARSE",
+      "title": "Parse đề Đọc TOEIC định dạng thật",
+      "statement": "Hệ thống hỗ trợ parse tệp đề Đọc TOEIC định dạng thực tế (.docx chứa bảng biểu, ảnh và các lựa chọn trắc nghiệm), bóc tách chính xác set_id, các câu hỏi đơn lẻ (Part 5) và các câu hỏi nhóm (Part 6, Part 7) có liên kết ảnh và văn bản passage tương ứng.",
+      "acceptance_criteria": [
+        "Trích xuất và chuẩn hóa set_id từ bảng chứa Mã đề thi (ví dụ: 'Mã đề thi RT.2605' -> 'RT2605')",
+        "Duyệt các phần tử XML để xác định đúng ranh giới của các Part 5, 6, 7",
+        "Part 5: Trích xuất đúng các câu hỏi đơn lẻ kèm đầy đủ lựa chọn A/B/C/D từ các đoạn văn bản (paragraph-based)",
+        "Part 6: Bóc tách các câu hỏi điền từ theo đoạn, hỗ trợ cả định dạng bảng 4x2 lẫn các đoạn văn bản, trích xuất đoạn văn (passage_text) làm ngữ cảnh điền từ",
+        "Part 7: Gom nhóm câu hỏi theo các đoạn văn bản (single/double/triple passages) hoặc các bảng 1x1 (layout text boxes), bóc tách câu hỏi và đáp án (từ đoạn văn bản hoặc bảng 4x2), trích xuất ảnh đi kèm từ các inline drawings"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_009_parse_real_reading_docx"
+      ],
+      "notes": "Đang triển khai: parser thực tế bóc tách thành công đề Đọc TOEIC từ tệp Word .docx."
+    },
+    {
       "id": "SPEC-BANK-001",
       "domain": "BANK",
       "title": "Chỉ item đã duyệt được vào đề",

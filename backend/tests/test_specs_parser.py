@@ -265,8 +265,15 @@ def test_SPEC_PARSE_008_doc_converter(tmp_path):
     dummy_doc = tmp_path / "dummy.doc"
     dummy_doc.write_text("dummy doc content", encoding="utf-8")
     
-    # We mock shutil.which to return None and verify FileNotFoundError is raised
-    with patch("shutil.which", return_value=None):
+    # We mock shutil.which to return None and verify FileNotFoundError is raised.
+    # To bypass Windows fallback search, we also mock os.path.exists to return False for LibreOffice paths.
+    orig_exists = os.path.exists
+    def mock_exists(p):
+        if "LibreOffice" in str(p):
+            return False
+        return orig_exists(p)
+        
+    with patch("shutil.which", return_value=None), patch("os.path.exists", side_effect=mock_exists):
         import pytest
         with pytest.raises(FileNotFoundError) as exc_info:
             convert_doc_to_docx(str(dummy_doc), out_dir=str(tmp_path))
@@ -285,6 +292,104 @@ def test_SPEC_PARSE_008_doc_converter(tmp_path):
         res_cache = convert_doc_to_docx(str(cached_doc), out_dir=str(tmp_path))
         assert res_cache == str(cached_docx)
         mock_run.assert_not_called()
+
+
+def test_SPEC_PARSE_009_parse_real_reading_docx():
+    """SPEC-PARSE-009: Đọc và parse tệp câu hỏi .docx đề Đọc TOEIC định dạng thật.
+    """
+    from app.services.parser import parse_reading_docx
+    import os
+
+    filepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser", "RT_real_sample.docx"))
+    assert os.path.exists(filepath), f"File fixture {filepath} không tồn tại"
+
+    result = parse_reading_docx(filepath)
+    assert result["set_id"] == "RT9999"
+    items = result["items"]
+
+    # Count questions
+    q_count = 0
+    part_counts = {5: 0, 6: 0, 7: 0}
+    q_by_num = {}
+
+    for item in items:
+        p = item["part"]
+        if "questions" in item:
+            part_counts[p] += len(item["questions"])
+            q_count += len(item["questions"])
+            assert item["difficulty"] == "medium"
+            # Cell image_url can be None or string
+            for q in item["questions"]:
+                assert q["part"] == p
+                assert len(q["options"]) == 4
+                assert set(q["options"].keys()) == {"A", "B", "C", "D"}
+                assert q["reference_answer"] is None
+                q_by_num[q["number"]] = q
+        else:
+            part_counts[p] += 1
+            q_count += 1
+            assert item["part"] == p
+            assert item["reference_answer"] is None
+            q_by_num[item["number"]] = item
+            if p == 5:
+                assert item["image_url"] is None
+
+    # Verify counts per part
+    assert q_count == 12
+    assert part_counts[5] == 2
+    assert part_counts[6] == 4
+    assert part_counts[7] == 6
+
+    # Verify numbers range
+    assert sorted(q_by_num.keys()) == list(range(1, 13))
+
+    # Verify Part 5
+    q1 = q_by_num[1]
+    assert q1["part"] == 5
+    assert q1["options"]["A"] == "Option A1"
+    assert q1["options"]["B"] == "Option B1"
+    assert q1["options"]["C"] == "Option C1"
+    assert q1["options"]["D"] == "Option D1"
+
+    # Verify Part 6 group has passage_text and correct options
+    p6_groups = [it for it in items if it.get("part") == 6 and "questions" in it]
+    assert len(p6_groups) == 1
+    p6_g = p6_groups[0]
+    assert p6_g["passage_text"] is not None
+    assert "Policy change" in p6_g["passage_text"]
+    assert "Dear staff" in p6_g["passage_text"]
+    
+    q3 = q_by_num[3]
+    assert q3["content"] == ""  # blank completion
+    assert q3["options"]["A"] == "quick"
+    assert q3["options"]["B"] == "quickly"
+    assert q3["options"]["C"] == "quicker"
+    assert q3["options"]["D"] == "quickest"
+
+    # Verify Part 7 groups
+    p7_groups = [it for it in items if it.get("part") == 7 and "questions" in it]
+    assert len(p7_groups) == 2
+
+    # Group 1 (Q7-8): text box (1x1 table) + paragraph options + image_url
+    g1 = p7_groups[0]
+    assert "Office renovation" in g1["passage_text"]
+    assert g1["image_url"] is not None  # drawing found
+    
+    q7 = q_by_num[7]
+    assert q7["options"]["A"] == "Renovation"
+
+    # Group 2 (Q9-12): advertisement and review + 4x2 tables
+    g2 = p7_groups[1]
+    assert "Advertisement:" in g2["passage_text"]
+    assert "Review:" in g2["passage_text"]
+    assert g2["image_url"] is None
+    
+    q9 = q_by_num[9]
+    assert q9["options"]["A"] == "A product"
+    assert q9["options"]["B"] == "A service"
+    assert q9["options"]["C"] == "A company"
+    assert q9["options"]["D"] == "A store"
+
 
 
 
