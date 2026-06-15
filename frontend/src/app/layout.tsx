@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hệ thống Khảo thí TOEIC",
-  description: "Demo sinh đề và xem đề TOEIC",
+  title: "Hệ thống Khảo thí và Chấm thi Đa ngôn ngữ",
+  description: "Hệ thống tạo đề và chấm thi tự động đa ngôn ngữ (TOEIC / VSTEP / HSK)",
 };
 
 export default function RootLayout({
