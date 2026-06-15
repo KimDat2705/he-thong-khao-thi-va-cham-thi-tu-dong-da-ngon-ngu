@@ -1,0 +1,22 @@
+# Render Blueprint — backend (FastAPI) cho demo TOEIC.
+# Bootstrap (tải data đối tác từ Drive + seed) chạy ở BUILD → bake vào deploy →
+# khởi động nhanh, không timeout. KHÔNG có dữ liệu đối tác trong repo.
+services:
+  - type: web
+    name: toeic-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt && python scripts/cloud_bootstrap.py
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DATABASE_URL
+        value: sqlite:///./demo_toeic.db
+      - key: AUDIO_DIR
+        value: ./audio_data
+      # Đặt = URL frontend Vercel sau khi deploy frontend (vd https://xxx.vercel.app).
+      # Để trống/"*" thì CORS mở cho mọi nguồn (đủ cho demo).
+      - key: ALLOWED_ORIGINS
+        sync: false

@@ -44,16 +44,18 @@ STATIC_IMG_DIR = os.path.join(BACKEND_DIR, "static", "img")
 DRIVE_INPUT = os.environ.get("DRIVE_INPUT", r"D:\Dat-Antigravity\drive_input")
 AUDIO_DIR = os.environ.get("AUDIO_DIR")  # optional
 
+# File paths default to the local Drive layout but can be overridden via env
+# (used by scripts/cloud_bootstrap.py which downloads files to flat paths).
 SETS = [
     {
         "exam_type": "listening",
-        "docx": os.path.join(DRIVE_INPUT, "LT", "LT2601.docx"),
-        "key": os.path.join(DRIVE_INPUT, "KEY_LT", "Key LT2601.xlsx"),
+        "docx": os.environ.get("LT_DOCX", os.path.join(DRIVE_INPUT, "LT", "LT2601.docx")),
+        "key": os.environ.get("LT_KEY", os.path.join(DRIVE_INPUT, "KEY_LT", "Key LT2601.xlsx")),
     },
     {
         "exam_type": "reading",
-        "docx": os.path.join(DRIVE_INPUT, "RT", "ĐỀ ĐỌC", "CDR TOEIC - RT2605.docx"),
-        "key": os.path.join(DRIVE_INPUT, "RT", "KEY", "KEY RT.2605.xlsx"),
+        "docx": os.environ.get("RT_DOCX", os.path.join(DRIVE_INPUT, "RT", "ĐỀ ĐỌC", "CDR TOEIC - RT2605.docx")),
+        "key": os.environ.get("RT_KEY", os.path.join(DRIVE_INPUT, "RT", "KEY", "KEY RT.2605.xlsx")),
     },
 ]
 
