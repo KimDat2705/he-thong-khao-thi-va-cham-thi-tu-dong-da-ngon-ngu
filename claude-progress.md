@@ -263,8 +263,15 @@
   - **Verify trình duyệt**: 6/6 ảnh Part 1 load, audio 45:37 phát được, mặc định 0 đáp án lộ, toggle giáo viên → 200/200 câu có đáp án (P1/P2 không options hiện "Đáp án đúng: X").
 - 🎉 **MỐC: TOEIC chạy được END-TO-END có giao diện** — nạp đề thật → bank → sinh đề 200 câu → xem trên web (ảnh + audio + câu hỏi thật, ẩn đáp án), dùng nội dung đối tác thật.
 
+### Session 23 -- 2026-06-15 (Claude — merge lên main + chuẩn bị & test deploy cloud)
+- **Merge `Dat` → `main`**: FF (57 commits) → `origin/main` = `origin/Dat` = **`4350868`**, đã push. Toàn bộ code (parser/generator/A5/demo/deploy) đã lên main.
+- **Deploy: Đạt chọn CLOUD**. Máy KHÔNG có Docker/cloud CLI → kiến trúc **Backend → Render (Python native), Frontend → Vercel**, deploy từ GitHub. Tôn trọng luật **KHÔNG commit data đối tác**: backend tự tải data từ Drive lúc build rồi seed.
+  - `backend/scripts/cloud_bootstrap.py`: tải 5 file nguồn theo Drive file-id → seed (parse+backfill+ảnh+approve+generate); idempotent. `seed_toeic_demo` nhận path qua env. `main.py` CORS theo env `ALLOWED_ORIGINS`. `requirements`: +gdown. `render.yaml`: bootstrap ở **build** (bake data → start nhanh). Guide: `docs/deploy_cloud_huong_dan.md`.
+  - **ĐÃ TEST tại chỗ**: cloud_bootstrap tải nguồn + seed 200 câu + 6 ảnh + audio OK + idempotent; **frontend prod `npm run build` PASS + `npm start`** phục vụ / và /admin HTTP 200; backend 35/2/2, ruff sạch.
+- ⚠️ **CHƯA deploy thật lên internet**: bước cuối cần **tài khoản Render + Vercel của Đạt** (login bằng GitHub) — Claude không có credentials. Đạt làm theo `docs/deploy_cloud_huong_dan.md` (A: Render → B: Vercel → C: nối CORS); hoặc cấp Render API key + Vercel token để Claude thử deploy bằng CLI.
+
 ## Next Steps
-- ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (Session 22 — sinh đề + xem đề có UI trên dữ liệu thật).
+- ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (Session 22) · ✅ **Merge main + deploy config sẵn sàng + test** (Session 23). **Còn lại: Đạt bấm deploy Render+Vercel theo guide.**
 - **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
   - **Audio**: tải MP3 gộp về 1 thư mục → seed + backend với `AUDIO_DIR` → player phát được trong `/exam/[id]`.
   - **Ảnh Part 1/Part 7**: trích ảnh từ `.docx` ra file tĩnh + set `image_url` thật (hiện chỉ hiển thị chỉ số ảnh).
