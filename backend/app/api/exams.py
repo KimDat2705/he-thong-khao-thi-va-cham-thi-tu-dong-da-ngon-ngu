@@ -46,9 +46,14 @@ def list_exams(db: Session = Depends(get_db)):
 
 
 @router.get("/{exam_id}", response_model=ExamDetail)
-def get_exam(exam_id: int, db: Session = Depends(get_db)):
-    """Retrieve a generated exam organized by part for display."""
-    detail = exam_admin.get_exam_detail(db, exam_id)
+def get_exam(exam_id: int, include_answers: bool = False, db: Session = Depends(get_db)):
+    """
+    Retrieve a generated exam organized by part for display.
+    By default answers are hidden (candidate view). Pass include_answers=true for
+    the teacher/answer-key view.
+    TODO: gate include_answers behind teacher auth (auth-api, Milestone 3+).
+    """
+    detail = exam_admin.get_exam_detail(db, exam_id, include_answers=include_answers)
     if detail is None:
         raise HTTPException(status_code=404, detail="Exam not found")
     return detail

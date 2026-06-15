@@ -54,7 +54,22 @@ def test_SPEC_EXAM_001_exam_generation_api(db_session: Session):
         assert parts[7]["part_type"] == "subset_sum"
         assert parts[7]["question_count"] == 54
 
-        # 4. Unknown exam id -> 404.
+        # 4. Default view hides answers (exam = questions only).
+        def all_questions(d):
+            for p in d["parts"]:
+                yield from p["standalone_questions"]
+                for g in p["groups"]:
+                    yield from g["questions"]
+        assert all(q["reference_answer"] is None for q in all_questions(detail)), \
+            "Đề mặc định KHÔNG được lộ đáp án"
+
+        # 5. Teacher view (include_answers=true) exposes the answer key.
+        resp = client.get(f"/api/v1/exams/{exam_id}?include_answers=true")
+        assert resp.status_code == 200
+        assert any(q["reference_answer"] for q in all_questions(resp.json())), \
+            "include_answers=true phải trả đáp án"
+
+        # 6. Unknown exam id -> 404.
         resp = client.get("/api/v1/exams/999999")
         assert resp.status_code == 404
 

@@ -44,6 +44,7 @@ export interface PartOut {
   part: number;
   part_type: string;
   question_count: number;
+  audio_url: string | null;
   standalone_questions: QuestionOut[];
   groups: GroupOut[];
 }
@@ -105,8 +106,12 @@ export async function generateExam(title: string, seed?: number): Promise<ExamSu
   );
 }
 
-export async function getExam(id: number | string): Promise<ExamDetail> {
-  return jsonOrThrow(await fetch(`${API_BASE}/api/v1/exams/${id}`, { cache: "no-store" }));
+export async function getExam(
+  id: number | string,
+  includeAnswers = false,
+): Promise<ExamDetail> {
+  const qs = includeAnswers ? "?include_answers=true" : "";
+  return jsonOrThrow(await fetch(`${API_BASE}/api/v1/exams/${id}${qs}`, { cache: "no-store" }));
 }
 
 // Resolve a (possibly bare-filename) audio_url into a playable URL via the
@@ -115,4 +120,12 @@ export function audioSrc(audioUrl: string | null): string | null {
   if (!audioUrl) return null;
   if (audioUrl.startsWith("http")) return audioUrl;
   return `${API_BASE}/audio/${encodeURIComponent(audioUrl)}`;
+}
+
+// Resolve an image_url. Backend stores extracted images as "/static/img/...".
+export function imageSrc(imageUrl: string | null): string | null {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith("http")) return imageUrl;
+  if (imageUrl.startsWith("/")) return `${API_BASE}${imageUrl}`;
+  return null; // bare index (legacy) — no real file to show
 }

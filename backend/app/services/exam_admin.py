@@ -60,10 +60,28 @@ def list_exams(db: Session) -> List[dict]:
     return result
 
 
-def get_exam_detail(db: Session, exam_id: int) -> Optional[dict]:
+def _question_dict(q: Question, include_answers: bool) -> dict:
+    """Serialize a question for display; hide the correct answer unless requested."""
+    return {
+        "id": q.id,
+        "group_id": q.group_id,
+        "part": q.part,
+        "type": q.type,
+        "content": q.content,
+        "options": q.options,
+        "reference_answer": q.reference_answer if include_answers else None,
+        "audio_url": q.audio_url,
+        "image_url": q.image_url,
+        "difficulty": q.difficulty,
+        "topic": q.topic,
+    }
+
+
+def get_exam_detail(db: Session, exam_id: int, include_answers: bool = False) -> Optional[dict]:
     """
     Return a generated exam organized as parts -> (standalone questions | groups -> questions).
-    Returns None if the exam does not exist.
+    By default the correct answers are hidden (exam = questions only); pass
+    include_answers=True for the teacher/answer-key view. Returns None if not found.
     """
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if exam is None:
@@ -99,13 +117,20 @@ def get_exam_detail(db: Session, exam_id: int) -> Optional[dict]:
 
     parts_out = []
     for part in parts_present:
-        standalone = [q for q in q_by_group.get(None, []) if q.part == part]
+        standalone_qs = [q for q in q_by_group.get(None, []) if q.part == part]
+        standalone = [_question_dict(q, include_answers) for q in standalone_qs]
         part_groups = groups_by_part.get(part, [])
         group_dicts = []
         q_count = len(standalone)
+        part_audio = None
+        for q in standalone_qs:
+            if q.audio_url and not part_audio:
+                part_audio = q.audio_url
         for g in part_groups:
             g_questions = q_by_group.get(g.id, [])
             q_count += len(g_questions)
+            if g.audio_url and not part_audio:
+                part_audio = g.audio_url
             group_dicts.append({
                 "id": g.id,
                 "part": g.part,
@@ -114,12 +139,13 @@ def get_exam_detail(db: Session, exam_id: int) -> Optional[dict]:
                 "audio_url": g.audio_url,
                 "image_url": g.image_url,
                 "difficulty": g.difficulty,
-                "questions": g_questions,
+                "questions": [_question_dict(q, include_answers) for q in g_questions],
             })
         parts_out.append({
             "part": part,
             "part_type": _part_type(part),
             "question_count": q_count,
+            "audio_url": part_audio,
             "standalone_questions": standalone,
             "groups": group_dicts,
         })

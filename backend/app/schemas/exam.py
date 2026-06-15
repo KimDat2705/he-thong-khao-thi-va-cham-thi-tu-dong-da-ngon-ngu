@@ -57,6 +57,7 @@ class PartOut(BaseModel):
     part: int
     part_type: str  # "standalone" | "grouped" | "subset_sum"
     question_count: int
+    audio_url: Optional[str] = None  # consolidated Listening audio for the part (if any)
     standalone_questions: List[QuestionOut] = []
     groups: List[GroupOut] = []
 

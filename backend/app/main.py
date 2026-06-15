@@ -37,11 +37,16 @@ app.add_middleware(
 app.include_router(bank_router)
 app.include_router(exams_router)
 
+# Serve extracted question images (Part 1 photos, Part 3/4 graphics) for the demo.
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+_static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+os.makedirs(_static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
 # Optionally serve consolidated Listening MP3 files for the demo player.
 # Set AUDIO_DIR to the folder holding the .mp3 files; mounted read-only at /audio.
 _audio_dir = os.environ.get("AUDIO_DIR")
 if _audio_dir and os.path.isdir(_audio_dir):
-    from fastapi.staticfiles import StaticFiles
     app.mount("/audio", StaticFiles(directory=_audio_dir), name="audio")
 
 @app.get("/")

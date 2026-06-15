@@ -21,6 +21,7 @@ Environment overrides:
     AUDIO_DIR     folder with consolidated .mp3 files (optional)
 """
 import os
+import re
 import sys
 
 # Default the demo DB to a local SQLite file BEFORE importing app modules
@@ -36,6 +37,9 @@ from app.models.question import Question  # noqa: E402
 from app.models.question_group import QuestionGroup  # noqa: E402
 from app.services.parser import import_exam_set  # noqa: E402
 from app.services.toeic_generator import TOEIC_BLUEPRINT, generate_toeic_exam  # noqa: E402
+from app.services.docx_images import extract_question_images  # noqa: E402
+
+STATIC_IMG_DIR = os.path.join(BACKEND_DIR, "static", "img")
 
 DRIVE_INPUT = os.environ.get("DRIVE_INPUT", r"D:\Dat-Antigravity\drive_input")
 AUDIO_DIR = os.environ.get("AUDIO_DIR")  # optional
@@ -112,6 +116,31 @@ def backfill_metadata(db) -> None:
     db.commit()
 
 
+def link_part1_images(db, docx_path: str, set_id: str) -> int:
+    """
+    Extract Part 1 photos from the Listening .docx and link them to the bank's
+    Part 1 questions (in order). Returns count linked.
+    NOTE: assumes a single Listening set in the bank (demo). Question has no set_id
+    column, so Part 1 questions are matched by part + id order.
+    """
+    img_map = extract_question_images(docx_path, STATIC_IMG_DIR, set_id)
+    p1 = (
+        db.query(Question)
+        .filter(Question.exam_id.is_(None), Question.part == 1)
+        .order_by(Question.id)
+        .all()
+    )
+    linked = 0
+    for idx, q in enumerate(p1):
+        qnum = idx + 1  # Part 1 questions are Q1..Q6 in document order
+        rel = img_map.get(qnum)
+        if rel:
+            q.image_url = f"/static/img/{rel}"
+            linked += 1
+    db.commit()
+    return linked
+
+
 def approve_all(db) -> int:
     """Approve every bank question and group (draft -> approved)."""
     nq = (
@@ -139,6 +168,14 @@ def main() -> None:
             print(f"OK import {s['exam_type']}: imported_q={res.get('imported_questions')} "
                   f"imported_g={res.get('imported_groups')} skipped_q={res.get('skipped_questions')} "
                   f"audio={res.get('audio_linked')}")
+
+        # Link Part 1 photos (extracted from the Listening .docx) to bank questions.
+        for s in SETS:
+            if s["exam_type"] == "listening" and os.path.isfile(s["docx"]):
+                m = re.search(r"(?i)(LT|RT)\.?\s*(\d+)", os.path.basename(s["docx"]))
+                set_id = f"{m.group(1).upper()}{m.group(2)}" if m else "LT"
+                n_img = link_part1_images(db, s["docx"], set_id)
+                print(f"Linked {n_img} Part 1 images for {set_id}.")
 
         print("Backfilling difficulty/topic ...")
         backfill_metadata(db)
