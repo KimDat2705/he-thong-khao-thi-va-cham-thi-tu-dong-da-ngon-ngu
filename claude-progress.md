@@ -247,11 +247,25 @@
 - **Ghi chú thiết kế (không chặn)**: `QuestionUpdate` cho phép PATCH `status` trực tiếp → patch status=approved KHÔNG propagate nhóm; `/approve` là đường chuẩn để duyệt (nên doc/TODO sau).
 - **Trạng thái spec sau A5**: **32 spec — 27 active / 2 gap / 3 planned** (catalog +1: SPEC-BANK-003; gap vẫn MATRIX-002 + GRADE-002; planned vẫn GEN-004, GRADE-003, SCALE-003). `feature_list.exam-admin-api` → **in_progress** (xong nửa bank-admin; còn Exam CRUD + auth).
 
+### Session 22 -- 2026-06-15 (Claude — DEMO TOEIC end-to-end: Exam API + frontend + seed dữ liệu thật)
+- **Bối cảnh**: sếp cần BẢN DEMO TOEIC trình trong vài giờ. Đạt chốt: dồn lực TOEIC trước (B1/Chấm/đầu mục khác giữ nguyên), cần API + giao diện "dùng được, không cần đẹp". 2 quyết định (Đạt chốt): **Claude code trực tiếp** (bỏ vòng Anti cho kịp deadline) + **nội dung đề THẬT** LT2601+RT2605 (backfill).
+- **Rà soát phát hiện 2 chốt chặn**: (1) chưa có API sinh đề/xem đề (chỉ có bank.py); (2) sinh đề từ dữ liệu thật FAIL vì parser gán cứng mọi câu `difficulty="medium"`, `topic=None` → generator đòi đa dạng topic → raise. (Phân tích kỹ: **độ khó KHÔNG chặn** — generator có shortfall-fill; **topic mới là chốt chặn** — all-None = 100% một topic > cap.)
+- **Backend (commit `44f638b`, SPEC-EXAM-001 active)**: `app/api/exams.py` + `app/services/exam_admin.py` + `app/schemas/exam.py` — `POST /api/v1/exams/generate` (wrap `generate_toeic_exam`), `GET /api/v1/exams`, `GET /api/v1/exams/{id}` (đề tổ chức theo part → standalone/groups → questions + options/audio/ảnh). `main.py` đăng ký router + mount `/audio` (tùy chọn qua `AUDIO_DIR`). Test `tests/test_specs_exam.py` (TestClient, sinh 200 câu, 7 part). Models KHÔNG đụng.
+- **Seed (`scripts/seed_toeic_demo.py`)**: import THẬT LT2601 (`drive_input/LT`) + RT2605 (`drive_input/RT/ĐỀ ĐỌC`, đã .docx) + key `.xlsx` → **backfill độ khó/topic khớp blueprint** (distinct topic mỗi nhóm + ma trận độ khó per-part) → approve 200 câu → sinh thử 1 đề. Idempotent. DB demo SQLite (`backend/demo_toeic.db`, gitignored).
+- **Frontend (Next.js 16 — đọc docs bundled trước: `params` async)**: `src/lib/api.ts` client; `/` landing, `/admin` (bảng tồn kho /stats + nút Sinh đề + list đề), `/exam/[id]` (server component await params + client `ExamView` render theo part, options, **đáp án đúng tô xanh**).
+- **VERIFY end-to-end trong trình duyệt (preview)** trên dữ liệu THẬT: landing → /admin (7 part "✓ đủ", fetch backend qua CORS) → nút Sinh đề (count 1→2, đề mới hiện) → /exam/1 (Part 1 câu ảnh, Part 2 "Mark your answer", **Part 5 câu thật + 4 options + đáp án đúng**, 200 câu). Console 0 lỗi. Audio/ảnh chưa phát (MP3 ~1.5GB chưa tải; ảnh chưa trích) — non-blocking, có đường bật qua `AUDIO_DIR`.
+- **Clean-state**: backend **35 passed / 2 skipped / 2 xfailed**; ruff (app/+scripts/) sạch; architecture PASS; traceability 4/4. Frontend: lint sạch cho `src/app`+`src/lib` (3 lỗi `any` còn lại CHỈ ở `src/hooks` phòng-thi — không đụng theo yêu cầu). Hướng dẫn chạy: `docs/demo_toeic_huong_dan.md`.
+- **Trạng thái spec sau demo**: **33 spec — 28 active / 2 gap / 3 planned** (catalog +1: SPEC-EXAM-001). `feature_list.exam-admin-api` evidence cập nhật (thêm exam API); vẫn in_progress (còn auth + exam edit/release CRUD).
+- 🎉 **MỐC: TOEIC chạy được END-TO-END có giao diện** — nạp đề thật → bank → sinh đề 200 câu → xem trên web, dùng nội dung đối tác thật.
+
 ## Next Steps
-- ✅ **Track Parser HOÀN TẤT** (PARSE-006..011) · ✅ **A5 Bank-Admin API XONG** (SPEC-BANK-003, `/api/v1/bank` lộ ingestion qua HTTP). **Việc tiếp theo (chọn):**
-  - **A6 bank-admin-UI** (`feat/bank-admin-ui`): trang Next.js `/admin/bank` duyệt draft→approved + xem error report — lộ A5 ra giao diện (đầu tiên đụng frontend phiên này). Hoặc
-  - **generator gaps**: **MATRIX-002 toàn-đề** (reframe per-skill theo Ma trận thật, vướng P7 nghiệm-duy-nhất) + **GEN-004** (độ trùng lô, cần đường dẫn generate batch).
-  - 💡 Cân nhắc end-to-end demo: `import_exam_set` (draft) → `POST /approve` → generate — hiện 1 set thật chưa đủ full bank (LT2601 chỉ Listening) nên cần seed thêm để chạy thật.
+- ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (Session 22 — sinh đề + xem đề có UI trên dữ liệu thật).
+- **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
+  - **Audio**: tải MP3 gộp về 1 thư mục → seed + backend với `AUDIO_DIR` → player phát được trong `/exam/[id]`.
+  - **Ảnh Part 1/Part 7**: trích ảnh từ `.docx` ra file tĩnh + set `image_url` thật (hiện chỉ hiển thị chỉ số ảnh).
+  - **auth-api**: bịt các endpoint đang mở (bank + exams hiện chỉ có TODO marker) trước khi đưa ra ngoài.
+  - **UI duyệt bank (A6)**: nút approve draft→approved trên web (hiện duyệt qua API/seed).
+- **Để sau (đã thống nhất giữ nguyên):** B1/VSTEP·HSK đa ngôn ngữ; phân hệ Chấm (GRADE-002/003, Celery); generator gaps (MATRIX-002 toàn-đề vướng P7 nghiệm-duy-nhất, GEN-004 độ trùng lô); SCALE.
 - 💡 Đối chiếu `TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật → cập nhật giá trị (data).
   - ⚠️ **MATRIX-002 toàn-đề vướng**: P7 nghiệm subset-sum DUY NHẤT (B3) → độ khó P7 cố định (4E/30M/20H) → toàn đề lệch. Cần rebalance conftest P7 difficulty / nới nghiệm P7; và reframe **per-skill** theo Ma trận thật.
   - 💡 Đối chiếu **`TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật** → cập nhật giá trị (data, không sửa code).
