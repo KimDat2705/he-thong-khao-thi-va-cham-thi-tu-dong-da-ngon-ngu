@@ -1,0 +1,170 @@
+"""
+Seed an approved TOEIC question bank from REAL partner data for the demo.
+
+Pipeline:
+  1. Import a real Listening set (LT2601) + Reading set (RT2605) via import_exam_set
+     (parses .docx, merges .xlsx answer keys, links audio if present) -> bank as 'draft'.
+  2. Backfill per-part difficulty + topic so the generator's blueprint constraints are
+     satisfiable. The real parser stamps every item difficulty='medium', topic=None;
+     the generator REQUIRES topic diversity (all-None -> one topic = 100% -> fails), and
+     benefits from a proper difficulty matrix. We assign distinct topics per group and
+     a difficulty distribution matching TOEIC_BLUEPRINT per part.
+  3. Approve everything (draft -> approved) so generate_toeic_exam can use it.
+  4. (optional) Generate one demo exam to verify end-to-end.
+
+Idempotent: import dedups via content_hash; backfill/approve re-apply safely.
+
+Run (from backend/):
+    DATABASE_URL="sqlite:///./demo_toeic.db" python scripts/seed_toeic_demo.py
+Environment overrides:
+    DRIVE_INPUT   base folder of partner data (default D:\\Dat-Antigravity\\drive_input)
+    AUDIO_DIR     folder with consolidated .mp3 files (optional)
+"""
+import os
+import sys
+
+# Default the demo DB to a local SQLite file BEFORE importing app modules
+# (env var takes priority over backend/.env, keeping the demo self-contained).
+os.environ.setdefault("DATABASE_URL", "sqlite:///./demo_toeic.db")
+
+BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+from app.core.database import Base, engine, SessionLocal  # noqa: E402
+from app.models.question import Question  # noqa: E402
+from app.models.question_group import QuestionGroup  # noqa: E402
+from app.services.parser import import_exam_set  # noqa: E402
+from app.services.toeic_generator import TOEIC_BLUEPRINT, generate_toeic_exam  # noqa: E402
+
+DRIVE_INPUT = os.environ.get("DRIVE_INPUT", r"D:\Dat-Antigravity\drive_input")
+AUDIO_DIR = os.environ.get("AUDIO_DIR")  # optional
+
+SETS = [
+    {
+        "exam_type": "listening",
+        "docx": os.path.join(DRIVE_INPUT, "LT", "LT2601.docx"),
+        "key": os.path.join(DRIVE_INPUT, "KEY_LT", "Key LT2601.xlsx"),
+    },
+    {
+        "exam_type": "reading",
+        "docx": os.path.join(DRIVE_INPUT, "RT", "ĐỀ ĐỌC", "CDR TOEIC - RT2605.docx"),
+        "key": os.path.join(DRIVE_INPUT, "RT", "KEY", "KEY RT.2605.xlsx"),
+    },
+]
+
+# Realistic TOEIC-ish topics; assigned distinct-per-group within each part so the
+# topic-diversity cap is comfortably satisfied.
+TOPIC_POOL = [
+    "Business", "Travel", "Dining", "Office", "Finance", "Health", "Technology",
+    "Marketing", "Human Resources", "Education", "Shopping", "Transport",
+    "Entertainment", "Environment", "Real Estate", "Manufacturing",
+    "Customer Service", "Legal", "Media", "Logistics",
+]
+
+
+def _difficulty_sequence(diff_spec: dict, total: int) -> list:
+    """Build a list of length `total` of difficulty labels matching the blueprint matrix."""
+    seq = []
+    for label in ("easy", "medium", "hard"):
+        seq.extend([label] * diff_spec.get(label, 0))
+    # Pad/trim to total (real counts match blueprint, but be defensive).
+    if len(seq) < total:
+        seq.extend(["medium"] * (total - len(seq)))
+    return seq[:total]
+
+
+def backfill_metadata(db) -> None:
+    """Assign per-part difficulty + distinct topics to bank items so generation works."""
+    parts_cfg = TOEIC_BLUEPRINT.get("parts", {})
+    for part_str, spec in parts_cfg.items():
+        part = int(part_str)
+        diff_spec = spec.get("difficulty", {})
+        ptype = spec.get("type")
+
+        if ptype == "standalone":
+            qs = (
+                db.query(Question)
+                .filter(Question.exam_id.is_(None), Question.group_id.is_(None), Question.part == part)
+                .order_by(Question.id)
+                .all()
+            )
+            seq = _difficulty_sequence(diff_spec, len(qs))
+            for q, diff in zip(qs, seq):
+                q.difficulty = diff
+                q.topic = q.topic or "General"
+        else:  # grouped / subset_sum
+            groups = (
+                db.query(QuestionGroup)
+                .filter(QuestionGroup.exam_id.is_(None), QuestionGroup.part == part)
+                .order_by(QuestionGroup.id)
+                .all()
+            )
+            # subset_sum (P7) ignores difficulty; grouped uses the group difficulty matrix.
+            gdiff = _difficulty_sequence(diff_spec, len(groups)) if ptype == "grouped" else ["medium"] * len(groups)
+            for idx, g in enumerate(groups):
+                g.topic = TOPIC_POOL[idx % len(TOPIC_POOL)]
+                if idx < len(gdiff):
+                    g.difficulty = gdiff[idx]
+                for q in g.questions:
+                    q.topic = g.topic
+                    q.difficulty = g.difficulty
+    db.commit()
+
+
+def approve_all(db) -> int:
+    """Approve every bank question and group (draft -> approved)."""
+    nq = (
+        db.query(Question)
+        .filter(Question.exam_id.is_(None), Question.status != "approved")
+        .update({"status": "approved"}, synchronize_session=False)
+    )
+    db.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None), QuestionGroup.status != "approved"
+    ).update({"status": "approved"}, synchronize_session=False)
+    db.commit()
+    return nq
+
+
+def main() -> None:
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        for s in SETS:
+            if not os.path.isfile(s["docx"]) or not os.path.isfile(s["key"]):
+                print(f"!! SKIP {s['exam_type']}: missing file\n   docx={s['docx']}\n   key={s['key']}")
+                continue
+            audio_dir = AUDIO_DIR if (s["exam_type"] == "listening" and AUDIO_DIR) else None
+            res = import_exam_set(db, s["docx"], s["key"], s["exam_type"], audio_dir=audio_dir)
+            print(f"OK import {s['exam_type']}: imported_q={res.get('imported_questions')} "
+                  f"imported_g={res.get('imported_groups')} skipped_q={res.get('skipped_questions')} "
+                  f"audio={res.get('audio_linked')}")
+
+        print("Backfilling difficulty/topic ...")
+        backfill_metadata(db)
+        n = approve_all(db)
+        print(f"Approved {n} questions (and their groups).")
+
+        # Bank summary
+        for part in range(1, 8):
+            qc = db.query(Question).filter(
+                Question.exam_id.is_(None), Question.part == part, Question.status == "approved"
+            ).count()
+            gc = db.query(QuestionGroup).filter(
+                QuestionGroup.exam_id.is_(None), QuestionGroup.part == part, QuestionGroup.status == "approved"
+            ).count()
+            print(f"  Part {part}: {qc} questions, {gc} groups (approved)")
+
+        # End-to-end check: generate one demo exam.
+        try:
+            exam = generate_toeic_exam(db, title="TOEIC Demo Exam (seed)", seed=42)
+            total = db.query(Question).filter(Question.exam_id == exam.id).count()
+            print(f"Generated demo exam id={exam.id} with {total} questions.")
+        except Exception as e:
+            print(f"!! Generation check failed: {type(e).__name__}: {e}")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

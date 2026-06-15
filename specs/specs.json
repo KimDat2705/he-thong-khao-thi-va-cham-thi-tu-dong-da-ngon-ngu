@@ -567,6 +567,23 @@
       "status": "planned",
       "tests": [],
       "notes": "Không verify bằng pytest — chạy k6/Locust ở Giai đoạn 4 (system_plan.md) trên staging trước bàn giao."
+    },
+    {
+      "id": "SPEC-EXAM-001",
+      "domain": "EXAM",
+      "title": "API sinh đề và lấy đề TOEIC để hiển thị",
+      "statement": "Hệ thống cung cấp endpoint HTTP/REST để sinh một đề TOEIC hoàn chỉnh từ ngân hàng câu hỏi đã duyệt và lấy đề đã sinh ra dưới dạng cấu trúc theo part (câu đơn và nhóm passage) phục vụ hiển thị trên giao diện thí sinh.",
+      "acceptance_criteria": [
+        "POST /api/v1/exams/generate sinh đề 200 câu từ bank approved, trả về tóm tắt đề (id, title, exam_type, question_count); raise 409 khi bank chưa đủ.",
+        "GET /api/v1/exams liệt kê các đề đã sinh kèm số câu.",
+        "GET /api/v1/exams/{id} trả về đề tổ chức theo part: part standalone có standalone_questions, part grouped/subset_sum có groups -> questions (kèm options/audio/ảnh); 404 nếu đề không tồn tại."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_exam.py::test_SPEC_EXAM_001_exam_generation_api"
+      ],
+      "notes": "Đang đạt: app/api/exams.py + app/services/exam_admin.py lộ generator TOEIC qua HTTP cho demo (sinh đề -> xem trên frontend)."
     }
   ]
 }
