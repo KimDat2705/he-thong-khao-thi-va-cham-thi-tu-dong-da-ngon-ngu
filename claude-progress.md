@@ -256,7 +256,12 @@
 - **VERIFY end-to-end trong trình duyệt (preview)** trên dữ liệu THẬT: landing → /admin (7 part "✓ đủ", fetch backend qua CORS) → nút Sinh đề (count 1→2, đề mới hiện) → /exam/1 (Part 1 câu ảnh, Part 2 "Mark your answer", **Part 5 câu thật + 4 options + đáp án đúng**, 200 câu). Console 0 lỗi. Audio/ảnh chưa phát (MP3 ~1.5GB chưa tải; ảnh chưa trích) — non-blocking, có đường bật qua `AUDIO_DIR`.
 - **Clean-state**: backend **35 passed / 2 skipped / 2 xfailed**; ruff (app/+scripts/) sạch; architecture PASS; traceability 4/4. Frontend: lint sạch cho `src/app`+`src/lib` (3 lỗi `any` còn lại CHỈ ở `src/hooks` phòng-thi — không đụng theo yêu cầu). Hướng dẫn chạy: `docs/demo_toeic_huong_dan.md`.
 - **Trạng thái spec sau demo**: **33 spec — 28 active / 2 gap / 3 planned** (catalog +1: SPEC-EXAM-001). `feature_list.exam-admin-api` evidence cập nhật (thêm exam API); vẫn in_progress (còn auth + exam edit/release CRUD).
-- 🎉 **MỐC: TOEIC chạy được END-TO-END có giao diện** — nạp đề thật → bank → sinh đề 200 câu → xem trên web, dùng nội dung đối tác thật.
+- **Bổ sung cùng phiên (commit `b61420d`) — đề "đầy đủ như thật" + bảo mật đáp án** (theo phản hồi Đạt: đề chỉ nên có câu hỏi; phải đủ ảnh + audio):
+  - **Ảnh Part 1 THẬT**: `app/services/docx_images.py` trích ảnh nhúng từ `.docx` Nghe (resolve drawing→blob, bỏ ảnh ví dụ/header), map Part 1→câu (6 ảnh); seed link `image_url=/static/...`, backend mount `/static`. (Đồ hoạ P3/4/7 có trích được nhưng chưa map per-câu — Question không có cột số câu; bước sau.)
+  - **Audio Nghe THẬT**: tải riêng file MP3 gộp LT2601 ("2601 - 2604.mp3" ~105MB, id `15HV-VV...` qua gdown `skip_download` lấy ID) → `drive_input/audio/`; seed link qua `find_audio_file`; exam detail trả `audio_url` cấp Part; frontend 1 player/part Nghe (audio ~45', KHÔNG cắt). Backend mount `/audio`.
+  - **Ẩn đáp án (đề = câu hỏi)**: `GET /exams/{id}` mặc định KHÔNG trả `reference_answer`; `?include_answers=true` cho giáo viên (có TODO gate auth). Frontend nút toggle "Hiện đáp án (giáo viên)". test cập nhật assert ẩn/hiện.
+  - **Verify trình duyệt**: 6/6 ảnh Part 1 load, audio 45:37 phát được, mặc định 0 đáp án lộ, toggle giáo viên → 200/200 câu có đáp án (P1/P2 không options hiện "Đáp án đúng: X").
+- 🎉 **MỐC: TOEIC chạy được END-TO-END có giao diện** — nạp đề thật → bank → sinh đề 200 câu → xem trên web (ảnh + audio + câu hỏi thật, ẩn đáp án), dùng nội dung đối tác thật.
 
 ## Next Steps
 - ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (Session 22 — sinh đề + xem đề có UI trên dữ liệu thật).
