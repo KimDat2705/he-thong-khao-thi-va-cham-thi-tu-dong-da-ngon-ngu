@@ -1,9 +1,11 @@
-# Session Handoff — cập nhật 15/06/2026 (Claude, sau DEMO TOEIC end-to-end — API + giao diện trên dữ liệu thật)
+# Session Handoff — cập nhật 15/06/2026 (Claude, sau khi DEMO TOEIC ĐÃ LIVE TRÊN INTERNET — Vercel + Render)
+
+> 🎉 **DEMO LIVE**: Frontend https://he-thong-khao-thi-va-cham-thi-tu-do.vercel.app (Vercel) · Backend https://toeic-backend-5n57.onrender.com (Render). Đã verify end-to-end qua mạng. Render free ngủ sau 15' → wake `…/api/v1/exams` trước demo. Redeploy = push `main`. Chi tiết: memory `deploy-cloud-urls` + `docs/deploy_cloud_huong_dan.md`.
 
 ## Current State & Achievements
 
 1. **Kiến trúc đã chốt**: `docs/kien_truc_he_thong_v2.html` (tổng thể) + `docs/kien_truc_phan_he_ra_de_tieng_anh.html/.md` (phân hệ Ra đề EN — trọng tâm M2). Tài liệu v1 đông lạnh tham chiếu.
-2. **Harness hoạt động**: **33 spec** trong `specs/specs.json` (**28 active / 2 gap / 3 planned** sau demo) ↔ 8 file test; suite **35 passed / 2 skipped / 2 xfailed / 0 failed**; meta-test traceability xanh; `scripts/check-architecture.sh` PASS. **Baseline 15/06: `origin/Dat` @ `b61420d` (DEMO TOEIC + ảnh/audio/ẩn đáp án) + commit chốt sổ, clean-state toàn xanh.**
+2. **Harness hoạt động**: **33 spec** trong `specs/specs.json` (**28 active / 2 gap / 3 planned**) ↔ 8 file test; suite **35 passed / 2 skipped / 2 xfailed / 0 failed**; traceability 4 xanh; `check-architecture.sh` PASS; frontend `npm run build` PASS. **Baseline: `origin/Dat` = `origin/main` = `24f9261`, clean-state toàn xanh.**
 3. **DỮ LIỆU INPUT THẬT đã đọc được** (`docs/du_lieu_input_links.md`): tải bằng `PYTHONUTF8=1 python -m gdown` về `D:\Dat-Antigravity\drive_input\` (ngoài repo) + parse openpyxl/python-docx; Sheet→export xlsx; bỏ MP3. Ma trận TOEIC (Sheet) XÁC NHẬN blueprint + luật ta đã code. Đáp án=xlsx lưới Câu/Đáp án; đề=Word tables+ảnh (đã map cấu trúc).
 4. **Real Parser Track (PARSE-006 → 011) — 🎉 HOÀN TẤT (Nghe+Đọc · đề+đáp án+audio → bank, dữ liệu đối tác thật)**:
    - **A3 (`d2388e8`)**: `parse_answer_key(filepath)->dict[int,str]` (openpyxl, quét header, gộp 5 block).
@@ -34,7 +36,8 @@
    - **GEN-002 (`ca2ce48`)**: cân bằng đáp án A/B/C/D 20-28% qua hoán vị clone.
    - → Đề sinh ra: đúng 200 câu · ma trận độ khó per-part · đa dạng topic · cân bằng đáp án · tái lập theo seed · chỉ câu approved · bank bất biến.
 7. **Hạ tầng máy Đạt**: PostgreSQL 17 tại `D:\Postgres\17` (port 5432, user postgres). `psql`/`createdb` tại `D:\Postgres\17\bin\` (chưa vào PATH).
-8. **Đồng bộ git**: `origin/Dat` @ `b61420d` (DEMO TOEIC + ảnh/audio/ẩn đáp án) + commit chốt sổ. Các nhánh feature đã xoá. Working tree sạch. Phiên demo Claude code trực tiếp trên `Dat` (Đạt chốt, vì deadline). Audio + `backend/static/` + `demo_toeic.db` gitignored (ngoài repo/không commit).
+8. **Đồng bộ git**: `origin/Dat` = `origin/main` = **`24f9261`** (đã merge Dat→main + đẩy cả 2). Các nhánh feature đã xoá. Working tree sạch. Phiên demo+deploy Claude code trực tiếp trên `Dat` (Đạt chốt, vì deadline). Audio + `backend/static/` + `demo_toeic.db` gitignored.
+9. **DEPLOY CLOUD LIVE**: Frontend Vercel (Root=`frontend`, env `NEXT_PUBLIC_API_BASE`=URL Render) + Backend Render (`render.yaml`, `cloud_bootstrap.py` tải data Drive theo file-id lúc BUILD rồi seed → repo sạch data đối tác). Verify qua mạng OK. URL/vận hành: memory `deploy-cloud-urls`.
 
 ## Current Gaps / In Progress
 
@@ -50,13 +53,14 @@
 
 ## Next Session Objectives
 
-1. **Lộ trình tiếp theo** (✅ Audio Nghe + ✅ Ảnh Part 1 + ✅ ẩn đáp án ĐÃ XONG `b61420d`):
-   - **Đồ hoạ Part 3/4/7** (câu "look at the graphic"): `docx_images` trích được nhưng chưa map per-câu (Question không có cột số câu) — cần cách map (vd thêm bảng phụ hoặc map theo group order).
-   - **Tải audio các đề khác** nếu demo nhiều bộ (hiện chỉ LT2601: file "2601 - 2604.mp3").
-   - **auth-api**: bịt endpoint bank + exams (đang mở; `?include_answers` cần gate giáo viên).
-   - **A6 UI duyệt bank**: approve draft→approved trên web.
+1. **Lộ trình tiếp theo** (✅ Demo TOEIC end-to-end + ✅ deploy LIVE đã xong; chờ phản hồi sếp sau buổi trình):
+   - **Đồ hoạ Part 3/4/7** (câu "look at the graphic"): `docx_images` trích được nhưng chưa map per-câu (Question không có cột số câu) — cần cách map (group order / bảng phụ).
+   - **auth-api**: bịt endpoint bank + exams (đang mở; `?include_answers` cần gate giáo viên) — cần khi đưa ra ngoài thật.
+   - **A6 UI duyệt bank**: approve draft→approved trên web (hiện duyệt qua seed).
+   - **Nhiều bộ đề**: tải thêm LT/RT khác (sửa file-id trong `cloud_bootstrap.py`) để demo sinh đề có "lựa chọn" thật.
    - 💡 Đối chiếu `TOEIC_BLUEPRINT` ↔ Ma trận TOEIC Sheet thật → cập nhật data.
-   - **Để sau (giữ nguyên)**: B1/VSTEP·HSK; phân hệ Chấm; generator gaps (MATRIX-002 vướng P7, GEN-004); SCALE.
+   - **Để sau (giữ nguyên theo Đạt)**: B1/VSTEP·HSK; phân hệ Chấm (GRADE-002/003, Celery); generator gaps (MATRIX-002 vướng P7, GEN-004); SCALE.
+   - **Ổn định deploy**: Render free ngủ 15' → cân nhắc nâng plan / cron ping `/health` nếu cần luôn-sẵn-sàng.
 2. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → **Claude nghiệm thu XONG mới push** → merge. KHÔNG đụng `backend/app/models/`, phân hệ Chấm, `claude-progress.md`/`session-handoff.md`. ⚠️ Phiên PARSE-007 Anti lại (a) push trước khi Claude nghiệm thu, (b) tự sửa 2 file nhật ký của Claude — nhắc giữ đúng ranh giới lần sau.
 3. Hạ tầng (khi rảnh): postgres service vào `ci.yml`; "Require status checks" cho `main`; hardening PARSE-002.
 4. Chờ sếp xác nhận quy đổi độ khó câu→nhóm.

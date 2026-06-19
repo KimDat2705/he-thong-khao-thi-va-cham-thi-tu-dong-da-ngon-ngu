@@ -270,8 +270,18 @@
   - **ĐÃ TEST tại chỗ**: cloud_bootstrap tải nguồn + seed 200 câu + 6 ảnh + audio OK + idempotent; **frontend prod `npm run build` PASS + `npm start`** phục vụ / và /admin HTTP 200; backend 35/2/2, ruff sạch.
 - ⚠️ **CHƯA deploy thật lên internet**: bước cuối cần **tài khoản Render + Vercel của Đạt** (login bằng GitHub) — Claude không có credentials. Đạt làm theo `docs/deploy_cloud_huong_dan.md` (A: Render → B: Vercel → C: nối CORS); hoặc cấp Render API key + Vercel token để Claude thử deploy bằng CLI.
 
+### Session 24 -- 2026-06-15 (Đạt bấm deploy + Claude verify — 🎉 DEMO TOEIC ĐÃ LIVE TRÊN INTERNET)
+- **Đổi tên hiển thị** (commit `24f9261`, đẩy Dat + main): tiêu đề tab + trang chủ → **"Hệ thống Khảo thí và Chấm thi Đa ngôn ngữ"** + dòng "Phân hệ Tạo đề TOEIC (bản demo)". (Làm rõ: `toeic-backend` chỉ là tên API ngầm, không hiển thị.)
+- **Deploy LIVE (Đạt thao tác tài khoản, Claude hướng dẫn từng bước + verify)**:
+  - **Backend Render**: `https://toeic-backend-5n57.onrender.com` (Blueprint từ `render.yaml`, build chạy bootstrap tải data Drive + seed). Claude verify qua mạng: `/health` 200, `/api/v1/exams` có đề 200 câu, `/api/v1/bank/stats` 7/7 part đủ, ảnh `/static/...` 200, audio 206. → bootstrap chạy ĐÚNG trên cloud.
+  - **Frontend Vercel**: `https://he-thong-khao-thi-va-cham-thi-tu-do.vercel.app` (Root=`frontend`, env `NEXT_PUBLIC_API_BASE`=URL Render). Claude verify: homepage 200 + đúng tên, `/admin` 200, CORS `*` cho origin Vercel, backend trả data khi gọi kèm Origin Vercel.
+- **Kết quả**: hệ thống chạy END-TO-END trên internet — sếp mở link Vercel là dùng được (sinh đề, xem đề thật + ảnh + audio, ẩn đáp án). URL + cách vận hành lưu ở memory `deploy-cloud-urls` + `docs/deploy_cloud_huong_dan.md`.
+- ⚠️ **Vận hành**: Render free NGỦ sau ~15' → wake `…/api/v1/exams` trước demo (~30–60s). Redeploy = push `main` (Vercel + Render tự build).
+- **Clean-state cuối phiên (chốt sổ)**: pytest **35 passed / 2 skipped / 2 xfailed / 0 failed**; traceability 4 passed; ruff (app/+scripts/) sạch; architecture PASS; frontend `npm run build` PASS; working tree sạch (`demo_toeic.db` + `static/` gitignored); `origin/Dat` = `origin/main` = **`24f9261`**.
+- **Rà specs/feature_list (khớp)**: **33 spec — 28 active / 2 gap / 3 planned** (SPEC-EXAM-001 đã ghi S22, không spec nào flip). feature_list trung thực; cập nhật evidence `exam-generator` (đã verify trên dữ liệu THẬT + deploy live, không chỉ fixture). Không có spec/feature đổi mà chưa ghi.
+
 ## Next Steps
-- ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (Session 22) · ✅ **Merge main + deploy config sẵn sàng + test** (Session 23). **Còn lại: Đạt bấm deploy Render+Vercel theo guide.**
+- ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (S22) · ✅ **Merge main** (S23) · 🎉 **DEPLOY LIVE INTERNET** (S24 — Vercel + Render, đã verify). **Demo sẵn sàng trình sếp.**
 - **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
   - **Audio**: tải MP3 gộp về 1 thư mục → seed + backend với `AUDIO_DIR` → player phát được trong `/exam/[id]`.
   - **Ảnh Part 1/Part 7**: trích ảnh từ `.docx` ra file tĩnh + set `image_url` thật (hiện chỉ hiển thị chỉ số ảnh).
