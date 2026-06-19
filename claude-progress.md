@@ -289,6 +289,18 @@
 - **Trạng thái spec sau B4**: **34 spec — 29 active / 2 gap / 3 planned** (catalog +1: SPEC-VALIDATE-001; gap vẫn MATRIX-002 + GRADE-002; planned vẫn GEN-004, GRADE-003, SCALE-003). `feature_list.exam-validator` → **active**. 🎯 Track B chỉ còn **B6** (generate-batch + overlap, GEN-004).
 - ⚠️ Có nhánh lạ `starlit-vapor-rolls-14h37` (worktree artifact của Antigravity) — dọn sau, không ảnh hưởng.
 
+### Session 26 -- 2026-06-19 (Claude + Anti — B6: sinh lô + ENFORCE overlap nguồn ≤40%; 🎉 track B EN HOÀN TẤT)
+- **Việc B6 HOÀN THÀNH** (`feat/generate-batch` → FF vào `Dat`, commit `4c02b77`; **CHƯA push**). SPEC-GEN-004 planned → **active**. Scope: **SYNC, không Celery** (Chấm hoãn).
+  - `toeic_generator.generate_batch(db, structure, count, base_seed, max_overlap_limit=0.40)`: **ENFORCE** overlap nguồn từng cặp ≤ ngưỡng qua **resample-on-violation deterministic** (budget 10×count, hết → rollback cả lô + raise); atomic rollback khi 1 đề fail. `exam_admin.generate_batch_exams` + `POST /api/v1/exams/generate-batch` (sync) trả summaries + overlap_report (threshold, resample_count) + validation_summary.
+  - `test_SPEC_GEN_004`: gỡ skip, loop `base_seed [5,8,21,23]` (gồm seed cần resample) assert 0 < max_overlap ≤ 0.40 trên bank dư 4x (P7 nhóm size 2-6 → nhiều tổ hợp 54).
+- **Giao thức plan-review (3 vòng V1→V3) + nghiệm thu (2 vòng) — bắt 2 lỗi THỰC CHẤT**:
+  - Plan V1→V2: Claude bắt lập luận "4x surplus → <25%" BỎ QUA Part 7 (subset-sum, 27% đề → trùng cao) + test phải pin base_seed (chống flaky).
+  - **Nghiệm thu vòng 1 — "seed-masked-green"**: chạy `generate_batch` qua **30 seed** → median 34%, **2/30 seed vượt 40%**; generate_batch chỉ BÁO CÁO không ENFORCE; test cherry-pick 1 seed (42) che giấu. → V3 thêm enforcement resample. Verify lại: **0/30 seed vượt 40%**.
+  - **Nghiệm thu vòng 2 — 402 warnings**: bulk-delete `synchronize_session=False` lúc reject để lại ~201 object chết/identity map → SQLite tái dùng PK → 201 SAWarning/resample (đo: res=0→0, res=1→201). Lỗi CẢ production. → Anti vá `expunge_all` (3 nhánh) + `expire_on_commit=False` (ngoài plan, tránh DetachedInstanceError đề detached ở API; Claude verify đường API seed-resample OK). Suite về **2 warning**, 47s → 22s.
+- **Claude tự sửa `feature_list` cho trung thực**: Anti flip `exam-generator`→active + evidence stale ("seed 42"/"41 tests"). Claude sửa về **`in_progress`** (MATRIX-002 toàn-đề xfail + VSTEP/HSK chưa làm) + evidence đúng enforcement multi-seed + 38/1/2 (No-Hallucination).
+- **Nghiệm thu cuối (độc lập)**: ranh giới 7 file (không models/conftest/file Claude/Chấm); pytest **38/1/2 ×2** (~22s, 2 warning); enforcement 0/30 + 0/20 (fresh engine) vượt 40%; API path an toàn với resample; ruff/architecture/traceability sạch; không dep mới.
+- **Trạng thái spec sau B6**: **34 spec — 30 active / 2 gap / 2 planned** (GEN-004 active; gap MATRIX-002 + GRADE-002; planned GRADE-003, SCALE-003). 🎉 **Track B (generator EN) HOÀN TẤT** — chỉ còn MATRIX-002 toàn-đề (xfail, vướng P7) trong nhóm generator.
+
 ## Next Steps
 - ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (S22) · ✅ **Merge main** (S23) · 🎉 **DEPLOY LIVE INTERNET** (S24 — Vercel + Render, đã verify). **Demo sẵn sàng trình sếp.**
 - **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
