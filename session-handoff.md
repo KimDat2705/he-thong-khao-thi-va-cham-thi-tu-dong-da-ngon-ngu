@@ -2,9 +2,9 @@
 
 > 🎉 **DEMO LIVE + AUTH**: Frontend https://he-thong-khao-thi-va-cham-thi-tu-do.vercel.app · Backend https://toeic-backend-5n57.onrender.com. Demo giờ "đăng nhập rồi dùng": `/admin` + `/admin/bank` bắt login (admin/teacher); xem đề thí sinh vẫn mở. Admin seed từ env Render `ADMIN_USERNAME`/`ADMIN_PASSWORD` (Đạt đặt). Verify live OK (login admin → /admin, stats 7/7 đủ). Redeploy = push `main`; nếu login fail sau redeploy → Render "Clear build cache & deploy". Chi tiết auth: memory `deploy-cloud-urls`.
 >
-> **TRẠNG THÁI MỚI NHẤT (thay cho phần dưới — phần dưới là lịch sử tới S24):** `origin/Dat` = `origin/main` = **`63e7cba`**. Suite **42 passed / 1 skipped / 2 xfailed**; spec **38 — 34 active / 2 gap / 2 planned**. 🎉 **Track A** (parser→A5 API→A6 UI) + **Track B** (generator B1-B6 + validator) + **mạch auth** (core→Gate-1 gating→Gate-2 login) ĐỀU HOÀN TẤT, verify thật. **Chi tiết S25-S30 ở `claude-progress.md`** (B4 validator, B6 batch+overlap, A6 bank UI, auth-api, Gate-1/2).
-> **Còn lại (roadmap):** MATRIX-002 toàn-đề (xfail, vướng P7 nghiệm-duy-nhất — khó/rủi ro) · exam edit/release CRUD · (hoãn) VSTEP/HSK đa ngôn ngữ + phân hệ Chấm (GRADE-002/003, Celery).
-> ⚠️ **Nhắc Anti**: phiên S30 lại (a) sửa file Claude (`claude-progress.md`/`session-handoff.md`), (b) commit thẳng `Dat` không tạo nhánh, (c) flip feature_list quá tay — giữ đúng ranh giới lần sau.
+> **TRẠNG THÁI MỚI NHẤT (S31, 20/06 — thay cho phần dưới):** `origin/Dat` = **`9cea81f`** (đi trước `origin/main` = `63e7cba` **2 commit**: docs `00dcc00` + A7 `9cea81f`). Suite **43 passed / 1 skipped / 2 xfailed**; spec **39 — 35 active / 2 gap / 2 planned**. 🎉 **Track A** (parser→A5 API→A6 UI) + **Track B** (generator B1-B6 + validator) + **mạch auth** (core→Gate-1→Gate-2) + **A7 vòng đời đề** (edit/release/retire + lọc candidate-view, SPEC-EXAM-002 → exam-admin-api **active**) ĐỀU HOÀN TẤT, verify thật. **Chi tiết S25-S31 ở `claude-progress.md`.**
+> **Còn lại (roadmap):** **exam lifecycle UI** (web nút Release/Retire/Edit — follow-up A7) · MATRIX-002 toàn-đề (xfail, vướng P7 nghiệm-duy-nhất — khó/rủi ro) · (hoãn) VSTEP/HSK đa ngôn ngữ + phân hệ Chấm (GRADE-002/003, Celery).
+> ⚠️ **Deploy**: A7 đổi hành vi endpoint (lọc đề retired) nhưng `main` CHƯA có A7 → muốn LIVE thì merge `Dat→main` + push (redeploy). 🟢 **Anti S31 tuân thủ đúng ranh giới** (nhánh feature, chờ nghiệm thu mới push, không đụng file Claude) — cải thiện so với S30.
 
 ## Current State & Achievements
 
