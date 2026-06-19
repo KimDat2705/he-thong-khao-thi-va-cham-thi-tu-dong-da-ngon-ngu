@@ -601,6 +601,60 @@
         "tests/test_specs_generation.py::test_SPEC_VALIDATE_001_post_check_cleanup"
       ],
       "notes": "Đang đạt: toeic_generator tích hợp validate_exam post-check và xóa sạch các bản ghi liên quan nếu kiểm định không hợp lệ."
+    },
+    {
+      "id": "SPEC-AUTH-001",
+      "domain": "AUTH",
+      "title": "Đăng ký bảo mật và đăng nhập JWT",
+      "statement": "Hệ thống hỗ trợ đăng ký người dùng mới với mật khẩu được băm bảo mật (không lưu bản rõ), đồng thời đăng nhập bằng thông tin chính xác sẽ cấp mã token JWT hợp lệ chứa thông tin định danh và vai trò.",
+      "acceptance_criteria": [
+        "Đăng ký người dùng thành công lưu mật khẩu dưới dạng chuỗi băm pbkdf2_sha256, không chứa mật khẩu gốc",
+        "Đăng ký thông qua API công khai chỉ cho phép tạo tài khoản có vai trò 'candidate'",
+        "Đăng nhập với tài khoản hợp lệ trả về mã access_token JWT",
+        "Đăng nhập sai tài khoản hoặc sai mật khẩu trả về HTTP 401 Unauthorized"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_auth.py::test_SPEC_AUTH_001_register_and_login"
+      ],
+      "notes": "Lõi auth: Đăng ký mã hóa mật khẩu và đăng nhập lấy JWT token."
+    },
+    {
+      "id": "SPEC-AUTH-002",
+      "domain": "AUTH",
+      "title": "Kiểm thực token và từ chối token không hợp lệ",
+      "statement": "Hệ thống kiểm tra tính hợp lệ của JWT token thông qua dependency get_current_user, chấp nhận các token đúng định dạng, còn hạn, đúng chữ ký và từ chối các token giả mạo, hết hạn, hoặc bị sửa đổi payload.",
+      "acceptance_criteria": [
+        "Đọc thông tin user chính xác từ token hợp lệ",
+        "Token bị sửa đổi nội dung payload nhưng giữ nguyên signature -> Bị từ chối với HTTP 401",
+        "Token được ký bằng secret key khác -> Bị từ chối với HTTP 401",
+        "Token hết hạn (exp trong quá khứ) -> Bị từ chối với HTTP 401",
+        "Token thiếu thành phần hoặc sai cấu trúc -> Bị từ chối với HTTP 401"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_auth.py::test_SPEC_AUTH_002_token_authentication"
+      ],
+      "notes": "Lõi auth: get_current_user xử lý an toàn và từ chối các token giả/hết hạn."
+    },
+    {
+      "id": "SPEC-AUTH-003",
+      "domain": "AUTH",
+      "title": "Phân quyền theo vai trò",
+      "statement": "Hệ thống kiểm tra vai trò (role) của người dùng thông qua require_role, cho phép truy cập nếu vai trò hợp lệ và từ chối với HTTP 403 Forbidden nếu không đủ thẩm quyền.",
+      "acceptance_criteria": [
+        "User có vai trò hợp lệ (ví dụ: 'admin' hoặc 'teacher' trên route tương ứng) -> Truy cập thành công HTTP 200",
+        "User có vai trò không hợp lệ (ví dụ: 'candidate' truy cập route yêu cầu 'admin') -> Bị từ chối với HTTP 403 Forbidden",
+        "Truy cập không có token trên route phân quyền -> Bị từ chối với HTTP 401 Unauthorized"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_auth.py::test_SPEC_AUTH_003_role_authorization"
+      ],
+      "notes": "Lõi auth: require_role phân quyền và trả về 403 khi sai vai trò."
     }
   ]
 }
