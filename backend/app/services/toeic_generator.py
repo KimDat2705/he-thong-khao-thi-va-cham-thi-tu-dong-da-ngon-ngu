@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.exam import Exam
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
+from app.services import exam_validator
 
 class InsufficientBankError(ValueError):
     """Raised when the question bank does not have enough questions to generate an exam."""
@@ -418,4 +419,17 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
             db.commit()
 
     db.refresh(new_exam)
+    
+    # Post-check validation
+    report = exam_validator.validate_exam(db, new_exam.id, structure)
+    if not report["is_valid"]:
+        # Con first, cha next
+        db.query(Question).filter(Question.exam_id == new_exam.id).delete(synchronize_session=False)
+        db.query(QuestionGroup).filter(QuestionGroup.exam_id == new_exam.id).delete(synchronize_session=False)
+        db.query(Exam).filter(Exam.id == new_exam.id).delete(synchronize_session=False)
+        db.commit()
+        
+        errors_summary = "; ".join(report["errors"])
+        raise exam_validator.ExamValidationError(f"Exam validation failed: {errors_summary}")
+        
     return new_exam

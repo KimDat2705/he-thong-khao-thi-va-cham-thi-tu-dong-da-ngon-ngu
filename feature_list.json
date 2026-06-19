@@ -70,9 +70,9 @@
       "id": "exam-validator",
       "name": "Automated Exam Validator Gate",
       "description": "Checks generated exams against constraints, question overlap limits (<40%), and content completeness.",
-      "status": "not_started",
-      "evidence": "",
-      "testedAt": ""
+      "status": "active",
+      "evidence": "Implemented unified validation module validate_exam in app/services/exam_validator.py checking GEN-001 (blueprint counts by part type), MATRIX-002 (per-part difficulty, skipping Part 7), GEN-003 (topic diversity covering P7), GEN-002 (options balance), and ISOLATE-003 (group isolation/orphans). Integrated post-check validation in toeic_generator.py; validation failure triggers atomic deletion (Question -> QuestionGroup -> Exam with synchronize_session=False + commit) and raises ExamValidationError. Added SPEC-VALIDATE-001 in specs.json. Fully tested in tests/test_specs_generation.py: refactored all generation tests to use validate_exam; added test_SPEC_VALIDATE_001_post_check_cleanup (verifies rollback on failure via monkeypatch); added test_validate_exam_catches_violations (manual database injection of constraint violations). Suite stable across two runs: 37 passed / 2 skipped / 2 xfailed; ruff clean; architecture checks pass.",
+      "testedAt": "2026-06-19T15:30:00Z"
     }
   ]
 }

@@ -584,6 +584,23 @@
         "tests/test_specs_exam.py::test_SPEC_EXAM_001_exam_generation_api"
       ],
       "notes": "Đang đạt: app/api/exams.py + app/services/exam_admin.py lộ generator TOEIC qua HTTP cho demo (sinh đề -> xem trên frontend)."
+    },
+    {
+      "id": "SPEC-VALIDATE-001",
+      "domain": "GEN",
+      "title": "Kiểm tra sau sinh đề (post-check) và dọn dẹp DB",
+      "statement": "Sau khi generator tạo đề thi, hệ thống tiến hành kiểm thử toàn bộ các ràng buộc nghiệp vụ (post-check validation) thông qua module validate_exam; nếu phát hiện bất kỳ vi phạm nào, toàn bộ các bản ghi liên quan (câu hỏi, nhóm câu hỏi, đề thi) phải bị xóa hoàn toàn khỏi cơ sở dữ liệu (rollback/cleanup) để đảm bảo không lưu lại đề lỗi.",
+      "acceptance_criteria": [
+        "Gọi validate_exam để kiểm tra các ràng buộc GEN-001, MATRIX-002 per-part, GEN-003, GEN-002, ISOLATE-003 sau khi sinh đề.",
+        "Xóa sạch các bản ghi Questions, QuestionGroups, và Exam vừa tạo ra nếu validate_exam trả về kết quả không hợp lệ.",
+        "Ném lỗi ExamValidationError chứa đầy đủ thông tin mô tả chi tiết các vi phạm."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_generation.py::test_SPEC_VALIDATE_001_post_check_cleanup"
+      ],
+      "notes": "Đang đạt: toeic_generator tích hợp validate_exam post-check và xóa sạch các bản ghi liên quan nếu kiểm định không hợp lệ."
     }
   ]
 }

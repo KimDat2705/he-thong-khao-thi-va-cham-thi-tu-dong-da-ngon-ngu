@@ -13,9 +13,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.database import Base
+from app.models.exam import Exam
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
-from app.services.toeic_generator import generate_toeic_exam, InsufficientBankError
+from app.services.exam_validator import validate_exam, ExamValidationError
+from app.services.toeic_generator import generate_toeic_exam, InsufficientBankError, TOEIC_BLUEPRINT
 
 # Blueprint chuẩn dùng chung cho các assertion
 PART_TARGETS = {1: 6, 2: 25, 3: 39, 4: 30, 5: 30, 6: 16, 7: 54}
@@ -38,17 +40,9 @@ def test_SPEC_GEN_001_blueprint_part_counts(db_session: Session):
     P1=6, P2=25, P3=39, P4=30, P5=30, P6=16, P7=54 — tổng 200 câu.
     """
     exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-GEN-001")
-    questions = exam_questions(db_session, exam.id)
-
-    counts = {}
-    for q in questions:
-        counts[q.part] = counts.get(q.part, 0) + 1
-
-    for part, target in PART_TARGETS.items():
-        assert counts.get(part, 0) == target, (
-            f"Part {part}: kỳ vọng {target} câu, thực tế {counts.get(part, 0)}"
-        )
-    assert len(questions) == TOTAL_TARGET, f"Tổng câu: kỳ vọng 200, thực tế {len(questions)}"
+    report = validate_exam(db_session, exam.id, TOEIC_BLUEPRINT)
+    assert report["details"]["GEN_001"]["valid"], f"GEN-001 validation failed: {report['details']['GEN_001']['errors']}"
+    assert report["is_valid"], f"Exam validation failed: {report['errors']}"
 
 
 def test_SPEC_MATRIX_002_per_part_difficulty_targets(db_session: Session):
@@ -58,34 +52,8 @@ def test_SPEC_MATRIX_002_per_part_difficulty_targets(db_session: Session):
       P3: 3E/7M/3H   P4: 2E/5M/3H    P6: 1E/2M/1H    (theo nhóm)
     """
     exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-MATRIX-002 per-part")
-
-    standalone_targets = {
-        1: {"easy": 2, "medium": 3, "hard": 1},
-        2: {"easy": 6, "medium": 13, "hard": 6},
-        5: {"easy": 8, "medium": 15, "hard": 7},
-    }
-    for part, targets in standalone_targets.items():
-        qs = db_session.query(Question).filter(
-            Question.exam_id == exam.id, Question.part == part
-        ).all()
-        for diff, expected in targets.items():
-            actual = sum(1 for q in qs if (q.difficulty or "medium") == diff)
-            assert actual == expected, (
-                f"Part {part} độ khó '{diff}': kỳ vọng {expected}, thực tế {actual}"
-            )
-
-    group_targets = {
-        3: {"easy": 3, "medium": 7, "hard": 3},
-        4: {"easy": 2, "medium": 5, "hard": 3},
-        6: {"easy": 1, "medium": 2, "hard": 1},
-    }
-    for part, targets in group_targets.items():
-        groups = exam_groups(db_session, exam.id, part)
-        for diff, expected in targets.items():
-            actual = sum(1 for g in groups if (g.difficulty or "medium") == diff)
-            assert actual == expected, (
-                f"Part {part} nhóm độ khó '{diff}': kỳ vọng {expected}, thực tế {actual}"
-            )
+    report = validate_exam(db_session, exam.id, TOEIC_BLUEPRINT)
+    assert report["details"]["MATRIX_002"]["valid"], f"MATRIX-002 validation failed: {report['details']['MATRIX_002']['errors']}"
 
 
 @pytest.mark.xfail(
@@ -131,20 +99,8 @@ def test_SPEC_ISOLATE_003_group_isolation_no_orphans(db_session: Session):
     đủ câu hỏi; câu Part 3/4/6/7 bắt buộc thuộc nhóm (không câu lẻ mồ côi).
     """
     exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-ISOLATE-003")
-    questions = exam_questions(db_session, exam.id)
-    groups = {g.id: g for g in exam_groups(db_session, exam.id)}
-
-    for q in questions:
-        if q.part in (3, 4, 6, 7):
-            assert q.group_id is not None, f"Câu mồ côi: question {q.id} part {q.part} không có nhóm"
-        if q.group_id is not None:
-            group = groups.get(q.group_id)
-            assert group is not None, f"Question {q.id} trỏ tới nhóm không thuộc đề"
-            assert group.exam_id == exam.id, f"Nhóm {group.id} không cùng đề với câu {q.id}"
-            assert group.part == q.part, f"Nhóm {group.id} (part {group.part}) lệch part với câu {q.id} (part {q.part})"
-
-    for group in groups.values():
-        assert len(group.questions) > 0, f"Nhóm {group.id} trong đề không có câu hỏi nào"
+    report = validate_exam(db_session, exam.id, TOEIC_BLUEPRINT)
+    assert report["details"]["ISOLATE_003"]["valid"], f"ISOLATE-003 validation failed: {report['details']['ISOLATE_003']['errors']}"
 
 
 def test_SPEC_GEN_002_answer_balance(db_session: Session):
@@ -152,24 +108,8 @@ def test_SPEC_GEN_002_answer_balance(db_session: Session):
     phải chiếm 20%-28% tổng số câu để tránh mẫu đoán mò.
     """
     exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-GEN-002")
-    four_option_qs = [
-        q for q in exam_questions(db_session, exam.id)
-        if isinstance(q.options, dict) and len(q.options) == 4 and q.reference_answer
-    ]
-    assert len(four_option_qs) > 0
-
-    counts = {"A": 0, "B": 0, "C": 0, "D": 0}
-    for q in four_option_qs:
-        answer = q.reference_answer.strip().upper()
-        if answer in counts:
-            counts[answer] += 1
-
-    total = len(four_option_qs)
-    for letter, count in counts.items():
-        ratio = count / total
-        assert 0.20 <= ratio <= 0.28, (
-            f"Đáp án '{letter}' chiếm {ratio:.1%} ({count}/{total}) — ngoài khoảng [20%, 28%]"
-        )
+    report = validate_exam(db_session, exam.id, TOEIC_BLUEPRINT)
+    assert report["details"]["GEN_002"]["valid"], f"GEN-002 validation failed: {report['details']['GEN_002']['errors']}"
 
 
 def test_SPEC_GEN_003_topic_diversity(db_session: Session):
@@ -178,26 +118,8 @@ def test_SPEC_GEN_003_topic_diversity(db_session: Session):
     """
     for seed in (1, 2, 3, 4, 5):
         exam = generate_toeic_exam(db_session, title=f"Đề kiểm tra SPEC-GEN-003 (seed {seed})", seed=seed)
-
-        for part in (3, 4, 6, 7):
-            groups = exam_groups(db_session, exam.id, part)
-            topic_counts = {}
-            part_total = 0
-            for g in groups:
-                topic = g.topic or "(không có chủ đề)"
-                n = len(g.questions)
-                topic_counts[topic] = topic_counts.get(topic, 0) + n
-                part_total += n
-            assert part_total > 0
-
-            max_group = max(len(g.questions) for g in groups)
-            cap = max(0.20, max_group / part_total)
-
-            for topic, count in topic_counts.items():
-                ratio = count / part_total
-                assert ratio <= cap + 1e-9, (
-                    f"Seed {seed}, Part {part}: chủ đề '{topic}' chiếm {ratio:.1%} ({count}/{part_total} câu) — vượt cap {cap:.1%}"
-                )
+        report = validate_exam(db_session, exam.id, TOEIC_BLUEPRINT)
+        assert report["details"]["GEN_003"]["valid"], f"Seed {seed} GEN-003 validation failed: {report['details']['GEN_003']['errors']}"
 
 
 @pytest.mark.skip(
@@ -302,14 +224,240 @@ def test_SPEC_GEN_007_data_driven_generation(db_session: Session):
     assert exam.exam_type == "MINI_TOEIC"
     assert exam.language == "EN"
     
-    # Check question counts
-    qs = db_session.query(Question).filter(Question.exam_id == exam.id).all()
-    part_counts = {}
-    for q in qs:
-        part_counts[q.part] = part_counts.get(q.part, 0) + 1
-        
-    assert part_counts.get(1, 0) == 2
-    assert part_counts.get(3, 0) == 6  # 2 groups of 3
-    assert part_counts.get(7, 0) == 10  # target 10 questions
-    assert sum(part_counts.values()) == 18 # 2 + 6 + 10 = 18 questions in total
+    # Use validate_exam to prove data-driven exam matches blueprint structure completely
+    report = validate_exam(db_session, exam.id, bp.structure)
+    assert report["is_valid"], f"Data-driven validation failed: {report['errors']}"
+
+
+def test_SPEC_VALIDATE_001_post_check_cleanup(db_session: Session, monkeypatch):
+    """SPEC-VALIDATE-001: Nếu validate_exam trả về invalid, hàm generate_exam phải:
+    1. Xoá tất cả Question, QuestionGroup, Exam đã tạo (theo thứ tự tránh FK constraint).
+    2. Commit việc xoá.
+    3. Raise ExamValidationError.
+    """
+    initial_exams = db_session.query(Exam).count()
+    initial_groups = db_session.query(QuestionGroup).count()
+    initial_questions = db_session.query(Question).count()
+
+    from app.services import toeic_generator
+
+    # Mock validate_exam trả về invalid
+    def mock_validate_exam(db, exam_id, structure):
+        return {
+            "is_valid": False,
+            "errors": ["Mock validation failure for testing cleanup"],
+            "details": {}
+        }
+
+    monkeypatch.setattr(toeic_generator.exam_validator, "validate_exam", mock_validate_exam)
+
+    with pytest.raises(ExamValidationError) as excinfo:
+        generate_toeic_exam(db_session, title="Đề kiểm tra cleanup")
+
+    assert "Mock validation failure for testing cleanup" in str(excinfo.value)
+
+    # Đảm bảo số lượng records trong DB quay lại đúng như cũ
+    assert db_session.query(Exam).count() == initial_exams
+    assert db_session.query(QuestionGroup).count() == initial_groups
+    assert db_session.query(Question).count() == initial_questions
+
+
+def test_validate_exam_catches_violations(db_session: Session):
+    """SPEC-VALIDATE-001: validate_exam phải phát hiện chính xác các vi phạm ràng buộc:
+    - GEN-001: Sai số câu/nhóm/part.
+    - MATRIX-002: Sai phân phối độ khó per-part.
+    - GEN-003: Vượt topic cap.
+    - GEN-002: Lệch tỷ lệ đáp án A/B/C/D.
+    - ISOLATE-003: Câu mồ côi, nhóm trống, sai exam_id.
+    """
+    # 1. Tạo Exam giả lập trong DB
+    test_exam = Exam(
+        title="Đề lỗi phục vụ test validate_exam",
+        language="EN",
+        exam_type="TOEIC",
+        duration_minutes=120,
+        is_active=True
+    )
+    db_session.add(test_exam)
+    db_session.commit()
+    db_session.refresh(test_exam)
+    
+    # 2. Ràng buộc GEN-001: Thiếu/Thừa số câu
+    # Giả sử blueprint yêu cầu Part 1 có 6 câu standalone
+    mini_blueprint = {
+        "exam_type": "TOEIC",
+        "language": "EN",
+        "parts": {
+            "1": {
+                "type": "standalone",
+                "count": 6,
+                "difficulty": {"easy": 2, "medium": 3, "hard": 1}
+            }
+        },
+        "balance_answers": False
+    }
+    
+    # Thêm chỉ 3 câu vào Part 1 (thiếu 3 câu)
+    for i in range(3):
+        q = Question(
+            exam_id=test_exam.id,
+            part=1,
+            type="choice",
+            content=f"Q{i}",
+            options={"A": "1", "B": "2", "C": "3", "D": "4"},
+            reference_answer="A",
+            difficulty="medium",
+            status="approved"
+        )
+        db_session.add(q)
+    db_session.commit()
+    
+    report = validate_exam(db_session, test_exam.id, mini_blueprint)
+    assert not report["is_valid"]
+    assert not report["details"]["GEN_001"]["valid"]
+    assert any("Part 1 (standalone): expected 6 questions, got 3" in err for err in report["errors"])
+    
+    # Dọn dẹp câu hỏi Part 1 vừa tạo
+    db_session.query(Question).filter(Question.exam_id == test_exam.id).delete()
+    db_session.commit()
+
+    # 3. Ràng buộc MATRIX-002: Sai phân phối độ khó per-part
+    # Blueprint yêu cầu Part 1: 2E/3M/1H. Chúng ta thêm 6 câu toàn Easy.
+    for i in range(6):
+        q = Question(
+            exam_id=test_exam.id,
+            part=1,
+            type="choice",
+            content=f"Q{i}",
+            options={"A": "1", "B": "2", "C": "3", "D": "4"},
+            reference_answer="A",
+            difficulty="easy",
+            status="approved"
+        )
+        db_session.add(q)
+    db_session.commit()
+    
+    report = validate_exam(db_session, test_exam.id, mini_blueprint)
+    assert not report["is_valid"]
+    assert not report["details"]["MATRIX_002"]["valid"]
+    assert any("difficulty 'medium': expected 3, got 0" in err for err in report["errors"])
+    
+    # Dọn dẹp
+    db_session.query(Question).filter(Question.exam_id == test_exam.id).delete()
+    db_session.commit()
+
+    # 4. Ràng buộc GEN-003: Topic Diversity
+    # Giả sử Part 3 (grouped): có 2 groups (3 câu/group). Max group size = 3. Part total = 6 câu.
+    # Topic cap = max(0.20, 3/6) = 0.50 (50%).
+    # Nếu cả 2 groups cùng chung topic "Tech" -> topic "Tech" chiếm 100% (>50%) -> LỖI.
+    part3_blueprint = {
+        "exam_type": "TOEIC",
+        "language": "EN",
+        "parts": {
+            "3": {
+                "type": "grouped",
+                "groups": 2,
+                "q_per_group": 3,
+                "difficulty": {"easy": 1, "medium": 1, "hard": 0}
+            }
+        },
+        "balance_answers": False
+    }
+    
+    g1 = QuestionGroup(exam_id=test_exam.id, part=3, topic="Tech", difficulty="easy", status="approved")
+    g2 = QuestionGroup(exam_id=test_exam.id, part=3, topic="Tech", difficulty="medium", status="approved")
+    db_session.add_all([g1, g2])
+    db_session.commit()
+    db_session.refresh(g1)
+    db_session.refresh(g2)
+    
+    for g in [g1, g2]:
+        for i in range(3):
+            q = Question(
+                exam_id=test_exam.id,
+                group_id=g.id,
+                part=3,
+                type="choice",
+                content=f"Q_g{g.id}_{i}",
+                options={"A": "1", "B": "2", "C": "3", "D": "4"},
+                reference_answer="A",
+                difficulty="medium",
+                status="approved"
+            )
+            db_session.add(q)
+    db_session.commit()
+    
+    report = validate_exam(db_session, test_exam.id, part3_blueprint)
+    assert not report["is_valid"]
+    assert not report["details"]["GEN_003"]["valid"]
+    assert any("ratio 100.0% exceeds cap 50.0%" in err for err in report["errors"])
+    
+    # Dọn dẹp
+    db_session.query(Question).filter(Question.exam_id == test_exam.id).delete()
+    db_session.query(QuestionGroup).filter(QuestionGroup.exam_id == test_exam.id).delete()
+    db_session.commit()
+
+    # 5. Ràng buộc GEN-002: Answer Balance
+    # Blueprint yêu cầu cân bằng đáp án. Có 4 câu 4 lựa chọn. Tỷ lệ kỳ vọng mỗi đáp án: 20%-28%.
+    # 4 câu toàn đáp án A -> tỷ lệ A = 100% -> vi phạm.
+    balance_blueprint = {
+        "exam_type": "TOEIC",
+        "language": "EN",
+        "parts": {
+            "1": {
+                "type": "standalone",
+                "count": 4,
+                "difficulty": {"easy": 1, "medium": 2, "hard": 1}
+            }
+        },
+        "balance_answers": True
+    }
+    for i in range(4):
+        q = Question(
+            exam_id=test_exam.id,
+            part=1,
+            type="choice",
+            content=f"Q{i}",
+            options={"A": "1", "B": "2", "C": "3", "D": "4"},
+            reference_answer="A",
+            difficulty="medium",
+            status="approved"
+        )
+        db_session.add(q)
+    db_session.commit()
+    
+    report = validate_exam(db_session, test_exam.id, balance_blueprint)
+    assert not report["is_valid"]
+    assert not report["details"]["GEN_002"]["valid"]
+    assert any("Correct answer 'A': ratio 100.0% is outside range" in err for err in report["errors"])
+    
+    # Dọn dẹp
+    db_session.query(Question).filter(Question.exam_id == test_exam.id).delete()
+    db_session.commit()
+
+    # 6. Ràng buộc ISOLATE-003: Orphans (câu hỏi mồ côi trong grouped part)
+    # Thêm 1 câu thuộc Part 3 nhưng không gán group_id.
+    q_orphan = Question(
+        exam_id=test_exam.id,
+        part=3,
+        type="choice",
+        content="Orphan",
+        options={"A": "1", "B": "2", "C": "3", "D": "4"},
+        reference_answer="A",
+        difficulty="medium",
+        status="approved"
+    )
+    db_session.add(q_orphan)
+    db_session.commit()
+    
+    report = validate_exam(db_session, test_exam.id, part3_blueprint)
+    assert not report["is_valid"]
+    assert not report["details"]["ISOLATE_003"]["valid"]
+    assert any("does not have a group" in err for err in report["errors"])
+    
+    # Dọn dẹp cuối cùng
+    db_session.query(Question).filter(Question.exam_id == test_exam.id).delete()
+    db_session.query(QuestionGroup).filter(QuestionGroup.exam_id == test_exam.id).delete()
+    db_session.query(Exam).filter(Exam.id == test_exam.id).delete()
+    db_session.commit()
 
