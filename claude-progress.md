@@ -301,6 +301,17 @@
 - **Nghiệm thu cuối (độc lập)**: ranh giới 7 file (không models/conftest/file Claude/Chấm); pytest **38/1/2 ×2** (~22s, 2 warning); enforcement 0/30 + 0/20 (fresh engine) vượt 40%; API path an toàn với resample; ruff/architecture/traceability sạch; không dep mới.
 - **Trạng thái spec sau B6**: **34 spec — 30 active / 2 gap / 2 planned** (GEN-004 active; gap MATRIX-002 + GRADE-002; planned GRADE-003, SCALE-003). 🎉 **Track B (generator EN) HOÀN TẤT** — chỉ còn MATRIX-002 toàn-đề (xfail, vướng P7) trong nhóm generator.
 
+### Session 27 -- 2026-06-19 (Claude + Anti — A6: UI duyệt bank; 🎉 Track A HOÀN TẤT + push B4/B6 + dọn repo)
+- **Push + dọn dẹp**: push `Dat` lên GitHub (`ec541bd..8f8be4c` — B4+B6 lên remote); xoá worktree Antigravity stale `starlit-vapor-rolls-14h37` (ở baseline `ba2eeab`, sạch). Remote chỉ còn `Dat`/`main`.
+- **Quyết định bước tiếp (Claude chọn, Đạt uỷ quyền)**: chọn **A6** (đóng nốt Track A) thay vì MATRIX-002 (rủi ro cao — P7 nghiệm-duy-nhất khoá độ khó, kể cả reframe per-skill Reading vẫn không đạt 25/50/25; phải mổ conftest giòn) hoặc auth-api (phá demo LIVE — cần login frontend + seed user + deploy). A6 sạch, rủi ro thấp, dựng trên A5 đã test.
+- **Việc A6 HOÀN THÀNH** (`feat/bank-admin-ui` → FF vào `Dat`, commit `3c066b0`; **CHƯA push**). FRONTEND, KHÔNG spec backend. `src/app/admin/bank/page.tsx` (mới, client component) trên endpoint A5: list/filter (part/status/topic/difficulty)/phân trang câu draft + bulk-select + approve → POST /bank/questions/approve; stats từ getBankStats(); tabs /admin↔/admin/bank; `api.ts` thêm listBankQuestions + approveBankQuestions (khớp contract A5).
+- **Nghiệm thu (Claude, độc lập — QUA TRÌNH DUYỆT bằng preview tools)**: verify contract API khớp backend thật (list {total,items}, approve {ids}→{updated}, getBankStats có sẵn) TRƯỚC; chạy backend(8000 demo DB)+frontend(preview 3000); mở /admin/bank → render demo thật **15 draft/185 approved**; select-all 15 → bấm Duyệt → **draft→approved, stats 0/200, bảng trống, success msg**; console **0 lỗi**, **0 failed request**; `npm run build` PASS (route /admin/bank build sạch, TS strict). Ranh giới 4 file (chỉ frontend + feature_list, không đụng backend/models).
+  - ⚠️ Cú bấm Duyệt bị **classifier an toàn chặn** (ghi trạng thái bền vững) → hỏi Đạt → Đạt cho phép → bấm lại OK.
+  - **Claude tự sửa feature_list cho trung thực**: Anti thay evidence làm MẤT note "STILL MISSING: auth + exam CRUD" + spec refs → khôi phục (in_progress đúng).
+  - **Dọn demo DB**: UI chỉ duyệt CÂU, không duyệt NHÓM → còn 10 nhóm draft → Claude re-approve nhóm → bank về 200 câu/43 nhóm approved (generator không hỏng).
+- **Lưu ý môi trường (không phải lỗi)**: Anti báo `curl localhost` đôi lúc bị từ chối do Windows phân giải `localhost`→IPv6 `[::1]` còn dev server nghe IPv4 → dùng `127.0.0.1` thì OK. Next.js 16 chặn 2 dev server cùng dir (phải kill server cũ trước khi preview_start).
+- **Trạng thái**: spec **34 — 30 active / 2 gap / 2 planned** (A6 frontend không flip spec). `exam-admin-api` vẫn in_progress (còn auth + exam edit/release CRUD). 🎉 **Track A HOÀN TẤT** (parser→A5 API→A6 UI). Roadmap gốc còn: auth-api · MATRIX-002 toàn-đề (xfail) · (hoãn) VSTEP/HSK + phân hệ Chấm.
+
 ## Next Steps
 - ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (S22) · ✅ **Merge main** (S23) · 🎉 **DEPLOY LIVE INTERNET** (S24 — Vercel + Render, đã verify). **Demo sẵn sàng trình sếp.**
 - **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
