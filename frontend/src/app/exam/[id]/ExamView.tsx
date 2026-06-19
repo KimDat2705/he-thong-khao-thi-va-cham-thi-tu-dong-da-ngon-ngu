@@ -78,11 +78,25 @@ export default function ExamView({ id }: { id: string }) {
   const [exam, setExam] = useState<ExamDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAnswers, setShowAnswers] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     getExam(id, showAnswers)
-      .then(setExam)
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      .then((data) => {
+        setExam(data);
+        // Only clear the auth notice on a successful answer-key load (teacher/admin);
+        // the revert-triggered candidate re-fetch must NOT wipe a just-set notice.
+        if (showAnswers) setAuthError(null);
+      })
+      .catch((err) => {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (showAnswers && (errMsg.includes("401") || errMsg.includes("403"))) {
+          setAuthError("Bạn không có quyền xem đáp án (chỉ dành cho Giáo viên hoặc Admin).");
+          setShowAnswers(false);
+        } else {
+          setError(errMsg);
+        }
+      });
   }, [id, showAnswers]);
 
   if (error) {
@@ -115,6 +129,13 @@ export default function ExamView({ id }: { id: string }) {
           {showAnswers ? "Đang hiện đáp án (giáo viên)" : "Hiện đáp án (giáo viên)"}
         </button>
       </div>
+
+      {authError && (
+        <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          ⚠️ {authError}
+        </div>
+      )}
+
       <h1 className="mt-2 text-2xl font-bold">{exam.title}</h1>
       <p className="mt-1 text-sm text-gray-500">
         {exam.exam_type} · {exam.total_questions} câu · {exam.duration_minutes} phút

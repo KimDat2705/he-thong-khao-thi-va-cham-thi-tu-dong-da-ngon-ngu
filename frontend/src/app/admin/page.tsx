@@ -2,20 +2,25 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   type BankStats,
   type ExamSummary,
   getBankStats,
   listExams,
   generateExam,
+  getToken,
+  clearToken,
 } from "@/lib/api";
 
 export default function AdminPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<BankStats | null>(null);
   const [exams, setExams] = useState<ExamSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   async function refresh() {
     setError(null);
@@ -24,26 +29,46 @@ export default function AdminPage() {
       setStats(s);
       setExams(e);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    // Initial load (kept out of refresh() so no setState runs synchronously in the effect body).
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    // Initial load only if token is present
     (async () => {
       try {
         const [s, e] = await Promise.all([getBankStats(), listExams()]);
         setStats(s);
         setExams(e);
+        setAuthChecked(true);
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (errMsg.includes("401")) {
+          clearToken();
+          router.push("/login");
+        } else {
+          setError(errMsg);
+          setAuthChecked(true);
+        }
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [router]);
 
   async function onGenerate() {
     setGenerating(true);
@@ -53,15 +78,42 @@ export default function AdminPage() {
       await generateExam(title);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
     } finally {
       setGenerating(false);
     }
   }
 
+  function onLogout() {
+    clearToken();
+    router.push("/login");
+  }
+
+  if (!authChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm text-gray-500">
+        Đang xác thực thông tin đăng nhập…
+      </div>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-bold">Quản trị đề thi TOEIC</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Quản trị đề thi TOEIC</h1>
+        <button
+          onClick={onLogout}
+          className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+        >
+          Đăng xuất
+        </button>
+      </div>
       <p className="mt-1 text-sm text-gray-500">
         Ngân hàng câu hỏi đã duyệt → sinh đề → xem đề.
       </p>

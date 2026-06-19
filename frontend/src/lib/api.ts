@@ -74,7 +74,34 @@ export interface BankStats {
   blueprint_sufficiency: PartStats[];
 }
 
+export function getToken(): string | null {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("auth_token");
+  }
+  return null;
+}
+
+export function setToken(token: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("auth_token", token);
+  }
+}
+
+export function clearToken(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("auth_token");
+  }
+}
+
+export function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { "Authorization": `Bearer ${token}` } : {};
+}
+
 async function jsonOrThrow<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    clearToken();
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -88,8 +115,23 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function loginRequest(username: string, password: string): Promise<{ access_token: string }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    }),
+  );
+}
+
 export async function getBankStats(): Promise<BankStats> {
-  return jsonOrThrow(await fetch(`${API_BASE}/api/v1/bank/stats`, { cache: "no-store" }));
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/bank/stats`, {
+      cache: "no-store",
+      headers: { ...authHeaders() },
+    }),
+  );
 }
 
 export async function listExams(): Promise<ExamSummary[]> {
@@ -100,7 +142,10 @@ export async function generateExam(title: string, seed?: number): Promise<ExamSu
   return jsonOrThrow(
     await fetch(`${API_BASE}/api/v1/exams/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
       body: JSON.stringify({ title, seed }),
     }),
   );
@@ -111,7 +156,13 @@ export async function getExam(
   includeAnswers = false,
 ): Promise<ExamDetail> {
   const qs = includeAnswers ? "?include_answers=true" : "";
-  return jsonOrThrow(await fetch(`${API_BASE}/api/v1/exams/${id}${qs}`, { cache: "no-store" }));
+  const headers = includeAnswers ? { ...authHeaders() } : {};
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${id}${qs}`, {
+      cache: "no-store",
+      headers,
+    }),
+  );
 }
 
 // Resolve a (possibly bare-filename) audio_url into a playable URL via the
@@ -173,14 +224,22 @@ export async function listBankQuestions(params: {
   if (params.limit !== undefined) url.searchParams.append("limit", String(params.limit));
   if (params.offset !== undefined) url.searchParams.append("offset", String(params.offset));
 
-  return jsonOrThrow(await fetch(url.toString(), { cache: "no-store" }));
+  return jsonOrThrow(
+    await fetch(url.toString(), {
+      cache: "no-store",
+      headers: { ...authHeaders() },
+    }),
+  );
 }
 
 export async function approveBankQuestions(ids: number[]): Promise<{ updated: number }> {
   return jsonOrThrow(
     await fetch(`${API_BASE}/api/v1/bank/questions/approve`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
       body: JSON.stringify({ ids }),
     }),
   );

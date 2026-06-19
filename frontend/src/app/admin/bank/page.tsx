@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   type QuestionRead,
   type BankStats,
   listBankQuestions,
   approveBankQuestions,
   getBankStats,
+  getToken,
+  clearToken,
 } from "@/lib/api";
 
 export default function BankAdminPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<BankStats | null>(null);
   const [questions, setQuestions] = useState<QuestionRead[]>([]);
   const [total, setTotal] = useState(0);
@@ -18,6 +22,7 @@ export default function BankAdminPage() {
   const [approving, setApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Filter states
   const [status, setStatus] = useState<string>("draft");
@@ -32,6 +37,16 @@ export default function BankAdminPage() {
 
   // Selection states
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Guard authentication
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    setAuthChecked(true);
+  }, [router]);
 
   // Fetch stats and questions
   async function fetchData() {
@@ -55,16 +70,24 @@ export default function BankAdminPage() {
       setTotal(qData.total);
       setStats(sData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  // Trigger fetch when parameters or page change
+  // Trigger fetch when parameters or page change, only if authenticated
   useEffect(() => {
-    fetchData();
-  }, [part, status, difficulty, topic, page]);
+    if (authChecked) {
+      fetchData();
+    }
+  }, [part, status, difficulty, topic, page, authChecked]);
 
   // Debounce topic input
   useEffect(() => {
@@ -107,10 +130,29 @@ export default function BankAdminPage() {
       setSelectedIds([]);
       await fetchData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
     } finally {
       setApproving(false);
     }
+  }
+
+  function onLogout() {
+    clearToken();
+    router.push("/login");
+  }
+
+  if (!authChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm text-gray-500">
+        Đang xác thực thông tin đăng nhập…
+      </div>
+    );
   }
 
   // Calculate quick stats totals
@@ -126,7 +168,15 @@ export default function BankAdminPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-bold">Duyệt Ngân hàng Câu hỏi</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Duyệt Ngân hàng Câu hỏi</h1>
+        <button
+          onClick={onLogout}
+          className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+        >
+          Đăng xuất
+        </button>
+      </div>
       <p className="mt-1 text-sm text-gray-500">
         Giáo viên duyệt câu hỏi từ trạng thái Draft sang Approved để cho phép sinh đề.
       </p>
