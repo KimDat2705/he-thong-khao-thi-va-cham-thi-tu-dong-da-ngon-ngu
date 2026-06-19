@@ -66,6 +66,15 @@ export default function AdminPage() {
         Ngân hàng câu hỏi đã duyệt → sinh đề → xem đề.
       </p>
 
+      <div className="mt-4 flex gap-4 text-sm font-medium border-b border-gray-200 pb-1">
+        <Link href="/admin" className="text-blue-600 border-b-2 border-blue-600 pb-1 font-semibold">
+          Quản trị đề thi
+        </Link>
+        <Link href="/admin/bank" className="text-gray-500 hover:text-gray-700 pb-1">
+          Duyệt ngân hàng câu hỏi
+        </Link>
+      </div>
+
       {error && (
         <div className="mt-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}

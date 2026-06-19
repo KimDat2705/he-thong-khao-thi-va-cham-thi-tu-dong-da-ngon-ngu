@@ -129,3 +129,59 @@ export function imageSrc(imageUrl: string | null): string | null {
   if (imageUrl.startsWith("/")) return `${API_BASE}${imageUrl}`;
   return null; // bare index (legacy) — no real file to show
 }
+
+export interface QuestionRead {
+  id: number;
+  exam_id: number | null;
+  group_id: number | null;
+  part: number | null;
+  type: string;
+  content: string;
+  audio_url: string | null;
+  image_url: string | null;
+  options: Record<string, string> | null;
+  reference_answer: string | null;
+  difficulty: string | null;
+  clo: string | null;
+  topic: string | null;
+  status: string;
+  explanation: string | null;
+  source_question_id: number | null;
+  content_hash: string | null;
+  import_batch_id: number | null;
+  created_at: string | null;
+}
+
+export interface QuestionListResponse {
+  total: number;
+  items: QuestionRead[];
+}
+
+export async function listBankQuestions(params: {
+  part?: number;
+  status?: string;
+  topic?: string;
+  difficulty?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<QuestionListResponse> {
+  const url = new URL(`${API_BASE}/api/v1/bank/questions`);
+  if (params.part !== undefined) url.searchParams.append("part", String(params.part));
+  if (params.status !== undefined) url.searchParams.append("status", params.status);
+  if (params.topic !== undefined) url.searchParams.append("topic", params.topic);
+  if (params.difficulty !== undefined) url.searchParams.append("difficulty", params.difficulty);
+  if (params.limit !== undefined) url.searchParams.append("limit", String(params.limit));
+  if (params.offset !== undefined) url.searchParams.append("offset", String(params.offset));
+
+  return jsonOrThrow(await fetch(url.toString(), { cache: "no-store" }));
+}
+
+export async function approveBankQuestions(ids: number[]): Promise<{ updated: number }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/bank/questions/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
+  );
+}
