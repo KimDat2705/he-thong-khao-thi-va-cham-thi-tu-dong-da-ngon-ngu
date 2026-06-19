@@ -335,6 +335,15 @@
 - **Claude sửa feature_list (Anti quên update)**: cập nhật evidence `auth-api` + `exam-admin-api` — "endpoints đã GATED (Gate-1); STILL MISSING: login frontend (Gate-2) + provisioning admin trên live".
 - **Trạng thái spec sau Gate-1**: **38 spec — 34 active / 2 gap / 2 planned** (catalog +1: SPEC-AUTH-004). 🔒 Backend được bảo vệ (chỉ admin/teacher sinh/duyệt; đáp án không lộ). **Bước cuối mạch auth: Gate-2 (login frontend)** → rồi merge Dat→main + set ADMIN_PASSWORD env Render → demo live "đăng nhập rồi dùng".
 
+### Session 30 -- 2026-06-19 (Claude + Anti — Gate-2: login frontend; 🔒 MẠCH AUTH HOÀN TẤT)
+- **Việc Gate-2 HOÀN THÀNH** (`feat/frontend-login` → FF vào `Dat`, commit `a73d908`, đã push). FRONTEND, không spec backend.
+  - `api.ts`: token helpers SSR-safe (bọc `typeof window`) + `authHeaders()` gắn `Authorization` vào protected calls (stats/generate/bank list+approve/getExam-với-answers); `jsonOrThrow` 401→clearToken; `loginRequest`.
+  - `login/page.tsx` (mới): form đăng nhập → loginRequest → setToken → /admin; báo lỗi sai mật khẩu. `admin/page.tsx` + `admin/bank/page.tsx`: chưa token → redirect /login (không fetch); nút Đăng xuất; 401→clear+/login. `ExamView.tsx`: toggle đáp án khi không quyền → banner + ẩn đáp án, không crash.
+- **Nghiệm thu (Claude, độc lập — TRÌNH DUYỆT preview + production build)**: chưa login→/login; login admin→/admin (stats) & /admin/bank (10 draft); logout→/login; candidate /exam/{id} render đề ẩn-đáp-án KHÔNG cần login; toggle giáo viên không quyền→401→banner "không có quyền"+ẩn+không crash; console 0 lỗi; `npm run build` PASS. Spec **38 — 34/2/2**.
+- **⚠️ 4 sai sót Anti phiên này — Claude xử lý** (nhắc lần sau): (1) Anti **sửa `claude-progress.md` + `session-handoff.md`** (file Claude) → Claude hoàn nguyên; (2) backend Anti chạy **không có admin user** → Anti "verified" không xác thực được → Claude tự seed admin + chạy backend riêng verify thật; (3) **bug UX ExamView** (banner bị re-fetch xoá) → Claude vá 2 dòng + verify; (4) **feature_list over-claim** (flip cả 2 active) → Claude sửa (exam-admin-api về in_progress, còn exam CRUD).
+- **🔒 MẠCH AUTH HOÀN TẤT** (auth-api core → Gate-1 gating → Gate-2 login), verify thật mọi vai. Demo trên `Dat` = "đăng nhập rồi dùng" (admin/adminpassword local).
+- **Deploy-readiness (BÀN GIAO Đạt — chưa thực hiện)**: chuỗi seed admin đã nối (`cloud_bootstrap.main`→`seed_toeic_demo.main`→`seed_admin_user` dòng 215). Bước ops cập nhật DEMO LIVE: (a) **Đạt set `ADMIN_PASSWORD` mạnh** trên Render (Claude KHÔNG nhập credential); (b) merge `Dat→main` + push → redeploy. ⚠️ cloud_bootstrap **idempotent** (DB có đề sẵn → bỏ qua seed) → nếu Render giữ DB cũ, admin có thể KHÔNG được seed → **PHẢI verify login trên live sau redeploy** (skip thì clear DB / seed admin thủ công).
+
 ## Next Steps
 - ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (S22) · ✅ **Merge main** (S23) · 🎉 **DEPLOY LIVE INTERNET** (S24 — Vercel + Render, đã verify). **Demo sẵn sàng trình sếp.**
 - **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
