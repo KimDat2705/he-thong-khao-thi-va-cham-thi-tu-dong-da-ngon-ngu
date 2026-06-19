@@ -122,27 +122,128 @@ def test_SPEC_GEN_003_topic_diversity(db_session: Session):
         assert report["details"]["GEN_003"]["valid"], f"Seed {seed} GEN-003 validation failed: {report['details']['GEN_003']['errors']}"
 
 
-@pytest.mark.skip(
-    reason="SPEC-GEN-004 cần cột questions.source_question_id (thêm qua Alembic) "
-    "để truy vết câu nguồn giữa các đề trong lô — schema hiện tại chưa có"
-)
-def test_SPEC_GEN_004_cross_exam_overlap(db_session: Session):
-    """SPEC-GEN-004: Khi sinh lô 100 đề, hai đề bất kỳ không được trùng nhau quá
-    40% câu hỏi nguồn (truy vết qua source_question_id).
-
-    Kế hoạch test khi schema sẵn sàng: sinh N đề (N nhỏ trong test, 100 ở script
-    kiểm định), so source_question_id từng cặp: |giao| / 200 <= 0.40.
+def test_SPEC_GEN_004_cross_exam_overlap():
+    """SPEC-GEN-004: Khi sinh lô đề, hai đề bất kỳ không được trùng nhau quá 40% câu nguồn.
+    Dùng DB rỗng cục bộ để seed bank dư riêng biệt nhằm đảm bảo đa dạng hóa đề thi và không đụng conftest.
     """
-    exams = [generate_toeic_exam(db_session, title=f"Đề lô {i}") for i in range(5)]
-    source_sets = []
-    for exam in exams:
-        qs = exam_questions(db_session, exam.id)
-        source_sets.append({q.source_question_id for q in qs})
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    TestingSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = TestingSession()
+    try:
+        # Seed surplus question bank
+        # Part 1: needs 6. Seed 30.
+        for i in range(30):
+            diff = "easy" if i < 10 else ("medium" if i < 20 else "hard")
+            db.add(Question(
+                part=1, type="choice", content=f"P1Q_{i}", reference_answer="A", difficulty=diff,
+                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+            ))
 
-    for i in range(len(source_sets)):
-        for j in range(i + 1, len(source_sets)):
-            overlap = len(source_sets[i] & source_sets[j]) / TOTAL_TARGET
-            assert overlap <= 0.40, f"Đề {i} và {j} trùng {overlap:.0%} câu nguồn — vượt 40%"
+        # Part 2: needs 25. Seed 100.
+        for i in range(100):
+            diff = "easy" if i < 30 else ("medium" if i < 70 else "hard")
+            db.add(Question(
+                part=2, type="choice", content=f"P2Q_{i}", reference_answer="B", difficulty=diff,
+                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+            ))
+
+        # Part 3: needs 13 groups of 3. Seed 50 groups.
+        for i in range(50):
+            diff = "easy" if i < 15 else ("medium" if i < 35 else "hard")
+            group = QuestionGroup(part=3, topic=f"P3Topic_{i}", difficulty=diff, status="approved")
+            db.add(group)
+            db.commit()
+            db.refresh(group)
+            for j in range(3):
+                db.add(Question(
+                    group_id=group.id, part=3, type="choice", content=f"P3G{i}Q{j}", reference_answer="C", difficulty=diff,
+                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                ))
+
+        # Part 4: needs 10 groups of 3. Seed 40 groups.
+        for i in range(40):
+            diff = "easy" if i < 12 else ("medium" if i < 28 else "hard")
+            group = QuestionGroup(part=4, topic=f"P4Topic_{i}", difficulty=diff, status="approved")
+            db.add(group)
+            db.commit()
+            db.refresh(group)
+            for j in range(3):
+                db.add(Question(
+                    group_id=group.id, part=4, type="choice", content=f"P4G{i}Q{j}", reference_answer="D", difficulty=diff,
+                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                ))
+
+        # Part 5: needs 30. Seed 120.
+        for i in range(120):
+            diff = "easy" if i < 35 else ("medium" if i < 85 else "hard")
+            db.add(Question(
+                part=5, type="choice", content=f"P5Q_{i}", reference_answer="A", difficulty=diff,
+                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+            ))
+
+        # Part 6: needs 4 groups of 4. Seed 20 groups.
+        for i in range(20):
+            diff = "easy" if i < 5 else ("medium" if i < 15 else "hard")
+            group = QuestionGroup(part=6, topic=f"P6Topic_{i}", difficulty=diff, status="approved")
+            db.add(group)
+            db.commit()
+            db.refresh(group)
+            for j in range(4):
+                db.add(Question(
+                    group_id=group.id, part=6, type="choice", content=f"P6G{i}Q{j}", reference_answer="B", difficulty=diff,
+                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                ))
+
+        # Part 7: needs 54 questions. Seed 50 groups of sizes 2, 3, 4, 5, 6 (10 groups each).
+        # Total: 10*2 + 10*3 + 10*4 + 10*5 + 10*6 = 20 + 30 + 40 + 50 + 60 = 200 questions in bank.
+        p7_idx = 0
+        for size in (2, 3, 4, 5, 6):
+            for i in range(10):
+                diff = "easy" if p7_idx % 3 == 0 else ("medium" if p7_idx % 3 == 1 else "hard")
+                group = QuestionGroup(part=7, topic=f"P7Topic_sz{size}_{i}", difficulty=diff, status="approved")
+                db.add(group)
+                db.commit()
+                db.refresh(group)
+                for j in range(size):
+                    db.add(Question(
+                        group_id=group.id, part=7, type="choice", content=f"P7G{p7_idx}Q{j}", reference_answer="C", difficulty=diff,
+                        options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                    ))
+                p7_idx += 1
+
+        db.commit()
+
+        # Call generate_batch with different base_seeds to verify enforcement works
+        from app.services.toeic_generator import generate_batch, TOEIC_BLUEPRINT
+        
+        for base_seed in [5, 8, 21, 23]:
+            result = generate_batch(db, TOEIC_BLUEPRINT, count=5, base_seed=base_seed)
+            exams = result["exams"]
+            report = result["overlap_report"]
+            
+            # Verify details
+            assert len(exams) == 5
+            for exam in exams:
+                qs = db.query(Question).filter(Question.exam_id == exam.id).all()
+                assert len(qs) == 200
+                assert all(q.source_question_id is not None for q in qs)
+                
+            print(f"Seed {base_seed} -> Max Overlap: {report['max_overlap']:.2%} | Resamples: {report['resample_count']}")
+            assert report["max_overlap"] > 0.0, f"Seed {base_seed}: Overlap should be non-trivial"
+            assert report["max_overlap"] <= 0.40, f"Seed {base_seed}: Max overlap {report['max_overlap']:.2%} exceeds 40%"
+            
+            # Clean up generated exams for this seed loop
+            for exam in exams:
+                db.query(Question).filter(Question.exam_id == exam.id).delete(synchronize_session=False)
+                db.query(QuestionGroup).filter(QuestionGroup.exam_id == exam.id).delete(synchronize_session=False)
+                db.query(Exam).filter(Exam.id == exam.id).delete(synchronize_session=False)
+            db.commit()
+            db.expunge_all()
+
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
 
 
 def test_SPEC_GEN_005_seeded_generation_reproducible(db_session: Session):

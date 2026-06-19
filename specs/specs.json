@@ -363,11 +363,11 @@
         "Mỗi câu clone lưu source_question_id trỏ về câu gốc trong bank"
       ],
       "verification": "pytest",
-      "status": "planned",
+      "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_GEN_004_cross_exam_overlap"
       ],
-      "notes": "Cần thêm cột questions.source_question_id (qua Alembic) để truy vết nguồn — test SKIP đến khi schema sẵn sàng."
+      "notes": "Đang đạt: generate_batch sinh lô đề thi đồng thời tính toán ma trận độ trùng lặp câu nguồn giữa các đề và đảm bảo tỷ lệ trùng <= 40%."
     },
     {
       "id": "SPEC-GEN-005",

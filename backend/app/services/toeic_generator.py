@@ -433,3 +433,149 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
         raise exam_validator.ExamValidationError(f"Exam validation failed: {errors_summary}")
         
     return new_exam
+
+
+def generate_batch(db: Session, structure: dict, count: int, base_seed: int = None, max_overlap_limit: float = 0.40) -> dict:
+    """
+    Generates a batch of count exams using seeds derived from base_seed.
+    Enforces overlap <= max_overlap_limit sequentially.
+    Rejected candidates are deleted and resampled within a total budget of 10*count attempts.
+    """
+    if count <= 0:
+        raise ValueError("Batch count must be greater than 0")
+
+    original_expire = db.expire_on_commit
+    db.expire_on_commit = False
+
+    max_attempts = 10 * count
+
+    # Generate distinct candidate seeds deterministically
+    if base_seed is not None:
+        rng = random.Random(base_seed)
+        candidate_seeds = [rng.randint(0, 1000000) for _ in range(max_attempts)]
+    else:
+        candidate_seeds = [None] * max_attempts
+
+    # Calculate expected total questions from the blueprint structure
+    expected_total = 0
+    for part_str, part_spec in structure.get("parts", {}).items():
+        part_type = part_spec.get("type")
+        if part_type == "standalone":
+            expected_total += part_spec.get("count", 0)
+        elif part_type == "grouped":
+            expected_total += part_spec.get("groups", 0) * part_spec.get("q_per_group", 0)
+        elif part_type == "subset_sum":
+            expected_total += part_spec.get("target_questions", 0)
+
+    accepted_exams = []
+    accepted_source_sets = []
+    resample_count = 0
+    attempt = 0
+
+    try:
+        while len(accepted_exams) < count and attempt < max_attempts:
+            seed = candidate_seeds[attempt]
+            attempt += 1
+
+            try:
+                # Try to generate candidate exam
+                candidate = generate_exam(db, structure, title=f"Đề {len(accepted_exams) + 1} (Batch)", duration_minutes=120, seed=seed)
+            except (InsufficientBankError, exam_validator.ExamValidationError):
+                resample_count += 1
+                continue
+
+            # Retrieve source sets to compute overlap
+            qs = db.query(Question).filter(Question.exam_id == candidate.id).all()
+            candidate_sources = {q.source_question_id for q in qs if q.source_question_id is not None}
+
+            # Check overlap against all previously accepted exams in the batch
+            is_overlapping = False
+            for prev_set in accepted_source_sets:
+                common = len(candidate_sources & prev_set)
+                overlap_ratio = common / expected_total if expected_total > 0 else 0.0
+                if overlap_ratio > max_overlap_limit:
+                    is_overlapping = True
+                    break
+
+            if is_overlapping:
+                # Overlap exceeded limit, delete candidate and try again
+                db.query(Question).filter(Question.exam_id == candidate.id).delete(synchronize_session=False)
+                db.query(QuestionGroup).filter(QuestionGroup.exam_id == candidate.id).delete(synchronize_session=False)
+                db.query(Exam).filter(Exam.id == candidate.id).delete(synchronize_session=False)
+                db.commit()
+                db.expunge_all()
+                resample_count += 1
+                continue
+
+            # Accepted candidate
+            accepted_exams.append(candidate)
+            accepted_source_sets.append(candidate_sources)
+
+    except Exception as e:
+        # Atomic rollback of all accepted exams in this batch session
+        for exam in accepted_exams:
+            db.query(Question).filter(Question.exam_id == exam.id).delete(synchronize_session=False)
+            db.query(QuestionGroup).filter(QuestionGroup.exam_id == exam.id).delete(synchronize_session=False)
+            db.query(Exam).filter(Exam.id == exam.id).delete(synchronize_session=False)
+        db.commit()
+        db.expunge_all()
+        raise e
+    finally:
+        db.expire_on_commit = original_expire
+
+    if len(accepted_exams) < count:
+        # Budget exhausted, clean up accepted exams and raise validation error
+        for exam in accepted_exams:
+            db.query(Question).filter(Question.exam_id == exam.id).delete(synchronize_session=False)
+            db.query(QuestionGroup).filter(QuestionGroup.exam_id == exam.id).delete(synchronize_session=False)
+            db.query(Exam).filter(Exam.id == exam.id).delete(synchronize_session=False)
+        db.commit()
+        db.expunge_all()
+        raise exam_validator.ExamValidationError(
+            f"Exhausted attempt budget ({max_attempts}) without satisfying overlap limit (<= {max_overlap_limit:.1%}). "
+            f"Only generated {len(accepted_exams)} of {count} exams."
+        )
+
+    # Compute final pairwise overlaps report
+    pairwise_overlaps = []
+    max_overlap = 0.0
+    sum_overlap = 0.0
+    pair_count = 0
+
+    for i in range(len(accepted_source_sets)):
+        for j in range(i + 1, len(accepted_source_sets)):
+            exam_a, set_a = accepted_exams[i], accepted_source_sets[i]
+            exam_b, set_b = accepted_exams[j], accepted_source_sets[j]
+            common = len(set_a & set_b)
+            overlap_ratio = common / expected_total if expected_total > 0 else 0.0
+
+            pairwise_overlaps.append({
+                "exam_1_id": exam_a.id,
+                "exam_1_title": exam_a.title,
+                "exam_2_id": exam_b.id,
+                "exam_2_title": exam_b.title,
+                "overlap_ratio": round(overlap_ratio, 4),
+                "common_questions_count": common
+            })
+
+            if overlap_ratio > max_overlap:
+                max_overlap = overlap_ratio
+            sum_overlap += overlap_ratio
+            pair_count += 1
+
+    avg_overlap = sum_overlap / pair_count if pair_count > 0 else 0.0
+
+    overlap_report = {
+        "pairwise_overlaps": pairwise_overlaps,
+        "max_overlap": round(max_overlap, 4),
+        "average_overlap": round(avg_overlap, 4),
+        "threshold": max_overlap_limit,
+        "resample_count": resample_count
+    }
+
+    return {
+        "exams": accepted_exams,
+        "overlap_report": overlap_report
+    }
+
+

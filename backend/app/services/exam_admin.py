@@ -6,6 +6,7 @@ from app.models.question import Question
 from app.models.question_group import QuestionGroup
 from app.services.toeic_generator import (
     generate_toeic_exam,
+    generate_batch,
     TOEIC_BLUEPRINT,
     InsufficientBankError,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "generate_demo_exam",
     "list_exams",
     "get_exam_detail",
+    "generate_batch_exams",
     "InsufficientBankError",
 ]
 
@@ -160,3 +162,39 @@ def get_exam_detail(db: Session, exam_id: int, include_answers: bool = False) ->
         "total_questions": len(questions),
         "parts": parts_out,
     }
+
+
+def generate_batch_exams(
+    db: Session,
+    count: int,
+    exam_type: Optional[str] = "TOEIC",
+    structure: Optional[dict] = None,
+    base_seed: Optional[int] = None,
+    max_overlap_limit: float = 0.40,
+) -> dict:
+    """
+    Generate a batch of exams and return a dict with exams, overlap report, and validation summary.
+    """
+    if not structure:
+        if exam_type == "TOEIC":
+            structure = TOEIC_BLUEPRINT
+        else:
+            raise ValueError(f"Unsupported exam type: {exam_type}")
+
+    batch_result = generate_batch(db, structure, count, base_seed, max_overlap_limit)
+
+    validation_summary = []
+    for exam in batch_result["exams"]:
+        validation_summary.append({
+            "exam_id": exam.id,
+            "title": exam.title,
+            "is_valid": True,
+            "errors": []
+        })
+
+    return {
+        "exams": batch_result["exams"],
+        "overlap_report": batch_result["overlap_report"],
+        "validation_summary": validation_summary
+    }
+
