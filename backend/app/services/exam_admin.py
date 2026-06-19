@@ -18,6 +18,8 @@ __all__ = [
     "get_exam_detail",
     "generate_batch_exams",
     "InsufficientBankError",
+    "update_exam",
+    "set_exam_active",
 ]
 
 
@@ -43,9 +45,12 @@ def generate_demo_exam(
     )
 
 
-def list_exams(db: Session) -> List[dict]:
+def list_exams(db: Session, include_inactive: bool = False) -> List[dict]:
     """List all exams (newest first) with their question counts."""
-    exams = db.query(Exam).order_by(Exam.id.desc()).all()
+    query = db.query(Exam)
+    if not include_inactive:
+        query = query.filter(Exam.is_active.is_(True))
+    exams = query.order_by(Exam.id.desc()).all()
     result = []
     for ex in exams:
         count = db.query(Question).filter(Question.exam_id == ex.id).count()
@@ -79,7 +84,12 @@ def _question_dict(q: Question, include_answers: bool) -> dict:
     }
 
 
-def get_exam_detail(db: Session, exam_id: int, include_answers: bool = False) -> Optional[dict]:
+def get_exam_detail(
+    db: Session,
+    exam_id: int,
+    include_answers: bool = False,
+    include_inactive: bool = False,
+) -> Optional[dict]:
     """
     Return a generated exam organized as parts -> (standalone questions | groups -> questions).
     By default the correct answers are hidden (exam = questions only); pass
@@ -87,6 +97,8 @@ def get_exam_detail(db: Session, exam_id: int, include_answers: bool = False) ->
     """
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if exam is None:
+        return None
+    if not exam.is_active and not include_inactive:
         return None
 
     questions = (
@@ -158,10 +170,39 @@ def get_exam_detail(db: Session, exam_id: int, include_answers: bool = False) ->
         "language": exam.language,
         "exam_type": exam.exam_type,
         "duration_minutes": exam.duration_minutes,
+        "is_active": exam.is_active,
         "created_at": exam.created_at,
         "total_questions": len(questions),
         "parts": parts_out,
     }
+
+
+def update_exam(
+    db: Session,
+    exam_id: int,
+    title: Optional[str] = None,
+    duration_minutes: Optional[int] = None,
+) -> Optional[dict]:
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if exam is None:
+        return None
+    if title is not None:
+        exam.title = title
+    if duration_minutes is not None:
+        exam.duration_minutes = duration_minutes
+    db.commit()
+    db.refresh(exam)
+    return get_exam_detail(db, exam_id, include_answers=True, include_inactive=True)
+
+
+def set_exam_active(db: Session, exam_id: int, active: bool) -> Optional[dict]:
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if exam is None:
+        return None
+    exam.is_active = active
+    db.commit()
+    db.refresh(exam)
+    return get_exam_detail(db, exam_id, include_answers=True, include_inactive=True)
 
 
 def generate_batch_exams(

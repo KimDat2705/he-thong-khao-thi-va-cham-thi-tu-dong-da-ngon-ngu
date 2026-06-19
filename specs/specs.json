@@ -586,6 +586,23 @@
       "notes": "Đang đạt: app/api/exams.py + app/services/exam_admin.py lộ generator TOEIC qua HTTP cho demo (sinh đề -> xem trên frontend)."
     },
     {
+      "id": "SPEC-EXAM-002",
+      "domain": "EXAM",
+      "title": "Quản lý vòng đời đề thi",
+      "statement": "Hệ thống hỗ trợ cập nhật siêu dữ liệu và thay đổi trạng thái hoạt động (phát hành/ẩn đề thi); thí sinh chỉ có thể thấy các đề thi đã phát hành (is_active=True) trong khi giáo viên/admin có quyền sửa đổi metadata và thực hiện thay đổi trạng thái.",
+      "acceptance_criteria": [
+        "PATCH /api/v1/exams/{id} cho phép sửa title và duration_minutes của đề thi (chỉ admin/teacher); trả về 403 nếu vai trò là candidate, 401 nếu không xác thực; 404 nếu không tìm thấy đề.",
+        "POST /api/v1/exams/{id}/release và POST /api/v1/exams/{id}/retire cập nhật trạng thái is_active thành True/False tương ứng (chỉ admin/teacher); trả về 403 nếu candidate gọi, 401 nếu không xác thực.",
+        "GET /api/v1/exams và GET /api/v1/exams/{id} lọc đề theo vai trò người dùng: candidate hoặc khách (không token) chỉ thấy đề có is_active=True (đề retired sẽ không xuất hiện trong danh sách và trả về 404 khi truy cập chi tiết); admin/teacher có thể xem tất cả các đề."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_exam.py::test_SPEC_EXAM_002_exam_lifecycle"
+      ],
+      "notes": "Vòng đời đề thi: edit metadata, release/retire và lọc theo role người dùng."
+    },
+    {
       "id": "SPEC-VALIDATE-001",
       "domain": "GEN",
       "title": "Kiểm tra sau sinh đề (post-check) và dọn dẹp DB",

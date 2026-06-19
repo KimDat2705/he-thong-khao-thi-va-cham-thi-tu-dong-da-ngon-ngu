@@ -22,9 +22,9 @@
       "id": "exam-admin-api",
       "name": "Exam & Question Bank CRUD API",
       "description": "Enables teachers to manage exams, view question banks, and approve imported questions.",
-      "status": "in_progress",
-      "evidence": "Bank-admin CRUD API (A5, SPEC-BANK-003) + Exam generation API (SPEC-EXAM-001, SPEC-GEN-004) done. Bank-admin UI (A6) at /admin/bank (bulk approve draft). Endpoints GATED (Gate-1, SPEC-AUTH-004: admin/teacher only; include_answers teacher-only) + frontend login (Gate-2) securing /admin & /admin/bank behind JWT — Claude verified in browser across roles (401/403/200). Candidates view exams publicly (no answers). STILL MISSING for 'active': exam edit/release CRUD (update/publish/retire an exam) not yet built.",
-      "testedAt": "2026-06-19T22:40:00Z"
+      "status": "active",
+      "evidence": "Bank-admin CRUD API (A5, SPEC-BANK-003) + Exam generation API (SPEC-EXAM-001, SPEC-GEN-004) done. Bank-admin UI (A6) at /admin/bank (bulk approve draft). Endpoints GATED (Gate-1, SPEC-AUTH-004: admin/teacher only; include_answers teacher-only) + frontend login (Gate-2) securing /admin & /admin/bank behind JWT. Exam lifecycle CRUD (A7, SPEC-EXAM-002: update metadata, release, retire, and candidate-view filtering) completed and protected under auth gating. Candidates or guest users are restricted from viewing retired exams (receive 404). Verified via integration tests (test_specs_exam.py).",
+      "testedAt": "2026-06-20T01:15:00Z"
     },
     {
       "id": "exam-room-ui",

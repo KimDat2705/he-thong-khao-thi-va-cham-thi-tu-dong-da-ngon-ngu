@@ -68,9 +68,15 @@ class ExamDetail(BaseModel):
     language: str
     exam_type: str
     duration_minutes: int
+    is_active: bool
     created_at: Optional[datetime] = None
     total_questions: int
     parts: List[PartOut] = []
+
+
+class ExamUpdate(BaseModel):
+    title: Optional[str] = None
+    duration_minutes: Optional[int] = None
 
 
 class ExamBatchGenerateRequest(BaseModel):

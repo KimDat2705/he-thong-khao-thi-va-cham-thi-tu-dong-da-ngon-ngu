@@ -11,6 +11,7 @@ from app.schemas.exam import (
     ExamDetail,
     ExamBatchGenerateRequest,
     ExamBatchGenerateResponse,
+    ExamUpdate,
 )
 from app.services import exam_admin
 from app.services.exam_admin import InsufficientBankError
@@ -53,9 +54,15 @@ def generate_exam(
 
 
 @router.get("", response_model=List[ExamSummary])
-def list_exams(db: Session = Depends(get_db)):
+def list_exams(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """List all generated exams (newest first)."""
-    return exam_admin.list_exams(db)
+    include_inactive = False
+    if current_user and current_user.role in ("admin", "teacher"):
+        include_inactive = True
+    return exam_admin.list_exams(db, include_inactive=include_inactive)
 
 
 @router.get("/{exam_id}", response_model=ExamDetail)
@@ -70,6 +77,16 @@ def get_exam(
     By default answers are hidden (candidate view). Pass include_answers=true for
     the teacher/answer-key view.
     """
+    include_inactive = False
+    if current_user and current_user.role in ("admin", "teacher"):
+        include_inactive = True
+
+    detail = exam_admin.get_exam_detail(
+        db, exam_id, include_answers=include_answers, include_inactive=include_inactive
+    )
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
     if include_answers:
         if current_user is None:
             raise HTTPException(
@@ -82,9 +99,6 @@ def get_exam(
                 detail="Not enough permissions to access answer keys."
             )
 
-    detail = exam_admin.get_exam_detail(db, exam_id, include_answers=include_answers)
-    if detail is None:
-        raise HTTPException(status_code=404, detail="Exam not found")
     return detail
 
 
@@ -136,3 +150,46 @@ def generate_exam_batch(
         validation_summary=result["validation_summary"]
     )
 
+@router.patch("/{exam_id}", response_model=ExamDetail)
+def update_exam(
+    exam_id: int,
+    payload: ExamUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
+    """Update exam metadata. Only admin/teacher allowed."""
+    updated = exam_admin.update_exam(
+        db,
+        exam_id,
+        title=payload.title,
+        duration_minutes=payload.duration_minutes,
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    return updated
+
+
+@router.post("/{exam_id}/release", response_model=ExamDetail)
+def release_exam(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
+    """Release an exam (make active). Only admin/teacher allowed."""
+    updated = exam_admin.set_exam_active(db, exam_id, active=True)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    return updated
+
+
+@router.post("/{exam_id}/retire", response_model=ExamDetail)
+def retire_exam(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
+    """Retire an exam (make inactive). Only admin/teacher allowed."""
+    updated = exam_admin.set_exam_active(db, exam_id, active=False)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    return updated
