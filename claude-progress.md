@@ -312,6 +312,17 @@
 - **Lưu ý môi trường (không phải lỗi)**: Anti báo `curl localhost` đôi lúc bị từ chối do Windows phân giải `localhost`→IPv6 `[::1]` còn dev server nghe IPv4 → dùng `127.0.0.1` thì OK. Next.js 16 chặn 2 dev server cùng dir (phải kill server cũ trước khi preview_start).
 - **Trạng thái**: spec **34 — 30 active / 2 gap / 2 planned** (A6 frontend không flip spec). `exam-admin-api` vẫn in_progress (còn auth + exam edit/release CRUD). 🎉 **Track A HOÀN TẤT** (parser→A5 API→A6 UI). Roadmap gốc còn: auth-api · MATRIX-002 toàn-đề (xfail) · (hoãn) VSTEP/HSK + phân hệ Chấm.
 
+### Session 28 -- 2026-06-19 (Claude + Anti — auth-api CORE: register/login/JWT stdlib, chống leo thang quyền)
+- **Quyết định bước tiếp (Claude chọn, Đạt uỷ quyền)**: chọn **auth-api** thay vì MATRIX-002 (rủi ro cao — mổ conftest giòn). Scope CHỐT: **CORE auth (register/login/JWT + dependencies), CHƯA gate endpoint** → demo LIVE không gãy; gate + login frontend là follow-up.
+- **Việc auth-api CORE HOÀN THÀNH** (commit thẳng `89d0387` trên `Dat` — Anti không tạo nhánh feat/auth-api, sửa working tree trực tiếp; verified trước commit nên tương đương). **Zero dep mới** (stdlib):
+  - `app/core/security.py`: hash_password PBKDF2-SHA256 100k + salt (`secrets`) + verify; JWT HS256 tự cài (hmac/hashlib/**base64url**/json), sign/verify constant-time (`compare_digest`) + check `exp`.
+  - `app/core/deps.py`: `get_current_user` (OAuth2PasswordBearer auto_error=False → 401 missing/forged/expired/unknown/inactive) + `require_role(*roles)` (403 mismatch).
+  - `app/api/auth.py`: POST /register (**hardcode role='candidate'** chống leo thang quyền công khai — demo LIVE), POST /login, GET /me. `main.py` mount /api/v1/auth. `schemas/auth.py` Pydantic v2.
+- **Giao thức plan-review (1 vòng) + DUYỆT kèm điều chỉnh**: plan crypto chuẩn sẵn → Claude bắt **#1 bảo mật** (register mở với role param = bất kỳ ai tạo admin trên demo LIVE) → yêu cầu hardcode candidate; #2 base64url; #3 pytest ×2 + traceability. Anti sửa đủ.
+- **Nghiệm thu (Claude, độc lập — verify crypto TRỰC TIẾP, không tin test Anti)**: chạy security.py → **forged (khác key) / tampered (role→admin giữ chữ ký) / expired / malformed token đều BỊ TỪ CHỐI**; mật khẩu không plaintext, verify đúng/sai chuẩn; TestClient: `/register {role:'admin'}` → **role=candidate** (no escalation), token claim=candidate, /me 200 có token / 401 không token. pytest **41/1/2 ×2**; ruff/architecture/traceability sạch; **zero dep mới** (grep requirements). Ranh giới 8 file (không models/conftest/Chấm/file Claude).
+- **Claude sửa feature_list cho trung thực**: Anti flip auth-api→active nhưng evidence BỎ caveat "chưa gate endpoint" → đọc tưởng app đã bảo vệ. Sửa về **in_progress** + ghi rõ "core xong + verify độc lập; STILL MISSING: chưa gate endpoint nào (bank/exams vẫn MỞ), gate + login frontend = follow-up".
+- **Trạng thái spec sau auth-api**: **37 spec — 33 active / 2 gap / 2 planned** (catalog +3: SPEC-AUTH-001/002/003). 🔒 Nền auth sẵn sàng; bước sau: gate endpoint (require_role) + login frontend + cấp tài khoản admin/teacher.
+
 ## Next Steps
 - ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (S22) · ✅ **Merge main** (S23) · 🎉 **DEPLOY LIVE INTERNET** (S24 — Vercel + Render, đã verify). **Demo sẵn sàng trình sếp.**
 - **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
