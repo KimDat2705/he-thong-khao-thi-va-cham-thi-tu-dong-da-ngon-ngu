@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from typing import Callable
+from typing import Callable, Optional
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
@@ -37,6 +37,24 @@ def get_current_user(
             detail="Inactive user"
         )
     return user
+
+def get_current_user_optional(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    if not token:
+        return None
+    try:
+        payload = decode_access_token(token)
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        user = db.query(User).filter(User.username == username).first()
+        if user is None or not user.is_active:
+            return None
+        return user
+    except Exception:
+        return None
 
 def require_role(*allowed_roles: str) -> Callable:
     def dependency(current_user: User = Depends(get_current_user)) -> User:

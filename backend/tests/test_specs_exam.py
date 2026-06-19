@@ -8,7 +8,7 @@ dependency overridden to the in-memory test session (StaticPool — see conftest
 from sqlalchemy.orm import Session
 
 
-def test_SPEC_EXAM_001_exam_generation_api(db_session: Session):
+def test_SPEC_EXAM_001_exam_generation_api(db_session: Session, admin_auth_headers: dict):
     from fastapi.testclient import TestClient
     from app.main import app as fastapi_app
     from app.core.database import get_db
@@ -18,7 +18,7 @@ def test_SPEC_EXAM_001_exam_generation_api(db_session: Session):
 
     try:
         # 1. Generate a full TOEIC exam from the approved bank.
-        resp = client.post("/api/v1/exams/generate", json={"title": "Demo TOEIC", "seed": 42})
+        resp = client.post("/api/v1/exams/generate", json={"title": "Demo TOEIC", "seed": 42}, headers=admin_auth_headers)
         assert resp.status_code == 200, resp.text
         summary = resp.json()
         exam_id = summary["id"]
@@ -64,7 +64,7 @@ def test_SPEC_EXAM_001_exam_generation_api(db_session: Session):
             "Đề mặc định KHÔNG được lộ đáp án"
 
         # 5. Teacher view (include_answers=true) exposes the answer key.
-        resp = client.get(f"/api/v1/exams/{exam_id}?include_answers=true")
+        resp = client.get(f"/api/v1/exams/{exam_id}?include_answers=true", headers=admin_auth_headers)
         assert resp.status_code == 200
         assert any(q["reference_answer"] for q in all_questions(resp.json())), \
             "include_answers=true phải trả đáp án"

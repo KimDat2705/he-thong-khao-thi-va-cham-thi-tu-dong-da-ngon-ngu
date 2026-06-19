@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.database import get_db
+from app.core.deps import require_role
+from app.models.user import User
 from app.schemas.bank import QuestionRead, QuestionUpdate, ApproveRequest, ApproveResult, BankStats, QuestionListResponse
 from app.services import bank_admin
 
@@ -16,7 +18,8 @@ def list_questions(
     difficulty: Optional[str] = None,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
     Retrieve list of questions in the bank.
@@ -30,7 +33,8 @@ def list_questions(
 def update_question(
     id: int,
     patch: QuestionUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
     Update details of a bank question.
@@ -45,7 +49,8 @@ def update_question(
 @router.post("/questions/approve", response_model=ApproveResult)
 def approve_questions(
     payload: ApproveRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
     Approve draft questions in the bank.
@@ -56,7 +61,10 @@ def approve_questions(
     return ApproveResult(updated=updated_count)
 
 @router.get("/stats", response_model=BankStats)
-def get_stats(db: Session = Depends(get_db)):
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
     """
     Get bank statistics and TOEIC blueprint sufficiency mapping.
     TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)

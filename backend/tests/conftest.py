@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 # Ensure backend directory is in python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -180,3 +180,29 @@ def db_session():
     finally:
         db.close()
         Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(scope="function")
+def admin_auth_headers(db_session: Session):
+    from app.core.security import hash_password, create_access_token
+    from app.models.user import User
+
+    # Create admin user
+    username = "admin_test"
+    password = "admin_password"
+    
+    admin_user = User(
+        username=username,
+        hashed_password=hash_password(password),
+        full_name="Admin Test",
+        role="admin",
+        is_active=True
+    )
+    db_session.add(admin_user)
+    db_session.commit()
+    db_session.refresh(admin_user)
+
+    # Generate token
+    token = create_access_token(data={"sub": username, "role": "admin"})
+    return {"Authorization": f"Bearer {token}"}
+

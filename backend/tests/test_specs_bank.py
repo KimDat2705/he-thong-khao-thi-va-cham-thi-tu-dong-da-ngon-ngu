@@ -66,7 +66,7 @@ def test_SPEC_BANK_002_generation_preserves_bank(db_session: Session):
     assert groups_after == groups_before, "Sinh đề làm thay đổi nhóm trong bank"
 
 
-def test_SPEC_BANK_003_bank_admin_api(db_session: Session):
+def test_SPEC_BANK_003_bank_admin_api(db_session: Session, admin_auth_headers: dict):
     """
     SPEC-BANK-003: API quản trị ngân hàng câu hỏi.
     Kiểm tra các endpoint:
@@ -88,7 +88,7 @@ def test_SPEC_BANK_003_bank_admin_api(db_session: Session):
 
     try:
         # Step 1: Query stats before any modification (deterministic assertion)
-        response = client.get("/api/v1/bank/stats")
+        response = client.get("/api/v1/bank/stats", headers=admin_auth_headers)
         assert response.status_code == 200
         stats = response.json()
         assert "question_counts" in stats
@@ -142,7 +142,7 @@ def test_SPEC_BANK_003_bank_admin_api(db_session: Session):
         db_session.refresh(draft_grouped_q)
 
         # Step 3: Test GET /questions with status=draft filtering
-        response = client.get("/api/v1/bank/questions?status=draft")
+        response = client.get("/api/v1/bank/questions?status=draft", headers=admin_auth_headers)
         assert response.status_code == 200
         data = response.json()
         # Should return exactly 2 draft questions we just inserted
@@ -152,7 +152,7 @@ def test_SPEC_BANK_003_bank_admin_api(db_session: Session):
         assert draft_grouped_q.id in draft_ids
 
         # Step 4: Test PATCH /questions/{id} (valid bank question)
-        response = client.patch(f"/api/v1/bank/questions/{draft_standalone.id}", json={"clo": "CLO_DRAFT_TEST"})
+        response = client.patch(f"/api/v1/bank/questions/{draft_standalone.id}", json={"clo": "CLO_DRAFT_TEST"}, headers=admin_auth_headers)
         assert response.status_code == 200
         updated_q = response.json()
         assert updated_q["clo"] == "CLO_DRAFT_TEST"
@@ -173,16 +173,16 @@ def test_SPEC_BANK_003_bank_admin_api(db_session: Session):
         db_session.add(cloned_q)
         db_session.commit()
 
-        response = client.patch(f"/api/v1/bank/questions/{cloned_q.id}", json={"content": "Modified cloned content"})
+        response = client.patch(f"/api/v1/bank/questions/{cloned_q.id}", json={"content": "Modified cloned content"}, headers=admin_auth_headers)
         assert response.status_code == 404
 
         # Step 6: Test PATCH on non-existent question
-        response = client.patch("/api/v1/bank/questions/999999", json={"content": "None"})
+        response = client.patch("/api/v1/bank/questions/999999", json={"content": "None"}, headers=admin_auth_headers)
         assert response.status_code == 404
 
         # Step 7: Test POST /questions/approve (approving the draft questions)
         # Call approve for the draft standalone and draft grouped questions
-        response = client.post("/api/v1/bank/questions/approve", json={"ids": [draft_standalone.id, draft_grouped_q.id]})
+        response = client.post("/api/v1/bank/questions/approve", json={"ids": [draft_standalone.id, draft_grouped_q.id]}, headers=admin_auth_headers)
         assert response.status_code == 200
         res = response.json()
         assert res["updated"] == 2

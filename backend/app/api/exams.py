@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.core.database import get_db
+from app.core.deps import require_role, get_current_user_optional
+from app.models.user import User
 from app.schemas.exam import (
     ExamGenerateRequest,
     ExamSummary,
@@ -18,7 +20,11 @@ router = APIRouter(prefix="/api/v1/exams", tags=["Exams"])
 
 
 @router.post("/generate", response_model=ExamSummary)
-def generate_exam(payload: ExamGenerateRequest, db: Session = Depends(get_db)):
+def generate_exam(
+    payload: ExamGenerateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
     """
     Generate a full TOEIC exam from the approved question bank.
     TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)
@@ -53,13 +59,29 @@ def list_exams(db: Session = Depends(get_db)):
 
 
 @router.get("/{exam_id}", response_model=ExamDetail)
-def get_exam(exam_id: int, include_answers: bool = False, db: Session = Depends(get_db)):
+def get_exam(
+    exam_id: int,
+    include_answers: bool = False,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """
     Retrieve a generated exam organized by part for display.
     By default answers are hidden (candidate view). Pass include_answers=true for
     the teacher/answer-key view.
-    TODO: gate include_answers behind teacher auth (auth-api, Milestone 3+).
     """
+    if include_answers:
+        if current_user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication credentials were not provided or are invalid."
+            )
+        if current_user.role not in ("admin", "teacher"):
+            raise HTTPException(
+                status_code=403,
+                detail="Not enough permissions to access answer keys."
+            )
+
     detail = exam_admin.get_exam_detail(db, exam_id, include_answers=include_answers)
     if detail is None:
         raise HTTPException(status_code=404, detail="Exam not found")
@@ -67,7 +89,11 @@ def get_exam(exam_id: int, include_answers: bool = False, db: Session = Depends(
 
 
 @router.post("/generate-batch", response_model=ExamBatchGenerateResponse)
-def generate_exam_batch(payload: ExamBatchGenerateRequest, db: Session = Depends(get_db)):
+def generate_exam_batch(
+    payload: ExamBatchGenerateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
     """
     Generate a batch of TOEIC or custom exams from the approved question bank.
     Includes pairwise overlap check report to verify diversity.

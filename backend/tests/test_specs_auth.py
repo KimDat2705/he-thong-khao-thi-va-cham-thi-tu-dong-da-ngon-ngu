@@ -234,3 +234,106 @@ def test_SPEC_AUTH_003_role_authorization(client: TestClient, db_session: Sessio
     # 2. Admin access -> 403 Forbidden
     res = client.get("/api/v1/test-auth-teacher", headers={"Authorization": f"Bearer {admin_token}"})
     assert res.status_code == 403
+
+
+def test_SPEC_AUTH_004_endpoint_gating(client: TestClient, db_session: Session):
+    """
+    SPEC-AUTH-004: Endpoint gating test.
+    - Gated endpoints require admin/teacher role.
+    - Returning 401 if token is missing/invalid.
+    - Returning 403 if role is candidate.
+    - Returning 200/404/409 (auth check passed) if role is admin/teacher.
+    - GET /exams/{id}?include_answers=true is gated similarly.
+    - GET /exams/{id} without answers is open (returns 200).
+    """
+    # 1. Register and login candidate user to get a REAL candidate token
+    client.post("/api/v1/auth/register", json={
+        "username": "candidate_gating",
+        "password": "cand_password",
+        "full_name": "Candidate Gating"
+    })
+    login_res = client.post("/api/v1/auth/login", json={
+        "username": "candidate_gating",
+        "password": "cand_password"
+    })
+    assert login_res.status_code == 200
+    candidate_token = login_res.json()["access_token"]
+    candidate_headers = {"Authorization": f"Bearer {candidate_token}"}
+
+    # Create admin user directly in DB and generate token
+    from app.core.security import hash_password
+    admin_user = User(
+        username="admin_gating",
+        hashed_password=hash_password("admin_pass"),
+        full_name="Admin Gating",
+        role="admin",
+        is_active=True
+    )
+    db_session.add(admin_user)
+    db_session.commit()
+    admin_token = create_access_token(data={"sub": "admin_gating", "role": "admin"})
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # Endpoints to check: (method, path, body)
+    gated_endpoints = [
+        ("GET", "/api/v1/bank/stats", None),
+        ("GET", "/api/v1/bank/questions", None),
+        ("POST", "/api/v1/exams/generate", {"title": "Test Gating", "seed": 1}),
+        ("POST", "/api/v1/exams/generate-batch", {"count": 1, "seed": 1}),
+    ]
+
+    for method, path, body in gated_endpoints:
+        # A. Missing token -> 401
+        if method == "GET":
+            res = client.get(path)
+        else:
+            res = client.post(path, json=body)
+        assert res.status_code == 401, f"{method} {path} should return 401 when missing token"
+
+        # B. Candidate token -> 403
+        if method == "GET":
+            res = client.get(path, headers=candidate_headers)
+        else:
+            res = client.post(path, json=body, headers=candidate_headers)
+        assert res.status_code == 403, f"{method} {path} should return 403 for candidate role"
+
+        # C. Admin token -> not 401 or 403 (any code indicating authentication succeeded, e.g. 200 or 409)
+        if method == "GET":
+            res = client.get(path, headers=admin_headers)
+        else:
+            res = client.post(path, json=body, headers=admin_headers)
+        assert res.status_code not in (401, 403), f"{method} {path} returned auth error {res.status_code} for admin"
+
+    # 2. Test conditional include_answers on GET /exams/{id}
+    from app.models.exam import Exam
+    exam = Exam(
+        title="Gating Exam",
+        language="EN",
+        exam_type="TOEIC",
+        duration_minutes=120,
+        is_active=True
+    )
+    db_session.add(exam)
+    db_session.commit()
+    db_session.refresh(exam)
+
+    exam_url = f"/api/v1/exams/{exam.id}"
+
+    # A. GET without include_answers -> works with no token (200)
+    res = client.get(exam_url)
+    assert res.status_code == 200
+    assert res.json()["title"] == "Gating Exam"
+
+    # B. GET with include_answers=true:
+    # - No token -> 401
+    res = client.get(f"{exam_url}?include_answers=true")
+    assert res.status_code == 401
+
+    # - Candidate token -> 403
+    res = client.get(f"{exam_url}?include_answers=true", headers=candidate_headers)
+    assert res.status_code == 403
+
+    # - Admin token -> 200
+    res = client.get(f"{exam_url}?include_answers=true", headers=admin_headers)
+    assert res.status_code == 200
+

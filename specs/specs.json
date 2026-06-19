@@ -655,6 +655,25 @@
         "tests/test_specs_auth.py::test_SPEC_AUTH_003_role_authorization"
       ],
       "notes": "Lõi auth: require_role phân quyền và trả về 403 khi sai vai trò."
+    },
+    {
+      "id": "SPEC-AUTH-004",
+      "domain": "AUTH",
+      "title": "Bảo vệ endpoint nhạy cảm",
+      "statement": "Hệ thống bảo vệ các API quản trị ngân hàng câu hỏi (bank) và API sinh đề (generate) bằng require_role, chỉ cho phép admin/teacher truy cập, đồng thời bảo vệ có điều kiện include_answers trên API lấy đề.",
+      "acceptance_criteria": [
+        "API quản trị ngân hàng và sinh đề trả về HTTP 401 nếu thiếu/sai token",
+        "API quản trị ngân hàng và sinh đề trả về HTTP 403 nếu truy cập bằng token candidate",
+        "API quản trị ngân hàng và sinh đề cho phép truy cập với token admin/teacher",
+        "API lấy chi tiết đề GET /exams/{id} cho phép candidate truy cập tự do khi include_answers=false hoặc không truyền",
+        "API lấy chi tiết đề GET /exams/{id} yêu cầu token admin/teacher khi include_answers=true (thiếu token trả về 401, token candidate trả về 403)"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_auth.py::test_SPEC_AUTH_004_endpoint_gating"
+      ],
+      "notes": "Gate-1: Bảo vệ endpoint nhạy cảm (bank & generate) và include_answers."
     }
   ]
 }

@@ -157,6 +157,35 @@ def approve_all(db) -> int:
     return nq
 
 
+def seed_admin_user(db) -> None:
+    """Seed the admin user for testing and local management.
+    WARNING: For local development only. When merging to production/main (Gate-2),
+    make sure to set a strong ADMIN_PASSWORD in environment variables (e.g. Render settings)
+    and NEVER commit real secrets to .env or the codebase.
+    """
+    from app.models.user import User
+    from app.core.security import hash_password
+    import os
+
+    admin_username = os.environ.get("ADMIN_USERNAME", "admin")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "adminpassword")
+
+    existing = db.query(User).filter(User.username == admin_username).first()
+    if not existing:
+        admin_user = User(
+            username=admin_username,
+            hashed_password=hash_password(admin_password),
+            full_name="Admin Demo",
+            role="admin",
+            is_active=True
+        )
+        db.add(admin_user)
+        db.commit()
+        print(f"Seeded admin user '{admin_username}' successfully.")
+    else:
+        print(f"Admin user '{admin_username}' already exists in database.")
+
+
 def main() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -183,6 +212,7 @@ def main() -> None:
         backfill_metadata(db)
         n = approve_all(db)
         print(f"Approved {n} questions (and their groups).")
+        seed_admin_user(db)
 
         # Bank summary
         for part in range(1, 8):
