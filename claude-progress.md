@@ -323,6 +323,18 @@
 - **Claude sửa feature_list cho trung thực**: Anti flip auth-api→active nhưng evidence BỎ caveat "chưa gate endpoint" → đọc tưởng app đã bảo vệ. Sửa về **in_progress** + ghi rõ "core xong + verify độc lập; STILL MISSING: chưa gate endpoint nào (bank/exams vẫn MỞ), gate + login frontend = follow-up".
 - **Trạng thái spec sau auth-api**: **37 spec — 33 active / 2 gap / 2 planned** (catalog +3: SPEC-AUTH-001/002/003). 🔒 Nền auth sẵn sàng; bước sau: gate endpoint (require_role) + login frontend + cấp tài khoản admin/teacher.
 
+### Session 29 -- 2026-06-19 (Claude + Anti — Gate-1: bảo vệ endpoint nhạy cảm bằng require_role)
+- **Quyết định + scope**: Đạt chốt làm tiếp **gate endpoint**. Claude tách an toàn: **Gate-1** (gating backend, verify pytest) trước, **Gate-2** (login frontend) sau; **KHÔNG merge Dat→main** đến khi cả 2 xong → live demo (chạy trên main) không gãy giữa chừng.
+- **Việc Gate-1 HOÀN THÀNH** (commit thẳng `5adce2f` trên `Dat` — Anti sửa working tree trực tiếp; verified trước commit). SPEC-AUTH-004 active.
+  - `deps.py`: thêm `get_current_user_optional` (trả None, KHÔNG raise) cho gate có điều kiện.
+  - `exams.py`: `require_role("admin","teacher")` cho /generate + /generate-batch; `GET /exams/{id}` include_answers gated teacher/admin (no-token→401, candidate→403; **đề không-answers vẫn MỞ** cho candidate).
+  - `bank.py`: `require_role("admin","teacher")` cho MỌI endpoint (questions/stats/patch/approve — công cụ quản trị).
+  - `seed_toeic_demo.py`: seed admin từ env `ADMIN_USERNAME/ADMIN_PASSWORD` (default dev + WARNING phải set mạnh khi lên prod). `conftest.py`: thêm fixture `admin_auth_headers` (ADDITIVE — không chạm fixture bank/P7 giòn); `test_specs_exam/bank` cập nhật gửi auth header.
+- **Plan-review (1 vòng) + DUYỆT kèm 4 lưu ý**: plan vững sẵn → Claude yêu cầu: (1) AUTH-004 test 403 bằng token candidate THẬT (non-tautology); (2) verify admin fixture thấy được qua StaticPool; (3) cảnh báo default ADMIN_PASSWORD yếu (set env khi lên prod); (4) conftest purely additive. Anti làm đúng cả 4.
+- **Nghiệm thu (Claude, độc lập — tự thử TestClient mọi vai)**: **401 (no-token) / 403 (candidate) / pass (admin)** đúng trên TẤT CẢ endpoint gated (generate 409, batch 422, bank stats/questions/approve 200); include_answers: candidate→403 (KHÔNG lấy được đáp án), admin→qua gate; `GET /exams` + đề không-answers vẫn MỞ (candidate xem được). pytest **42/1/2 ×2**; conftest additive (suite bank/generation cũ xanh); SPEC-AUTH-004 non-tautology (đăng ký candidate thật); ruff/architecture/traceability sạch; ranh giới 9 file (không models/cloud_bootstrap/Chấm/file Claude).
+- **Claude sửa feature_list (Anti quên update)**: cập nhật evidence `auth-api` + `exam-admin-api` — "endpoints đã GATED (Gate-1); STILL MISSING: login frontend (Gate-2) + provisioning admin trên live".
+- **Trạng thái spec sau Gate-1**: **38 spec — 34 active / 2 gap / 2 planned** (catalog +1: SPEC-AUTH-004). 🔒 Backend được bảo vệ (chỉ admin/teacher sinh/duyệt; đáp án không lộ). **Bước cuối mạch auth: Gate-2 (login frontend)** → rồi merge Dat→main + set ADMIN_PASSWORD env Render → demo live "đăng nhập rồi dùng".
+
 ## Next Steps
 - ✅ **Track Parser XONG** · ✅ **A5 Bank-Admin API XONG** · ✅ **DEMO TOEIC end-to-end XONG** (S22) · ✅ **Merge main** (S23) · 🎉 **DEPLOY LIVE INTERNET** (S24 — Vercel + Render, đã verify). **Demo sẵn sàng trình sếp.**
 - **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
