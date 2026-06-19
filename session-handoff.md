@@ -1,6 +1,10 @@
-# Session Handoff — cập nhật 15/06/2026 (Claude, sau khi DEMO TOEIC ĐÃ LIVE TRÊN INTERNET — Vercel + Render)
+# Session Handoff — cập nhật 20/06/2026 (Claude — 🔒 MẠCH AUTH HOÀN TẤT + DEPLOY LIVE)
 
-> 🎉 **DEMO LIVE**: Frontend https://he-thong-khao-thi-va-cham-thi-tu-do.vercel.app (Vercel) · Backend https://toeic-backend-5n57.onrender.com (Render). Đã verify end-to-end qua mạng. Render free ngủ sau 15' → wake `…/api/v1/exams` trước demo. Redeploy = push `main`. Chi tiết: memory `deploy-cloud-urls` + `docs/deploy_cloud_huong_dan.md`.
+> 🎉 **DEMO LIVE + AUTH**: Frontend https://he-thong-khao-thi-va-cham-thi-tu-do.vercel.app · Backend https://toeic-backend-5n57.onrender.com. Demo giờ "đăng nhập rồi dùng": `/admin` + `/admin/bank` bắt login (admin/teacher); xem đề thí sinh vẫn mở. Admin seed từ env Render `ADMIN_USERNAME`/`ADMIN_PASSWORD` (Đạt đặt). Verify live OK (login admin → /admin, stats 7/7 đủ). Redeploy = push `main`; nếu login fail sau redeploy → Render "Clear build cache & deploy". Chi tiết auth: memory `deploy-cloud-urls`.
+>
+> **TRẠNG THÁI MỚI NHẤT (thay cho phần dưới — phần dưới là lịch sử tới S24):** `origin/Dat` = `origin/main` = **`63e7cba`**. Suite **42 passed / 1 skipped / 2 xfailed**; spec **38 — 34 active / 2 gap / 2 planned**. 🎉 **Track A** (parser→A5 API→A6 UI) + **Track B** (generator B1-B6 + validator) + **mạch auth** (core→Gate-1 gating→Gate-2 login) ĐỀU HOÀN TẤT, verify thật. **Chi tiết S25-S30 ở `claude-progress.md`** (B4 validator, B6 batch+overlap, A6 bank UI, auth-api, Gate-1/2).
+> **Còn lại (roadmap):** MATRIX-002 toàn-đề (xfail, vướng P7 nghiệm-duy-nhất — khó/rủi ro) · exam edit/release CRUD · (hoãn) VSTEP/HSK đa ngôn ngữ + phân hệ Chấm (GRADE-002/003, Celery).
+> ⚠️ **Nhắc Anti**: phiên S30 lại (a) sửa file Claude (`claude-progress.md`/`session-handoff.md`), (b) commit thẳng `Dat` không tạo nhánh, (c) flip feature_list quá tay — giữ đúng ranh giới lần sau.
 
 ## Current State & Achievements
 
