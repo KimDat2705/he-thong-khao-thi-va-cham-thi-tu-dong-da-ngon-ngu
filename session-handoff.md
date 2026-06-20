@@ -2,9 +2,9 @@
 
 > 🎉 **DEMO LIVE + AUTH**: Frontend https://he-thong-khao-thi-va-cham-thi-tu-do.vercel.app · Backend https://toeic-backend-5n57.onrender.com. Demo giờ "đăng nhập rồi dùng": `/admin` + `/admin/bank` bắt login (admin/teacher); xem đề thí sinh vẫn mở. Admin seed từ env Render `ADMIN_USERNAME`/`ADMIN_PASSWORD` (Đạt đặt). Verify live OK (login admin → /admin, stats 7/7 đủ). Redeploy = push `main`; nếu login fail sau redeploy → Render "Clear build cache & deploy". Chi tiết auth: memory `deploy-cloud-urls`.
 >
-> **TRẠNG THÁI MỚI NHẤT (S31, 20/06 — thay cho phần dưới):** `origin/Dat` = **`82a244f`** (đi trước `origin/main` = `63e7cba` **4 commit**). Suite **43 passed / 1 skipped / 2 xfailed**; spec **39 — 35 active / 2 gap / 2 planned**. 🎉 **Track A** (parser→A5 API→A6 UI) + **Track B** (generator B1-B6 + validator) + **mạch auth** (core→Gate-1→Gate-2) + **A7 vòng đời đề** (edit/release/retire + lọc candidate-view, SPEC-EXAM-002 → exam-admin-api **active**) + **A8 UI vòng đời** (badge + Release/Retire/Sửa trên /admin, verify trình duyệt thật) ĐỀU HOÀN TẤT. **Chi tiết S25-S31 ở `claude-progress.md`.**
-> **Còn lại (roadmap):** MATRIX-002 toàn-đề (xfail, vướng P7 nghiệm-duy-nhất — khó/rủi ro) · (hoãn) VSTEP/HSK đa ngôn ngữ + phân hệ Chấm (GRADE-002/003, Celery).
-> ⚠️ **Deploy**: A7+A8 đổi hành vi (lọc đề retired + UI quản lý) nhưng `main` CHƯA có → muốn LIVE thì merge `Dat→main` + push (redeploy). 🟢 **Anti S31 tuân thủ đúng ranh giới 2 lần liên tiếp** (A7+A8: nhánh feature, chờ nghiệm thu mới push, không đụng file Claude) — cải thiện rõ so với S30.
+> **TRẠNG THÁI MỚI NHẤT (S31, 20/06 — thay cho phần dưới):** `origin/Dat` = **`5918e3d`** · `origin/main` = **`121d0e0`** (A7+A8 ĐÃ DEPLOY LIVE; B7 là test/spec nên main chưa cần sync). Suite **44 passed / 1 skipped / 1 xfailed**; spec **39 — 36 active / 1 gap / 2 planned**. 🎉 Track A + Track B + mạch auth + **A7** (vòng đời đề, SPEC-EXAM-002) + **A8** (UI vòng đời /admin) + **B7** (MATRIX-002 toàn-đề 25/50/25 gap→active) HOÀN TẤT. 🏁 **Generator Ra đề EN nay SPEC-COMPLETE.** **Chi tiết S25-S31 ở `claude-progress.md`.**
+> **Còn lại (roadmap) — đều ĐÃ HOÃN:** VSTEP/HSK đa ngôn ngữ · phân hệ Chấm (GRADE-002 gap, GRADE-003/SCALE-003 planned, Celery).
+> 🚀 **Deploy**: A7+A8 đã LIVE trên `main`=`121d0e0` (Đạt uỷ quyền, Claude curl-verify lớp công khai/gating, Đạt verify admin trình duyệt). B7 chỉ test/spec → KHÔNG cần deploy. 🟢 **Anti S31 tuân thủ đúng ranh giới 3 lần liên tiếp** (A7+A8+B7).
 
 ## Current State & Achievements
 
