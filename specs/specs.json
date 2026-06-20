@@ -296,12 +296,12 @@
         "Toàn đề: Easy/Medium/Hard nằm trong [45,55]/[95,105]/[45,55] tỷ lệ theo tổng thực tế"
       ],
       "verification": "pytest",
-      "status": "gap",
+      "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_MATRIX_002_per_part_difficulty_targets",
         "tests/test_specs_generation.py::test_SPEC_MATRIX_002_whole_exam_ratio"
       ],
-      "notes": "ID legacy giữ nguyên từ v1. Per-part ĐANG ĐẠT (test pass); toàn đề chưa đảm bảo vì Part 7 chọn nhóm ngẫu nhiên không ràng buộc độ khó — phần toàn đề XFAIL."
+      "notes": "toàn-đề đạt nhờ generator ép độ khó P1-P6 + bank P7 soạn khớp ma trận (P7 chọn theo count+topic); KHÔNG ép trong validator để tránh phá sinh đề trên dữ liệu thật (độ khó backfill)."
     },
     {
       "id": "SPEC-ISOLATE-003",

@@ -149,10 +149,16 @@ def db_session():
             "Memo", "Memo", "Report", "Report", "Webpage", # Group 4, 5, 6, 7, 8 (size 4)
             "Article", "Article", "Email", "Email", "Notice", "Notice" # Group 9, 10, 11, 12, 13, 14 (size 5)
         ]
+        p7_difficulties = [
+            "easy", "medium",                  # G0 (size 2), G1 (size 2)
+            "medium", "medium",                # G2 (size 3), G3 (size 3)
+            "easy", "easy", "hard", "medium", "medium",  # G4 to G8 (size 4)
+            "easy", "medium", "hard", "hard", "medium", "medium"  # G9 to G14 (size 5)
+        ]
         for i in range(15):
             group = QuestionGroup(
                 exam_id=None, part=7, topic=p7_topics[i], passage_text=f"Article content {i}",
-                difficulty="easy" if i < 3 else ("medium" if i < 11 else "hard")
+                difficulty=p7_difficulties[i]
             )
             db.add(group)
             db.commit()

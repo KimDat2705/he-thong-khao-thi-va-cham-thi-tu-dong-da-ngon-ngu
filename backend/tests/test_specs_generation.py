@@ -56,11 +56,6 @@ def test_SPEC_MATRIX_002_per_part_difficulty_targets(db_session: Session):
     assert report["details"]["MATRIX_002"]["valid"], f"MATRIX-002 validation failed: {report['details']['MATRIX_002']['errors']}"
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="GAP SPEC-MATRIX-002 (toàn đề): Part 7 chọn nhóm ngẫu nhiên không ràng "
-    "buộc độ khó nên tỷ lệ 25/50/25 toàn đề không được đảm bảo",
-)
 def test_SPEC_MATRIX_002_whole_exam_ratio(db_session: Session):
     """SPEC-MATRIX-002 (toàn đề): Tổng độ khó toàn đề phải đạt Easy [45,55] /
     Medium [95,105] / Hard [45,55] — quy theo tổng câu thực tế nếu khác 200.
