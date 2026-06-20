@@ -364,9 +364,19 @@
 - **Trạng thái spec sau A7**: **39 spec — 35 active / 2 gap / 2 planned** (catalog +1: SPEC-EXAM-002; gap vẫn MATRIX-002 + GRADE-002; planned vẫn GRADE-003, SCALE-003).
 - **Sync**: `origin/Dat` = `9cea81f`, đi trước `origin/main` = `63e7cba` **2 commit** (docs `00dcc00` + A7 `9cea81f`). Merge `Dat→main` = redeploy LIVE → để quyết định riêng (chưa làm).
 
+### Session 31 (tiếp) -- 2026-06-20 (Claude + Anti — A8: UI vòng đời đề trên /admin; FRONTEND, không spec)
+- **Việc A8 HOÀN THÀNH** (`feat/exam-lifecycle-ui` → FF vào `Dat`, commit `82a244f`, đã push). FRONTEND thuần (như Gate-2) — KHÔNG spec backend, KHÔNG pytest:
+  - `api.ts`: ⚠️ `listExams()` nay gửi `authHeaders()` (admin có token mới thấy đề retired để quản lý; khách không token vẫn chỉ thấy active — backward-safe); thêm `releaseExam`/`retireExam` (POST) + `updateExam` (PATCH **có `Content-Type: application/json`** → tránh 422).
+  - `admin/page.tsx`: mỗi đề có **badge** trạng thái (Đã phát hành xanh / Đã ẩn xám), nút **Ẩn đề/Phát hành** (toggle theo `is_active`), nút **Sửa** inline (title + duration, validate client: title không rỗng, duration số nguyên dương) + Lưu/Hủy; khoá nút per-item khi đang xử lý; tái dùng pattern lỗi/401→/login.
+- **Plan-review + DUYỆT kèm 2 lưu ý**: Claude bắt điểm dễ sai nhất (`listExams` phải gửi authHeaders, nếu không admin retire xong đề biến mất khỏi list) ở brief; plan v1 vững → DUYỆT A8 kèm 2 dặn (MUST Content-Type cho updateExam; NÊN validate duration/title). Anti làm đúng cả 2.
+- **✅ Anti tuân thủ ranh giới** (lần 2 liên tiếp): code nhánh feature, chờ nghiệm thu mới push, KHÔNG đụng backend/models/log Claude. Đúng **2 file** frontend.
+- **Nghiệm thu (Claude, độc lập — STATIC + LIVE)**: đọc diff từng dòng (wiring URL/method/header khớp route A7); `npm run build` PASS (TS sạch, 0 lỗi). **Verify FULL-STACK trình duyệt trên demo DB thật** (backend `demo_toeic.db` + preview Next): login admin → /admin thấy 2 đề badge "Đã phát hành"; **Ẩn đề #1 → badge lật "Đã ẩn" + nút "Phát hành", đề vẫn trong list admin**; **list không-token (curl) chỉ còn đề #2** (đề retired tàng hình với khách); retire không-token = 401; **Sửa #2 đổi title+duration → lưu OK, 0 banner lỗi (PATCH không 422)**; release lại = 200; console 0 lỗi. Khôi phục demo DB về sạch sau verify.
+- **feature_list**: `exam-admin-api` evidence bổ sung "UI vòng đời (A8) tại /admin" (vẫn `active` từ A7; A8 hoàn thiện mặt UI). Roadmap: gỡ "exam lifecycle UI" khỏi mục còn-lại.
+- **Sync**: `origin/Dat` = `82a244f` (đi trước `origin/main` = `63e7cba` **4 commit**). Spec vẫn **39 — 35 active / 2 gap / 2 planned** (A8 không thêm spec).
+
 ## Next Steps
 - ✅ **Track A** (Parser → A5 Bank API → **A6 UI duyệt bank**) · ✅ **Track B** (generator B1-B6 + **B4 validator** + **B6 sinh lô overlap≤40%**) · ✅ **Mạch auth** (core → Gate-1 gating → Gate-2 login) · 🎉 **DEPLOY AUTH LIVE** (20/06 — demo "đăng nhập rồi dùng", verify thật). **ĐÃ XONG các mục đánh bóng demo cũ bên dưới (auth-api ✓, A6 ✓); danh sách dưới giữ làm tham chiếu lịch sử.**
-- **Việc còn lại (ưu tiên phiên sau):** ✅ ~~exam edit/release CRUD~~ (A7 `9cea81f`, exam-admin-api → active) · **exam lifecycle UI** (web `/admin`: nút Release/Retire/Edit — follow-up A7, CHƯA làm) · **MATRIX-002 toàn-đề** (xfail — khó: P7 nghiệm-duy-nhất khoá độ khó, mổ conftest giòn) · (hoãn) **VSTEP/HSK** đa ngôn ngữ + **phân hệ Chấm** (GRADE-002/003, Celery).
+- **Việc còn lại (ưu tiên phiên sau):** ✅ ~~exam edit/release CRUD~~ (A7 `9cea81f`) · ✅ ~~exam lifecycle UI~~ (A8 `82a244f`, web `/admin` badge + Release/Retire/Sửa) · **MATRIX-002 toàn-đề** (xfail — khó: P7 nghiệm-duy-nhất khoá độ khó, mổ conftest giòn) · (hoãn) **VSTEP/HSK** đa ngôn ngữ + **phân hệ Chấm** (GRADE-002/003, Celery).
 - ✅ ~~Track Parser~~ · ✅ ~~A5 Bank-Admin API~~ · ✅ ~~DEMO TOEIC end-to-end~~ (S22) · ✅ ~~Merge main~~ (S23) · 🎉 ~~DEPLOY LIVE INTERNET~~ (S24). **Demo sẵn sàng trình sếp.**
 - **Ưu tiên TOEIC (đánh bóng demo, nếu sếp cần thêm):**
   - **Audio**: tải MP3 gộp về 1 thư mục → seed + backend với `AUDIO_DIR` → player phát được trong `/exam/[id]`.
