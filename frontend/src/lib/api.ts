@@ -135,7 +135,50 @@ export async function getBankStats(): Promise<BankStats> {
 }
 
 export async function listExams(): Promise<ExamSummary[]> {
-  return jsonOrThrow(await fetch(`${API_BASE}/api/v1/exams`, { cache: "no-store" }));
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams`, {
+      cache: "no-store",
+      headers: { ...authHeaders() },
+    }),
+  );
+}
+
+export async function releaseExam(id: number): Promise<ExamDetail> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${id}/release`, {
+      method: "POST",
+      headers: {
+        ...authHeaders(),
+      },
+    }),
+  );
+}
+
+export async function retireExam(id: number): Promise<ExamDetail> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${id}/retire`, {
+      method: "POST",
+      headers: {
+        ...authHeaders(),
+      },
+    }),
+  );
+}
+
+export async function updateExam(
+  id: number,
+  payload: { title?: string; duration_minutes?: number },
+): Promise<ExamDetail> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(payload),
+    }),
+  );
 }
 
 export async function generateExam(title: string, seed?: number): Promise<ExamSummary> {

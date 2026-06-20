@@ -11,6 +11,9 @@ import {
   generateExam,
   getToken,
   clearToken,
+  releaseExam,
+  retireExam,
+  updateExam,
 } from "@/lib/api";
 
 export default function AdminPage() {
@@ -21,6 +24,13 @@ export default function AdminPage() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+
+  // States for exam lifecycle management
+  const [processingExamId, setProcessingExamId] = useState<number | null>(null);
+  const [editingExamId, setEditingExamId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDuration, setEditDuration] = useState("");
+
 
   async function refresh() {
     setError(null);
@@ -94,6 +104,74 @@ export default function AdminPage() {
     clearToken();
     router.push("/login");
   }
+
+  async function onToggleActive(id: number, currentActive: boolean) {
+    setProcessingExamId(id);
+    setError(null);
+    try {
+      if (currentActive) {
+        await retireExam(id);
+      } else {
+        await releaseExam(id);
+      }
+      await refresh();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
+    } finally {
+      setProcessingExamId(null);
+    }
+  }
+
+  function onStartEdit(e: ExamSummary) {
+    setEditingExamId(e.id);
+    setEditTitle(e.title);
+    setEditDuration(String(e.duration_minutes));
+    setError(null);
+  }
+
+  function onCancelEdit() {
+    setEditingExamId(null);
+    setEditTitle("");
+    setEditDuration("");
+  }
+
+  async function onSaveEdit(id: number) {
+    const trimmedTitle = editTitle.trim();
+    if (!trimmedTitle) {
+      setError("Tiêu đề đề thi không được để trống.");
+      return;
+    }
+    const duration = parseInt(editDuration, 10);
+    if (isNaN(duration) || duration <= 0) {
+      setError("Thời gian làm bài phải là số nguyên dương.");
+      return;
+    }
+
+    setProcessingExamId(id);
+    setError(null);
+    try {
+      await updateExam(id, { title: trimmedTitle, duration_minutes: duration });
+      setEditingExamId(null);
+      await refresh();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
+    } finally {
+      setProcessingExamId(null);
+    }
+  }
+
 
   if (!authChecked) {
     return (
@@ -188,19 +266,98 @@ export default function AdminPage() {
         ) : (
           <ul className="mt-3 divide-y rounded-md border">
             {exams.map((e) => (
-              <li key={e.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <div className="font-medium">{e.title}</div>
-                  <div className="text-xs text-gray-500">
-                    #{e.id} · {e.exam_type} · {e.question_count} câu · {e.duration_minutes} phút
+              <li key={e.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+                {editingExamId === e.id ? (
+                  <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(val) => setEditTitle(val.target.value)}
+                        placeholder="Tiêu đề đề thi"
+                        className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                        disabled={processingExamId === e.id}
+                      />
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          value={editDuration}
+                          onChange={(val) => setEditDuration(val.target.value)}
+                          placeholder="Số phút"
+                          className="w-20 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                          disabled={processingExamId === e.id}
+                        />
+                        <span className="text-xs text-gray-500">phút</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <button
+                        onClick={() => onSaveEdit(e.id)}
+                        disabled={processingExamId === e.id}
+                        className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        Lưu
+                      </button>
+                      <button
+                        onClick={onCancelEdit}
+                        disabled={processingExamId === e.id}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Hủy
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <Link
-                  href={`/exam/${e.id}`}
-                  className="rounded-md border border-blue-600 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50"
-                >
-                  Xem đề →
-                </Link>
+                ) : (
+                  <>
+                    <div className="pr-4">
+                      <div className="flex items-center flex-wrap gap-2">
+                        <span className="font-medium">{e.title}</span>
+                        {e.is_active ? (
+                          <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                            Đã phát hành
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+                            Đã ẩn
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        #{e.id} · {e.exam_type} · {e.question_count} câu · {e.duration_minutes} phút
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link
+                        href={`/exam/${e.id}`}
+                        className="rounded-md border border-blue-600 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                      >
+                        Xem đề →
+                      </Link>
+                      <button
+                        onClick={() => onStartEdit(e)}
+                        disabled={processingExamId !== null}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => onToggleActive(e.id, e.is_active)}
+                        disabled={processingExamId !== null}
+                        className={`rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+                          e.is_active
+                            ? "border border-red-300 bg-white text-red-700 hover:bg-red-50"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {processingExamId === e.id
+                          ? "Đang xử lý…"
+                          : e.is_active
+                          ? "Ẩn đề"
+                          : "Phát hành"}
+                      </button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
           </ul>
