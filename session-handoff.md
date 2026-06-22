@@ -1,10 +1,10 @@
-# Session Handoff — cập nhật 20/06/2026 (Claude — 🔒 MẠCH AUTH HOÀN TẤT + DEPLOY LIVE)
+# Session Handoff — cập nhật 22/06/2026 (Claude — 🎉 C1: NỘP BÀI + CHẤM TỰ ĐỘNG TOEIC; mở phân hệ Chấm)
 
 > 🎉 **DEMO LIVE + AUTH**: Frontend https://he-thong-khao-thi-va-cham-thi-tu-do.vercel.app · Backend https://toeic-backend-5n57.onrender.com. Demo giờ "đăng nhập rồi dùng": `/admin` + `/admin/bank` bắt login (admin/teacher); xem đề thí sinh vẫn mở. Admin seed từ env Render `ADMIN_USERNAME`/`ADMIN_PASSWORD` (Đạt đặt). Verify live OK (login admin → /admin, stats 7/7 đủ). Redeploy = push `main`; nếu login fail sau redeploy → Render "Clear build cache & deploy". Chi tiết auth: memory `deploy-cloud-urls`.
 >
-> **TRẠNG THÁI MỚI NHẤT (S31, 20/06 — thay cho phần dưới):** `origin/Dat` = **`5918e3d`** · `origin/main` = **`121d0e0`** (A7+A8 ĐÃ DEPLOY LIVE; B7 là test/spec nên main chưa cần sync). Suite **44 passed / 1 skipped / 1 xfailed**; spec **39 — 36 active / 1 gap / 2 planned**. 🎉 Track A + Track B + mạch auth + **A7** (vòng đời đề, SPEC-EXAM-002) + **A8** (UI vòng đời /admin) + **B7** (MATRIX-002 toàn-đề 25/50/25 gap→active) HOÀN TẤT. 🏁 **Generator Ra đề EN nay SPEC-COMPLETE.** **Chi tiết S25-S31 ở `claude-progress.md`.**
-> **Còn lại (roadmap) — đều ĐÃ HOÃN:** VSTEP/HSK đa ngôn ngữ · phân hệ Chấm (GRADE-002 gap, GRADE-003/SCALE-003 planned, Celery).
-> 🚀 **Deploy**: A7+A8 đã LIVE trên `main`=`121d0e0` (Đạt uỷ quyền, Claude curl-verify lớp công khai/gating, Đạt verify admin trình duyệt). B7 chỉ test/spec → KHÔNG cần deploy. 🟢 **Anti S31 tuân thủ đúng ranh giới 3 lần liên tiếp** (A7+A8+B7).
+> **TRẠNG THÁI MỚI NHẤT (S32, 22/06 — thay cho phần dưới):** `origin/Dat` = **`0afad62`+docs** · `origin/main` = **`121d0e0`** (A7+A8 LIVE; B7+C1 chưa deploy). Suite **45 passed / 1 skipped / 1 xfailed**; spec **40 — 37 active / 1 gap / 2 planned**. 🎉 Track A + Track B + auth + A7/A8 (vòng đời đề) + B7 (Matrix toàn-đề) + **C1** (API nộp bài + chấm tự động TOEIC, SPEC-SUBMIT-001) HOÀN TẤT. 🏁 **TOEIC chạy TRỌN vòng đời: tạo đề → phát hành → thí sinh nộp → chấm điểm tự động** (verify LIVE đề thật 200 câu: toàn-đúng=990). **Chi tiết S25-S32 ở `claude-progress.md`.**
+> **Kế tiếp gợi ý:** **C2 — UI thí sinh làm bài** (chọn đáp án → nộp → xem điểm; để demo trọn + deploy C1). Sau: **GRADE-002** (cần Đạt duyệt thêm cột `score_listening`/`score_reading` vào model Grade đóng băng). **Hoãn:** VSTEP/HSK · chấm tự luận (GRADE-003 Celery) · SCALE-003.
+> 🚀 **Deploy**: A7+A8 LIVE trên `main`=`121d0e0`. **B7+C1 chưa lên main** (C1 cần C2 UI để demo trọn mới đáng deploy). ⚠️ **Anti S32 lặp lỗi ranh giới**: tự sửa `claude-progress.md`/`session-handoff.md` (xoá Next Steps lịch sử + tự viết "Claude verified" trước khi Claude verify) → Claude khôi phục baseline + tự viết lại. Code C1 thì sạch, đúng phạm vi.
 
 ## Current State & Achievements
 
