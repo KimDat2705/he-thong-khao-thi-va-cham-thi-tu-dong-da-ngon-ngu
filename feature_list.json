@@ -73,6 +73,15 @@
       "status": "active",
       "evidence": "Implemented unified validation module validate_exam in app/services/exam_validator.py checking GEN-001 (blueprint counts by part type), MATRIX-002 (per-part difficulty, skipping Part 7), GEN-003 (topic diversity covering P7), GEN-002 (options balance), and ISOLATE-003 (group isolation/orphans). Integrated post-check validation in toeic_generator.py; validation failure triggers atomic deletion (Question -> QuestionGroup -> Exam with synchronize_session=False + commit) and raises ExamValidationError. Added SPEC-VALIDATE-001 in specs.json. Fully tested in tests/test_specs_generation.py: refactored all generation tests to use validate_exam; added test_SPEC_VALIDATE_001_post_check_cleanup (verifies rollback on failure via monkeypatch); added test_validate_exam_catches_violations (manual database injection of constraint violations). Suite stable across two runs: 37 passed / 2 skipped / 2 xfailed; ruff clean; architecture checks pass.",
       "testedAt": "2026-06-19T15:30:00Z"
+    },
+    {
+      "id": "exam-submission-grading",
+      "name": "Exam Submission & Automated Grading API",
+      "description": "Enables candidates to submit exam answers and automatically grades them via the TOEIC grader.",
+      "status": "active",
+      "evidence": "POST /api/v1/exams/{exam_id}/submit for submission & grading, GET /api/v1/submissions/{id} for viewing results. Gated by user ownership or admin/teacher role. Covered by SPEC-SUBMIT-001 and verified by tests/test_specs_submission.py::test_SPEC_SUBMIT_001_exam_grading_flow.",
+      "testedAt": "2026-06-22T14:30:00Z"
     }
   ]
 }
+

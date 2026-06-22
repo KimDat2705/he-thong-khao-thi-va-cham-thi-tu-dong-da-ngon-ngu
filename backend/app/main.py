@@ -12,6 +12,7 @@ from app.models.import_batch import ImportBatch
 from app.api.bank import router as bank_router
 from app.api.exams import router as exams_router
 from app.api.auth import router as auth_router
+from app.api.submissions import router as submissions_router
 
 import os
 
@@ -48,6 +49,7 @@ app.add_middleware(
 app.include_router(bank_router)
 app.include_router(exams_router)
 app.include_router(auth_router)
+app.include_router(submissions_router)
 
 # Serve extracted question images (Part 1 photos, Part 3/4 graphics) for the demo.
 from fastapi.staticfiles import StaticFiles  # noqa: E402

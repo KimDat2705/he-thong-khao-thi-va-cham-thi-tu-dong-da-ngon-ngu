@@ -603,6 +603,22 @@
       "notes": "Vòng đời đề thi: edit metadata, release/retire và lọc theo role người dùng."
     },
     {
+      "id": "SPEC-SUBMIT-001",
+      "domain": "SUBMIT",
+      "title": "Nộp bài và chấm tự động đề TOEIC trắc nghiệm",
+      "statement": "Hệ thống hỗ trợ thí sinh nộp danh sách đáp án cho đề thi TOEIC đã phát hành, tự động thực hiện tính toán số câu đúng và quy đổi điểm theo bảng điểm chuẩn TOEIC, đồng thời lưu trữ chi tiết bài làm và đảm bảo quyền truy cập bảo mật.",
+      "acceptance_criteria": [
+        "POST /api/v1/exams/{exam_id}/submit cho phép thí sinh nộp bài thi và trả về kết quả chấm (listening_score, reading_score, total_score, số câu đúng); trả về 404 nếu đề không tồn tại hoặc đã retire, 400 nếu đề không phải loại TOEIC; yêu cầu token candidate (401 nếu thiếu).",
+        "GET /api/v1/submissions/{id} cho phép xem chi tiết kết quả bài nộp kèm theo breakdown; chỉ cho phép chính chủ sở hữu bài làm hoặc người dùng có vai trò admin/teacher truy cập (trả về 403 Forbidden nếu candidate khác truy cập)."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_submission.py::test_SPEC_SUBMIT_001_exam_grading_flow"
+      ],
+      "notes": "API nộp bài và chấm tự động hoàn tất, bảo chứng qua integration test."
+    },
+    {
       "id": "SPEC-VALIDATE-001",
       "domain": "GEN",
       "title": "Kiểm tra sau sinh đề (post-check) và dọn dẹp DB",
