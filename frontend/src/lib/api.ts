@@ -287,3 +287,30 @@ export async function approveBankQuestions(ids: number[]): Promise<{ updated: nu
     }),
   );
 }
+
+export interface SubmissionResult {
+  submission_id: number;
+  status: string;
+  listening_score: number;
+  reading_score: number;
+  total_score: number;
+  listening_correct: number;
+  reading_correct: number;
+}
+
+export async function submitExam(
+  examId: number | string,
+  answers: { question_id: number; answer: string }[],
+): Promise<SubmissionResult> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${examId}/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ answers }),
+    }),
+  );
+}
+

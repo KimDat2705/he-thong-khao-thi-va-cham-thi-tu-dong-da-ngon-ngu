@@ -117,7 +117,12 @@ export default function ExamView({ id }: { id: string }) {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between">
-        <Link href="/admin" className="text-sm text-blue-600">← Về quản trị</Link>
+        <div className="flex items-center gap-4">
+          <Link href="/admin" className="text-sm text-blue-600">← Về quản trị</Link>
+          <Link href={`/exam/${id}/take`} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+            Làm bài →
+          </Link>
+        </div>
         <button
           onClick={() => setShowAnswers((v) => !v)}
           className={`rounded-md border px-3 py-1.5 text-sm font-medium ${
