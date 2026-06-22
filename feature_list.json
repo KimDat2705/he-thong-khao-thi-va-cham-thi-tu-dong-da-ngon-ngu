@@ -31,7 +31,7 @@
       "name": "Candidate Exam Room Front-end",
       "description": "Provides webcam proctoring hooks, tab visibility checking, and compressed Opus/WebM audio recording.",
       "status": "not_started",
-      "evidence": "",
+      "evidence": "Basic candidate take-exam UI exists (/exam/[id]/take, C2) under the exam-submission-grading feature, but THIS feature's actual scope — proctoring (webcam, tab-visibility, Opus/WebM audio recording) — is NOT wired. Hooks frontend/src/hooks/useProctoring.ts + useMediaRecorder.ts exist but are unused. Status stays not_started until proctoring is integrated.",
       "testedAt": ""
     },
     {
@@ -79,8 +79,8 @@
       "name": "Exam Submission & Automated Grading API",
       "description": "Enables candidates to submit exam answers and automatically grades them via the TOEIC grader.",
       "status": "active",
-      "evidence": "POST /api/v1/exams/{exam_id}/submit for submission & grading, GET /api/v1/submissions/{id} for viewing results. Gated by user ownership or admin/teacher role. Covered by SPEC-SUBMIT-001 and verified by tests/test_specs_submission.py::test_SPEC_SUBMIT_001_exam_grading_flow.",
-      "testedAt": "2026-06-22T14:30:00Z"
+      "evidence": "Full candidate exam-taking + auto-grading loop, frozen models reused (no model change). BACKEND: POST /api/v1/exams/{exam_id}/submit (auth) persists Submission+SubmissionDetail, runs grade_toeic_submission (TOEIC scaled scoring via GRADE-001 table), returns L/R/total (SPEC-SUBMIT-001); GET /api/v1/submissions/{id} gated owner|admin|teacher; GET /api/v1/exams/{exam_id}/submissions (admin/teacher list per-exam results) + GET /api/v1/submissions/me (candidate own history) (SPEC-SUBMIT-002). Convention: listening=Grade.score_speaking, reading=Grade.score_writing (GRADE-002 to properly rename columns is a pending model-change decision). FRONTEND: /exam/[id]/take take-exam UI (C2, login-gated, submits ALL questions incl. blank), /exams catalog + /register + role-based login routing (C3 candidate portal), /admin/results/[examId] teacher results table + /my-results candidate history (C5). Verified by tests/test_specs_submission.py::test_SPEC_SUBMIT_001/002 (pytest 46/1/1) + Claude LIVE-curl on Render (register->login->submit->grade, all-correct=990) + browser (candidate take->score; teacher 5-row results table). C1/C2/C3 DEPLOYED LIVE (main 9721c6b); C4/C5 on Dat awaiting deploy.",
+      "testedAt": "2026-06-22T15:10:00Z"
     }
   ]
 }
