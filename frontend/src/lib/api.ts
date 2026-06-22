@@ -351,3 +351,50 @@ export async function registerCandidate(
 }
 
 
+export interface SubmissionListItem {
+  submission_id: number;
+  user_id: number;
+  username: string;
+  full_name: string | null;
+  total_score: number | null;
+  listening_score: number | null;
+  reading_score: number | null;
+  status: string;
+  submitted_at: string | null;
+}
+
+export interface MySubmissionListItem {
+  submission_id: number;
+  exam_id: number;
+  exam_title: string;
+  total_score: number | null;
+  listening_score: number | null;
+  reading_score: number | null;
+  status: string;
+  submitted_at: string | null;
+}
+
+export async function getExamSubmissions(examId: number | string): Promise<SubmissionListItem[]> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${examId}/submissions`, {
+      cache: "no-store",
+      headers: {
+        ...authHeaders(),
+      },
+    }),
+  );
+}
+
+export async function getMySubmissions(): Promise<MySubmissionListItem[]> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/submissions/me`, {
+      cache: "no-store",
+      headers: {
+        ...authHeaders(),
+      },
+    }),
+  );
+}
+
+
+

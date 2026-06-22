@@ -55,12 +55,20 @@ export default function ExamsPage() {
               Trang chủ
             </Link>
             {isLoggedIn ? (
-              <button
-                onClick={handleLogout}
-                className="rounded-md bg-gray-100 hover:bg-gray-200 px-3.5 py-1.5 text-sm font-semibold text-gray-700 transition-colors"
-              >
-                Đăng xuất
-              </button>
+              <>
+                <Link
+                  href="/my-results"
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                >
+                  Kết quả của tôi
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="rounded-md bg-gray-100 hover:bg-gray-200 px-3.5 py-1.5 text-sm font-semibold text-gray-700 transition-colors"
+                >
+                  Đăng xuất
+                </button>
+              </>
             ) : (
               <Link
                 href="/login"
