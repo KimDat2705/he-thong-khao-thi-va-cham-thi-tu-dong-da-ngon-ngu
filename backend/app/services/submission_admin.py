@@ -99,3 +99,47 @@ def get_submission(db: Session, submission_id: int) -> Optional[dict]:
         ],
         **grade_info
     }
+
+
+def list_exam_submissions(db: Session, exam_id: int) -> List[dict]:
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise ValueError("Exam not found")
+
+    submissions = db.query(Submission).filter(Submission.exam_id == exam_id).order_by(Submission.submitted_at.desc()).all()
+    
+    result = []
+    for sub in submissions:
+        grade = sub.grade
+        result.append({
+            "submission_id": sub.id,
+            "user_id": sub.user_id,
+            "username": sub.user.username,
+            "full_name": sub.user.full_name,
+            "total_score": grade.score_total if grade else None,
+            "listening_score": grade.score_speaking if grade else None,
+            "reading_score": grade.score_writing if grade else None,
+            "status": sub.status,
+            "submitted_at": sub.submitted_at
+        })
+    return result
+
+
+def list_my_submissions(db: Session, user_id: int) -> List[dict]:
+    submissions = db.query(Submission).filter(Submission.user_id == user_id).order_by(Submission.submitted_at.desc()).all()
+    
+    result = []
+    for sub in submissions:
+        grade = sub.grade
+        result.append({
+            "submission_id": sub.id,
+            "exam_id": sub.exam_id,
+            "exam_title": sub.exam.title,
+            "total_score": grade.score_total if grade else None,
+            "listening_score": grade.score_speaking if grade else None,
+            "reading_score": grade.score_writing if grade else None,
+            "status": sub.status,
+            "submitted_at": sub.submitted_at
+        })
+    return result
+

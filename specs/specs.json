@@ -707,6 +707,26 @@
         "tests/test_specs_auth.py::test_SPEC_AUTH_004_endpoint_gating"
       ],
       "notes": "Gate-1: Bảo vệ endpoint nhạy cảm (bank & generate) và include_answers."
+    },
+    {
+      "id": "SPEC-SUBMIT-002",
+      "domain": "SUBMIT",
+      "title": "Liệt kê bài nộp và điểm",
+      "statement": "Hệ thống cung cấp API cho phép giáo viên/admin xem danh sách bài nộp của một đề thi và cho phép thí sinh xem lịch sử làm bài của mình, kèm theo điểm số và thông tin định danh.",
+      "acceptance_criteria": [
+        "GET /api/v1/exams/{exam_id}/submissions trả về danh sách tất cả bài nộp của đề đó, bao gồm: submission_id, user_id, username, full_name, total_score, listening_score, reading_score, status, submitted_at",
+        "GET /api/v1/exams/{exam_id}/submissions yêu cầu quyền admin hoặc teacher (candidate truy cập trả về 403 Forbidden, không token trả về 401 Unauthorized)",
+        "GET /api/v1/exams/{exam_id}/submissions trả về 404 Not Found nếu exam_id không tồn tại",
+        "GET /api/v1/submissions/me trả về danh sách lịch sử nộp bài của chính thí sinh đang đăng nhập, bao gồm: submission_id, exam_id, exam_title, total_score, listening_score, reading_score, status, submitted_at, xếp sắp theo submitted_at giảm dần",
+        "GET /api/v1/submissions/me yêu cầu token hợp lệ (không token trả về 401 Unauthorized)",
+        "Trường hợp bài nộp chưa có điểm (grade IS NULL), trường điểm trả về giá trị null thay vì gây lỗi hệ thống"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_submission.py::test_SPEC_SUBMIT_002_submissions_listing"
+      ],
+      "notes": "Chấm điểm tự động và liệt kê danh sách bài nộp."
     }
   ]
 }

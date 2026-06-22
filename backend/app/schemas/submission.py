@@ -44,3 +44,27 @@ class SubmissionDetailOut(BaseModel):
     total_score: Optional[float] = None
     feedback_speaking: Optional[Any] = None
     feedback_writing: Optional[Any] = None
+
+
+class SubmissionListItem(BaseModel):
+    submission_id: int
+    user_id: int
+    username: str
+    full_name: Optional[str] = None
+    total_score: Optional[float] = None
+    listening_score: Optional[float] = None
+    reading_score: Optional[float] = None
+    status: str
+    submitted_at: Optional[datetime] = None
+
+
+class MySubmissionListItem(BaseModel):
+    submission_id: int
+    exam_id: int
+    exam_title: str
+    total_score: Optional[float] = None
+    listening_score: Optional[float] = None
+    reading_score: Optional[float] = None
+    status: str
+    submitted_at: Optional[datetime] = None
+
