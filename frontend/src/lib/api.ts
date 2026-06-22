@@ -314,3 +314,40 @@ export async function submitExam(
   );
 }
 
+export interface UserMe {
+  id?: number;
+  username: string;
+  role: string;
+  full_name?: string | null;
+}
+
+export async function getMe(): Promise<UserMe> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/auth/me`, {
+      cache: "no-store",
+      headers: {
+        ...authHeaders(),
+      },
+    }),
+  );
+}
+
+export async function registerCandidate(
+  username: string,
+  password: string,
+  fullName?: string,
+): Promise<{ id: number; username: string; role: string }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username,
+        password,
+        full_name: fullName || null,
+      }),
+    }),
+  );
+}
+
+

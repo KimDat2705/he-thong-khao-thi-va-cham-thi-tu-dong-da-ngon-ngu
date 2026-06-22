@@ -8,12 +8,27 @@ export default function Home() {
       <p className="mt-2 text-gray-500">
         Nạp đề thật → ngân hàng câu hỏi → sinh đề TOEIC 200 câu → xem đề (ảnh, audio, ẩn đáp án).
       </p>
-      <Link
-        href="/admin"
-        className="mt-6 rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
-      >
-        Vào trang quản trị →
-      </Link>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          href="/exams"
+          className="rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+        >
+          Xem đề thi →
+        </Link>
+        <Link
+          href="/login"
+          className="rounded-md border border-gray-300 hover:bg-gray-50 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors"
+        >
+          Đăng nhập
+        </Link>
+        <Link
+          href="/admin"
+          className="rounded-md bg-gray-100 hover:bg-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors"
+        >
+          Vào quản trị →
+        </Link>
+      </div>
+
     </main>
   );
 }
