@@ -52,7 +52,8 @@ def create_submission_and_grade(
         detail = SubmissionDetail(
             submission_id=sub.id,
             question_id=ans["question_id"],
-            candidate_text=ans["answer"]
+            candidate_text=ans.get("answer", ""),
+            audio_url=ans.get("audio_url"),
         )
         db.add(detail)
     db.commit()

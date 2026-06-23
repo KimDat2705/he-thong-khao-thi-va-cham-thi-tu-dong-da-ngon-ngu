@@ -312,6 +312,13 @@ export interface EssayFeedback {
   grammar_errors?: EssayGrammarError[];
 }
 
+export interface SpeakingFeedback {
+  score: number;
+  transcription?: string;
+  feedback: string;
+  pronunciation_issues?: string[];
+}
+
 export interface SubmissionDetail {
   id: number;
   exam_id: number;
@@ -327,7 +334,7 @@ export interface SubmissionDetail {
   score_speaking: number | null;
   total_score: number | null;
   feedback_writing: Record<string, EssayFeedback> | null;
-  feedback_speaking: Record<string, EssayFeedback> | null;
+  feedback_speaking: Record<string, SpeakingFeedback> | null;
 }
 
 // Poll a submission's grading status/result (owner or admin/teacher only).
@@ -342,7 +349,7 @@ export async function getSubmission(id: number | string): Promise<SubmissionDeta
 
 export async function submitExam(
   examId: number | string,
-  answers: { question_id: number; answer: string }[],
+  answers: { question_id: number; answer: string; audio_url?: string | null }[],
 ): Promise<SubmissionResult> {
   return jsonOrThrow(
     await fetch(`${API_BASE}/api/v1/exams/${examId}/submit`, {
@@ -352,6 +359,20 @@ export async function submitExam(
         ...authHeaders(),
       },
       body: JSON.stringify({ answers }),
+    }),
+  );
+}
+
+// Upload a Speaking recording (Blob/File); returns the served audio_url.
+export async function uploadAudio(file: Blob, filename = "recording.webm"): Promise<{ audio_url: string }> {
+  const fd = new FormData();
+  fd.append("file", file, filename);
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/submissions/upload-audio`, {
+      method: "POST",
+      // Do NOT set Content-Type — the browser adds the multipart boundary.
+      headers: { ...authHeaders() },
+      body: fd,
     }),
   );
 }

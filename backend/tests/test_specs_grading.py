@@ -231,6 +231,64 @@ def test_async_grading_mixed_choice_and_writing(db_session: Session, monkeypatch
         fastapi_app.dependency_overrides.clear()
 
 
+def test_async_grading_speaking(db_session: Session, monkeypatch):
+    """Đề Speaking (audio) đi qua đường chấm bất đồng bộ (SPEC-GRADE-003): worker gọi
+    ai_grading_service.grade_speaking (mock mode, không tải audio) -> ghi
+    score_speaking + feedback_speaking[question_X].
+    """
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.core.celery import celery_app
+    from app.models.exam import Exam
+    import app.workers.tasks as tasks_module
+
+    test_engine = db_session.get_bind()
+    WorkerSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(tasks_module, "SessionLocal", WorkerSession)
+    monkeypatch.setattr(tasks_module.ai_grading_service, "model", None)  # mock, no network
+    monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
+    monkeypatch.setattr(celery_app.conf, "task_eager_propagates", True)
+
+    candidate_token = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        exam = Exam(title="VSTEP Speaking", language="EN", exam_type="VSTEP",
+                    duration_minutes=60, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+        qs = Question(exam_id=exam.id, part=3, type="speaking",
+                      content="Talk about your hometown for 1 minute.", status="approved")
+        db_session.add(qs)
+        db_session.commit()
+        db_session.refresh(qs)
+
+        resp = client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [{"question_id": qs.id, "answer": "", "audio_url": "/static/uploads/x.webm"}]},
+            headers={"Authorization": f"Bearer {candidate_token}"},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "grading"
+
+        db_session.expire_all()
+        from app.models.submission import Submission as SubmissionModel
+        sub = db_session.query(SubmissionModel).filter(
+            SubmissionModel.id == resp.json()["submission_id"]
+        ).first()
+        assert sub.status == "completed"
+        assert sub.grade is not None
+        assert sub.grade.score_speaking > 0, "phần Nói phải được chấm AI"
+        assert f"question_{qs.id}" in (sub.grade.feedback_speaking or {})
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
 def test_async_grading_falls_back_to_inline_without_broker(db_session: Session, monkeypatch):
     """Khi KHÔNG có broker/worker Celery (vd Render free không Redis): submit đề tự
     luận vẫn phải chấm xong — endpoint bắt lỗi enqueue và chấm nội tuyến (.apply).

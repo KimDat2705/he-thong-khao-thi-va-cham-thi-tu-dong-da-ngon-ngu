@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -12,10 +15,35 @@ from app.schemas.submission import (
     SubmissionDetailOut,
     SubmissionListItem,
     MySubmissionListItem,
+    AudioUploadResult,
 )
 from app.services import submission_admin
 
 router = APIRouter(tags=["Submissions"])
+
+# Where uploaded Speaking recordings are stored (served at /static/uploads).
+_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static", "uploads")
+_ALLOWED_AUDIO_EXT = {".webm", ".ogg", ".mp3", ".mp4", ".m4a", ".wav"}
+
+
+@router.post("/api/v1/submissions/upload-audio", response_model=AudioUploadResult)
+async def upload_audio(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Upload a Speaking answer recording; returns a served audio_url to attach to the
+    submission answer. Any authenticated user (candidate) may upload.
+    """
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in _ALLOWED_AUDIO_EXT:
+        ext = ".webm"
+    os.makedirs(_UPLOAD_DIR, exist_ok=True)
+    fname = f"sub_{current_user.id}_{uuid.uuid4().hex}{ext}"
+    content = await file.read()
+    with open(os.path.join(_UPLOAD_DIR, fname), "wb") as f:
+        f.write(content)
+    return {"audio_url": f"/static/uploads/{fname}"}
 
 
 @router.post("/api/v1/exams/{exam_id}/submit", response_model=SubmissionResult)
@@ -31,7 +59,10 @@ def submit_exam(
     Raises HTTP 404 if the exam is not found or retired, and HTTP 400 for bad exam types.
     """
     try:
-        ans_dicts = [{"question_id": a.question_id, "answer": a.answer} for a in payload.answers]
+        ans_dicts = [
+            {"question_id": a.question_id, "answer": a.answer, "audio_url": a.audio_url}
+            for a in payload.answers
+        ]
         result = submission_admin.create_submission_and_grade(
             db=db,
             exam_id=exam_id,

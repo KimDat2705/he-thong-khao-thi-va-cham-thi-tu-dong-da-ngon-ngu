@@ -89,8 +89,8 @@ export function useMediaRecorder(): UseMediaRecorderResult {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
 
-    } catch (err: any) {
-      setError(err.message || "Failed to access microphone.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to access microphone.");
       loggerError("Failed to start media recording: ", err);
     }
   };
@@ -129,6 +129,6 @@ export function useMediaRecorder(): UseMediaRecorderResult {
 }
 
 // Utility helper to prevent typescript execution context errors inside the hooks
-function loggerError(...args: any[]) {
+function loggerError(...args: unknown[]) {
   console.error(...args);
 }

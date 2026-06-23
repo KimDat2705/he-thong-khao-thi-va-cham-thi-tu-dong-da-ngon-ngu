@@ -8,6 +8,7 @@ import {
   getExam,
   getToken,
   clearToken,
+  API_BASE,
   type SubmissionDetail,
   type QuestionOut,
 } from "@/lib/api";
@@ -83,9 +84,14 @@ export default function SubmissionDetailView({ id }: { id: string }) {
   }
 
   const fw = sub.feedback_writing || {};
-  const choiceCount = sub.answers.filter((a) => !fw[`question_${a.question_id}`]).length;
-  // Essay answers = those that have an AI writing-feedback entry.
+  const fs = sub.feedback_speaking || {};
+  const hasEssayFeedback = (qid: number) => !!fw[`question_${qid}`] || !!fs[`question_${qid}`];
+  // Choice (auto-graded) answers = those WITHOUT an AI free-text feedback entry.
+  const choiceCount = sub.answers.filter((a) => !hasEssayFeedback(a.question_id)).length;
   const essayAnswers = sub.answers.filter((a) => fw[`question_${a.question_id}`]);
+  const speakingAnswers = sub.answers.filter((a) => fs[`question_${a.question_id}`]);
+  const audioFullUrl = (u: string | null) =>
+    !u ? null : u.startsWith("http") ? u : `${API_BASE}${u}`;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10 space-y-6">
@@ -121,6 +127,12 @@ export default function SubmissionDetailView({ id }: { id: string }) {
               <div className="text-base font-bold text-emerald-700">{sub.score_writing ?? 0}</div>
             </div>
           ) : null}
+          {(sub.score_speaking ?? 0) > 0 || speakingAnswers.length > 0 ? (
+            <div>
+              <div className="text-xs text-gray-400 font-medium">Điểm Nói (AI)</div>
+              <div className="text-base font-bold text-emerald-700">{sub.score_speaking ?? 0}</div>
+            </div>
+          ) : null}
           <div>
             <div className="text-xs text-gray-400 font-semibold">Tổng điểm</div>
             <div className="text-base font-bold text-gray-900">{sub.total_score ?? "—"}</div>
@@ -128,13 +140,15 @@ export default function SubmissionDetailView({ id }: { id: string }) {
         </div>
       </div>
 
-      {essayAnswers.length === 0 ? (
+      {essayAnswers.length === 0 && speakingAnswers.length === 0 && (
         <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 bg-white">
           Bài nộp này không có câu tự luận (hoặc chưa chấm xong).
         </div>
-      ) : (
+      )}
+
+      {essayAnswers.length > 0 && (
         <div className="space-y-5">
-          <h2 className="text-sm font-bold text-gray-900">Bài làm tự luận &amp; nhận xét AI</h2>
+          <h2 className="text-sm font-bold text-gray-900">Bài làm tự luận &amp; nhận xét AI (Viết)</h2>
           {essayAnswers.map((a, idx) => {
             const fb = fw[`question_${a.question_id}`];
             const q = questionMap[a.question_id];
@@ -169,6 +183,52 @@ export default function SubmissionDetailView({ id }: { id: string }) {
                             {ge.explanation && <span className="block text-gray-500 mt-0.5">{ge.explanation}</span>}
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {speakingAnswers.length > 0 && (
+        <div className="space-y-5">
+          <h2 className="text-sm font-bold text-gray-900">Bài làm &amp; nhận xét AI (Nói)</h2>
+          {speakingAnswers.map((a, idx) => {
+            const fb = fs[`question_${a.question_id}`];
+            const q = questionMap[a.question_id];
+            const src = audioFullUrl(a.audio_url);
+            return (
+              <div key={a.question_id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-800">Phần nói {idx + 1}</span>
+                  {fb && <span className="text-sm font-bold text-emerald-600">{fb.score}/10</span>}
+                </div>
+                {q?.content && (
+                  <p className="whitespace-pre-wrap rounded-md bg-gray-50 p-3 text-xs text-gray-600">
+                    <span className="font-semibold">Đề: </span>{q.content}
+                  </p>
+                )}
+                {src && <audio controls src={src} className="w-full" />}
+                {fb?.transcription && (
+                  <p className="whitespace-pre-wrap rounded-md border border-gray-200 p-3 text-sm italic text-gray-700">
+                    “{fb.transcription}”
+                  </p>
+                )}
+                {fb && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-gray-500">Nhận xét AI</div>
+                    <p className="whitespace-pre-wrap text-sm text-gray-700">{fb.feedback}</p>
+                    {fb.pronunciation_issues && fb.pronunciation_issues.length > 0 && (
+                      <div className="space-y-1 pt-1">
+                        <span className="text-xs font-semibold text-gray-500">Lỗi phát âm:</span>
+                        <ul className="list-disc pl-5 text-xs text-gray-700">
+                          {fb.pronunciation_issues.map((p, pi) => (
+                            <li key={pi}>{p}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                   </div>

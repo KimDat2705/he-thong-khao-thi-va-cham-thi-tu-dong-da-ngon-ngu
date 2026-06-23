@@ -63,6 +63,12 @@ WRITING_PROMPT = (
     "disadvantages of working from home. Give at least two reasons and an example."
 )
 
+# Speaking section (Part 3): a spoken task graded by AI (audio upload/recording).
+SPEAKING_PROMPT = (
+    "Speaking — Talk for about 1 minute about a place you would like to visit. "
+    "Say where it is, why you want to go there, and what you would do."
+)
+
 
 def seed_vstep_exam(db) -> Exam:
     existing = db.query(Exam).filter(Exam.title == EXAM_TITLE).first()
@@ -106,9 +112,21 @@ def seed_vstep_exam(db) -> Exam:
         difficulty="medium",
         topic="Writing",
     ))
+
+    # Part 3 — Speaking (audio, AI-graded)
+    db.add(Question(
+        exam_id=exam.id,
+        part=3,
+        type="speaking",
+        content=SPEAKING_PROMPT,
+        reference_answer=None,
+        status="approved",
+        difficulty="medium",
+        topic="Speaking",
+    ))
     db.commit()
     print(f"Seeded VSTEP demo exam id={exam.id}: "
-          f"{len(READING_QUESTIONS)} reading MCQ + 1 writing task.")
+          f"{len(READING_QUESTIONS)} reading MCQ + 1 writing + 1 speaking task.")
     return exam
 
 

@@ -180,6 +180,40 @@ def test_SPEC_SUBMIT_001_exam_grading_flow(db_session: Session, admin_auth_heade
         fastapi_app.dependency_overrides.clear()
 
 
+def test_upload_audio_endpoint(db_session: Session):
+    """POST /submissions/upload-audio lưu file ghi âm và trả audio_url phục vụ phần Nói
+    (Speaking). Yêu cầu đăng nhập (401 nếu thiếu token).
+    """
+    import os
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+
+    token = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        files = {"file": ("answer.webm", b"FAKEAUDIOBYTES", "audio/webm")}
+        resp = client.post("/api/v1/submissions/upload-audio", files=files,
+                           headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200, resp.text
+        url = resp.json()["audio_url"]
+        assert url.startswith("/static/uploads/") and url.endswith(".webm")
+
+        # File thực sự được ghi
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "static", url.replace("/static/", "", 1))
+        assert os.path.isfile(path)
+        os.remove(path)  # dọn artifact
+
+        # Thiếu token -> 401
+        resp = client.post("/api/v1/submissions/upload-audio", files=files)
+        assert resp.status_code == 401
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
 def test_SPEC_SUBMIT_002_submissions_listing(db_session: Session):
     from fastapi.testclient import TestClient
     from app.main import app as fastapi_app

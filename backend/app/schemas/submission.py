@@ -5,7 +5,13 @@ from typing import List, Optional, Any
 
 class AnswerItem(BaseModel):
     question_id: int
-    answer: str
+    answer: str = ""
+    # For Speaking questions: URL/path of the uploaded audio recording.
+    audio_url: Optional[str] = None
+
+
+class AudioUploadResult(BaseModel):
+    audio_url: str
 
 
 class SubmitRequest(BaseModel):

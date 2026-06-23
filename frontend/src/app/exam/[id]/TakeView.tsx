@@ -10,6 +10,7 @@ import {
   getExam,
   submitExam,
   getSubmission,
+  uploadAudio,
   type SubmissionResult,
   type SubmissionDetail,
   audioSrc,
@@ -17,6 +18,7 @@ import {
   getToken,
   clearToken,
 } from "@/lib/api";
+import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 
 function QuestionItem({
   q,
@@ -128,6 +130,87 @@ function GroupItem({
   );
 }
 
+function SpeakingItem({
+  q,
+  audioUrl,
+  onUploaded,
+}: {
+  q: QuestionOut;
+  audioUrl?: string;
+  onUploaded: (qid: number, url: string) => void;
+}) {
+  const rec = useMediaRecorder();
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  const doUpload = async (blob: Blob, filename: string) => {
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const res = await uploadAudio(blob, filename);
+      onUploaded(q.id, res.audio_url);
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Auto-upload once a recording is finalized.
+  useEffect(() => {
+    if (rec.audioBlob) {
+      doUpload(rec.audioBlob, "recording.webm");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rec.audioBlob]);
+
+  return (
+    <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+      <div className="whitespace-pre-wrap text-sm font-medium text-gray-900">{q.content}</div>
+      <div className="flex flex-wrap items-center gap-3">
+        {!rec.isRecording ? (
+          <button
+            type="button"
+            onClick={() => rec.startRecording()}
+            className="rounded-md bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-100"
+          >
+            ● Ghi âm
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => rec.stopRecording()}
+            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
+          >
+            ■ Dừng ({rec.recordingTime}s)
+          </button>
+        )}
+        <label className="cursor-pointer rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+          Tải file audio
+          <input
+            type="file"
+            accept="audio/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) doUpload(f, f.name);
+            }}
+          />
+        </label>
+        {uploading && <span className="text-xs text-gray-500">Đang tải lên…</span>}
+        {audioUrl && !uploading && (
+          <span className="text-xs font-semibold text-emerald-600">✓ Đã có bản ghi</span>
+        )}
+      </div>
+      {rec.audioUrl && (
+        <audio controls src={rec.audioUrl} className="w-full" />
+      )}
+      {rec.error && <p className="text-xs text-red-600">{rec.error}</p>}
+      {uploadErr && <p className="text-xs text-red-600">Tải lên lỗi: {uploadErr}</p>}
+    </div>
+  );
+}
+
 export default function TakeView({ id }: { id: string }) {
   const router = useRouter();
   const [exam, setExam] = useState<ExamDetail | null>(null);
@@ -137,6 +220,8 @@ export default function TakeView({ id }: { id: string }) {
 
   // Take States
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  // Speaking answers: question_id -> uploaded audio_url.
+  const [audioUrls, setAudioUrls] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmissionResult | null>(null);
   // Async (essay/AI) grading: poll the submission until it completes.
@@ -202,8 +287,8 @@ export default function TakeView({ id }: { id: string }) {
 
   const questions = getAllQuestions();
   const totalQuestions = questions.length;
-  const answeredCount = Object.keys(selectedAnswers).filter(
-    (key) => selectedAnswers[Number(key)]?.trim() !== ""
+  const answeredCount = questions.filter((q) =>
+    q.type === "speaking" ? !!audioUrls[q.id] : (selectedAnswers[q.id]?.trim() ?? "") !== ""
   ).length;
   // Essay exams (Writing/Speaking) are graded asynchronously by AI — the result
   // panel polls for the score instead of showing TOEIC L/R numbers immediately.
@@ -217,6 +302,10 @@ export default function TakeView({ id }: { id: string }) {
       ...prev,
       [qid]: value,
     }));
+  };
+
+  const handleAudioUploaded = (qid: number, url: string) => {
+    setAudioUrls((prev) => ({ ...prev, [qid]: url }));
   };
 
   const pollGrading = async (submissionId: number) => {
@@ -257,6 +346,7 @@ export default function TakeView({ id }: { id: string }) {
       const answersPayload = questions.map((q) => ({
         question_id: q.id,
         answer: selectedAnswers[q.id] ?? "",
+        audio_url: audioUrls[q.id] ?? null,
       }));
 
       const res = await submitExam(exam.id, answersPayload);
@@ -323,9 +413,9 @@ export default function TakeView({ id }: { id: string }) {
                 <div className="flex h-28 w-28 items-center justify-center rounded-full bg-emerald-50 border-4 border-emerald-500 shadow-inner">
                   <div className="text-center">
                     <span className="text-3xl font-extrabold text-emerald-600">
-                      {gradingDetail.score_writing ?? gradingDetail.total_score ?? 0}
+                      {(gradingDetail.score_writing ?? 0) + (gradingDetail.score_speaking ?? 0)}
                     </span>
-                    <span className="block text-[10px] uppercase tracking-wider font-semibold text-gray-400 mt-0.5">Điểm AI</span>
+                    <span className="block text-[10px] uppercase tracking-wider font-semibold text-gray-400 mt-0.5">Điểm tự luận AI</span>
                   </div>
                 </div>
                 <span className="mt-2 text-xs font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
@@ -344,36 +434,65 @@ export default function TakeView({ id }: { id: string }) {
                 </div>
               )}
 
-              <div className="space-y-4 border-t border-gray-100 pt-5">
-                <h2 className="text-sm font-bold text-gray-900">Nhận xét chi tiết từ AI (phần Viết)</h2>
-                {gradingDetail.feedback_writing &&
-                Object.keys(gradingDetail.feedback_writing).length > 0 ? (
-                  Object.entries(gradingDetail.feedback_writing).map(([qkey, fb], idx) => (
-                    <div key={qkey} className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-gray-800">Bài {idx + 1}</span>
-                        <span className="text-sm font-bold text-emerald-600">{fb.score}/10</span>
-                      </div>
-                      <p className="whitespace-pre-wrap text-sm text-gray-700">{fb.feedback}</p>
-                      {fb.grammar_errors && fb.grammar_errors.length > 0 && (
-                        <div className="space-y-1.5 pt-1">
-                          <span className="text-xs font-semibold text-gray-500">Lỗi & gợi ý sửa:</span>
-                          {fb.grammar_errors.map((ge, gi) => (
-                            <div key={gi} className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-gray-700">
-                              <span className="line-through text-red-500">{ge.error}</span>
-                              {" → "}
-                              <span className="font-semibold text-emerald-700">{ge.correction}</span>
-                              {ge.explanation && <span className="block text-gray-500 mt-0.5">{ge.explanation}</span>}
-                            </div>
-                          ))}
+              {gradingDetail.feedback_writing &&
+                Object.keys(gradingDetail.feedback_writing).length > 0 && (
+                  <div className="space-y-4 border-t border-gray-100 pt-5">
+                    <h2 className="text-sm font-bold text-gray-900">Nhận xét chi tiết từ AI (phần Viết)</h2>
+                    {Object.entries(gradingDetail.feedback_writing).map(([qkey, fb], idx) => (
+                      <div key={qkey} className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-800">Bài {idx + 1}</span>
+                          <span className="text-sm font-bold text-emerald-600">{fb.score}/10</span>
                         </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500">Không có nhận xét chi tiết.</p>
+                        <p className="whitespace-pre-wrap text-sm text-gray-700">{fb.feedback}</p>
+                        {fb.grammar_errors && fb.grammar_errors.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-xs font-semibold text-gray-500">Lỗi & gợi ý sửa:</span>
+                            {fb.grammar_errors.map((ge, gi) => (
+                              <div key={gi} className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-gray-700">
+                                <span className="line-through text-red-500">{ge.error}</span>
+                                {" → "}
+                                <span className="font-semibold text-emerald-700">{ge.correction}</span>
+                                {ge.explanation && <span className="block text-gray-500 mt-0.5">{ge.explanation}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </div>
+
+              {gradingDetail.feedback_speaking &&
+                Object.keys(gradingDetail.feedback_speaking).length > 0 && (
+                  <div className="space-y-4 border-t border-gray-100 pt-5">
+                    <h2 className="text-sm font-bold text-gray-900">Nhận xét chi tiết từ AI (phần Nói)</h2>
+                    {Object.entries(gradingDetail.feedback_speaking).map(([qkey, fb], idx) => (
+                      <div key={qkey} className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-800">Phần nói {idx + 1}</span>
+                          <span className="text-sm font-bold text-emerald-600">{fb.score}/10</span>
+                        </div>
+                        {fb.transcription && (
+                          <p className="whitespace-pre-wrap rounded-md bg-gray-50 p-2 text-xs italic text-gray-600">
+                            “{fb.transcription}”
+                          </p>
+                        )}
+                        <p className="whitespace-pre-wrap text-sm text-gray-700">{fb.feedback}</p>
+                        {fb.pronunciation_issues && fb.pronunciation_issues.length > 0 && (
+                          <div className="space-y-1 pt-1">
+                            <span className="text-xs font-semibold text-gray-500">Lỗi phát âm:</span>
+                            <ul className="list-disc pl-5 text-xs text-gray-700">
+                              {fb.pronunciation_issues.map((p, pi) => (
+                                <li key={pi}>{p}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
             </>
           )}
 
@@ -503,14 +622,23 @@ export default function TakeView({ id }: { id: string }) {
                 </div>
               )}
               <div className="space-y-4 mt-4">
-                {p.standalone_questions.map((q) => (
-                  <QuestionItem
-                    key={q.id}
-                    q={q}
-                    selectedValue={selectedAnswers[q.id]}
-                    onChange={(value) => handleSelectAnswer(q.id, value)}
-                  />
-                ))}
+                {p.standalone_questions.map((q) =>
+                  q.type === "speaking" ? (
+                    <SpeakingItem
+                      key={q.id}
+                      q={q}
+                      audioUrl={audioUrls[q.id]}
+                      onUploaded={handleAudioUploaded}
+                    />
+                  ) : (
+                    <QuestionItem
+                      key={q.id}
+                      q={q}
+                      selectedValue={selectedAnswers[q.id]}
+                      onChange={(value) => handleSelectAnswer(q.id, value)}
+                    />
+                  )
+                )}
                 {p.groups.map((g) => (
                   <GroupItem
                     key={g.id}
