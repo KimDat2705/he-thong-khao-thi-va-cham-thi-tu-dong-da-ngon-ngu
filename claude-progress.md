@@ -525,6 +525,17 @@
 - **Ranh giới đúng**: 6 file (api/schema/service/specs/test backend + api.ts/SubmissionDetailView frontend); **KHÔNG đụng models (chỉ cập nhật giá trị)/grader/generator**. `make_fixtures.py` (ngoài phạm vi S34) vẫn để nguyên.
 - **Trạng thái sau C11**: **42 spec — 41 active / 0 gap / 1 planned**. 🏁 **Quy trình chấm "AI gợi ý — giáo viên quyết định" đã khép kín cho EN.**
 - **🚀 DEPLOY C11 LÊN MAIN LIVE (23/06, Đạt cho phép "deploy C11 lên main")**: FF-push `Dat→main` → `origin/main` = `a68d91c` (Render rebuild ~90s; Vercel). **Verify LIVE**: route `PATCH /submissions/{id}/grade` từ 404 (build cũ)→ tồn tại + gate đúng (**no-token 401, candidate 403**); Vercel `/submissions/1`, `/my-results`, `/admin/results/3` đều 200. *(Luồng giáo viên-sửa đầy đủ verify local browser + pytest 53/0/0; LIVE không chạy được vì Claude không giữ ADMIN_PASSWORD của Render — đúng bảo mật.)* 🎉 **Human-in-the-loop (giáo viên duyệt/sửa điểm AI) nay LIVE.**
+
+### Session 35 (tiếp) -- 2026-06-23 (Claude — C12: đồng hồ đếm ngược + tự động nộp khi hết giờ)
+- **Bối cảnh**: Đạt yêu cầu tiếp tục hoàn thiện EN, tự chọn việc logic nhất. Claude chọn **đồng hồ đếm ngược + tự nộp** — phần chấm đã trọn nhưng **trải nghiệm THI thiếu yếu tố cốt lõi: giới hạn thời gian**. Đề có sẵn `duration_minutes` nhưng UI không đếm giờ/không tự nộp → thí sinh làm vô hạn. Frontend thuần, không cần duyệt model/phần cứng, verify được — hơn proctoring (webcam không verify ở headless + lưu vi phạm cần sửa model đóng băng).
+- **Việc C12 HOÀN THÀNH** (commit `Dat`). FRONTEND thuần — chỉ `TakeView.tsx`, KHÔNG đụng backend/spec:
+  - State `remainingSec` khởi tạo = `exam.duration_minutes*60`; effect interval đếm lùi 1s (deps `[timerActive]` ổn định, cleanup `clearInterval` — 1 interval); effect tự nộp khi `remainingSec===0` gọi `handleSubmit(true)`.
+  - `handleSubmit(auto=false)`: bỏ `window.confirm` khi auto; guard `submitting` chống nộp đôi. Nút "Nộp bài" đổi `onClick={() => handleSubmit(false)}` (tránh truyền event làm bỏ confirm).
+  - Header hiện `⏱ MM:SS` (helper `formatTime`), đổi màu: ≤5' amber, ≤1' đỏ.
+- **Nghiệm thu (Claude, độc lập — build + browser)**: `npm run build` PASS. 🎯 **Browser thật** (đề VSTEP set `duration_minutes=1` qua PATCH admin để test nhanh): timer hiện `⏱` đếm ngược thật 60→...→0 (nhịp không đều do tab preview ẩn bị throttle, foreground là 1s/lần — đã reload+poll để đẩy về 0); **tại 0 TỰ ĐỘNG NỘP không bấm gì** → panel "Kết Quả Bài Viết 15.5 ĐIỂM · COMPLETED · Trắc nghiệm 0/4 · Essay length 0" (nộp bài trống vì hết giờ); console 0 lỗi. backend suite 53/0/0 (C12 không đụng backend).
+- **Ranh giới đúng**: 1 file (`TakeView.tsx`); KHÔNG đụng backend/models/spec. `make_fixtures.py` (ngoài phạm vi S34) vẫn để nguyên.
+- **Lưu ý**: đếm giờ hiện CLIENT-SIDE từ lúc tải trang (chưa lưu thời điểm bắt đầu → reload sẽ reset giờ). Phiên bản bền (lưu started_at, resume khi reload) là nâng cấp sau nếu cần thi nghiêm ngặt.
+- **Trạng thái sau C12**: spec vẫn **42 — 41 active / 0 gap / 1 planned** (C12 frontend, không thêm spec). 🏁 **Trang làm bài nay có giới hạn thời gian + tự nộp — đủ chất một kỳ thi.** **C12 trên Dat, CHƯA deploy.**
 - **Bài học**: render.yaml envVars chỉ tự áp nếu service tạo qua Blueprint sync — service thủ công thì phải set env ở dashboard HOẶC làm code robust (đã chọn cách 2: fallback nội tuyến, không cần env). Khi verify LIVE phải lấy question_id THẬT từ `GET /exams/{id}` (ID toàn cục), không giả định 1..N.
 
 ## Next Steps
