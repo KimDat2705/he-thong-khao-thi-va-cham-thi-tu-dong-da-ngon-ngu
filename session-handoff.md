@@ -1,4 +1,6 @@
-# Session Handoff — cập nhật 23/06/2026 (Claude — GRADE-003: nối hàng đợi chấm AI tự luận; phân hệ Chấm đủ cả 2 nhánh)
+# Session Handoff — cập nhật 23/06/2026 (Claude — 🚀 DEPLOY mạch chấm AI tự luận EN (GRADE-003+C6+C7+C8) LÊN MAIN LIVE)
+
+> **🚀 ĐÃ DEPLOY LIVE (23/06, Đạt cho phép):** `origin/main` = `origin/Dat` = **`3905396`**. Mạch chấm AI tự luận tiếng Anh (GRADE-003 async + C6 UI Viết + C7 đề VSTEP/hỗn hợp + C8 KQ mọi vai trò) nay LIVE. Render free không có Redis/worker → chấm tự luận chạy **fallback nội tuyến** (submission_admin bắt lỗi `.delay()` → `.apply()`); KHÔNG cần env eager. Verify LIVE: nộp đề VSTEP B1 (id=3, dùng ĐÚNG question_id từ `GET /exams/3`) → writing 8.0(mock)+4 trắc nghiệm = total 12 completed; frontend Vercel mọi route 200. 📌 **Chấm Gemini THẬT**: đặt `GEMINI_API_KEY` ở env Render (hiện mock 8.0). cloud_bootstrap đã seed đề Writing/VSTEP lúc build.
 
 > 🎉 **DEMO LIVE + AUTH**: Frontend https://he-thong-khao-thi-va-cham-thi-tu-do.vercel.app · Backend https://toeic-backend-5n57.onrender.com. Demo giờ "đăng nhập rồi dùng": `/admin` + `/admin/bank` bắt login (admin/teacher); xem đề thí sinh vẫn mở. Admin seed từ env Render `ADMIN_USERNAME`/`ADMIN_PASSWORD` (Đạt đặt). Verify live OK (login admin → /admin, stats 7/7 đủ). Redeploy = push `main`; nếu login fail sau redeploy → Render "Clear build cache & deploy". Chi tiết auth: memory `deploy-cloud-urls`.
 >
