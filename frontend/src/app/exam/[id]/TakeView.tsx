@@ -130,6 +130,13 @@ function GroupItem({
   );
 }
 
+function formatTime(totalSec: number): string {
+  const safe = Math.max(0, totalSec);
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 function SpeakingItem({
   q,
   audioUrl,
@@ -228,6 +235,8 @@ export default function TakeView({ id }: { id: string }) {
   const [gradingDetail, setGradingDetail] = useState<SubmissionDetail | null>(null);
   const [polling, setPolling] = useState(false);
   const mountedRef = useRef(true);
+  // Countdown timer (seconds remaining); null until the exam is loaded.
+  const [remainingSec, setRemainingSec] = useState<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -335,10 +344,12 @@ export default function TakeView({ id }: { id: string }) {
     if (mountedRef.current) setPolling(false);
   };
 
-  const handleSubmit = async () => {
-    if (!exam) return;
-    const ok = window.confirm("Bạn có chắc chắn muốn nộp bài không?");
-    if (!ok) return;
+  const handleSubmit = async (auto = false) => {
+    if (!exam || submitting) return;
+    if (!auto) {
+      const ok = window.confirm("Bạn có chắc chắn muốn nộp bài không?");
+      if (!ok) return;
+    }
 
     setSubmitting(true);
     try {
@@ -368,6 +379,31 @@ export default function TakeView({ id }: { id: string }) {
       setSubmitting(false);
     }
   };
+
+  // Initialize the countdown once the exam (with duration) is loaded.
+  useEffect(() => {
+    if (exam && remainingSec === null) {
+      setRemainingSec(Math.max(0, (exam.duration_minutes ?? 0) * 60));
+    }
+  }, [exam, remainingSec]);
+
+  // Tick every second while the exam is in progress (not submitted/submitting).
+  const timerActive = remainingSec !== null && !result && !submitting;
+  useEffect(() => {
+    if (!timerActive) return;
+    const t = setInterval(() => {
+      setRemainingSec((s) => (s !== null && s > 0 ? s - 1 : s));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [timerActive]);
+
+  // Auto-submit when time runs out.
+  useEffect(() => {
+    if (remainingSec === 0 && exam && !result && !submitting) {
+      handleSubmit(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remainingSec]);
 
   if (error) {
     return (
@@ -591,13 +627,29 @@ export default function TakeView({ id }: { id: string }) {
             </div>
           </div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="shrink-0 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-hidden disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting ? "Đang nộp..." : "Nộp bài"}
-          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            {remainingSec !== null && (
+              <div
+                className={`rounded-md px-2.5 py-1 text-sm font-bold tabular-nums ${
+                  remainingSec <= 60
+                    ? "bg-red-50 text-red-600"
+                    : remainingSec <= 300
+                      ? "bg-amber-50 text-amber-600"
+                      : "bg-gray-100 text-gray-700"
+                }`}
+                title="Thời gian còn lại"
+              >
+                ⏱ {formatTime(remainingSec)}
+              </div>
+            )}
+            <button
+              onClick={() => handleSubmit(false)}
+              disabled={submitting}
+              className="shrink-0 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-hidden disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {submitting ? "Đang nộp..." : "Nộp bài"}
+            </button>
+          </div>
         </div>
       </header>
 
