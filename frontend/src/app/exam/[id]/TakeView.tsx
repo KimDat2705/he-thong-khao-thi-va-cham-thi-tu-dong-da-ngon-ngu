@@ -208,6 +208,9 @@ export default function TakeView({ id }: { id: string }) {
   // Essay exams (Writing/Speaking) are graded asynchronously by AI — the result
   // panel polls for the score instead of showing TOEIC L/R numbers immediately.
   const isEssayExam = questions.some((q) => q.type === "writing" || q.type === "speaking");
+  // Mixed exams (e.g. VSTEP: Reading MCQ + Writing) also have auto-graded choice
+  // questions; the essay result panel shows that score alongside the AI feedback.
+  const choiceCount = questions.filter((q) => q.type === "choice").length;
 
   const handleSelectAnswer = (qid: number, value: string) => {
     setSelectedAnswers((prev) => ({
@@ -330,8 +333,19 @@ export default function TakeView({ id }: { id: string }) {
                 </span>
               </div>
 
+              {choiceCount > 0 && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 text-center">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 block">
+                    Trắc nghiệm (Reading)
+                  </span>
+                  <span className="text-lg font-bold text-blue-700">
+                    {gradingDetail.score_multiple_choice ?? 0}/{choiceCount} câu đúng
+                  </span>
+                </div>
+              )}
+
               <div className="space-y-4 border-t border-gray-100 pt-5">
-                <h2 className="text-sm font-bold text-gray-900">Nhận xét chi tiết từ AI</h2>
+                <h2 className="text-sm font-bold text-gray-900">Nhận xét chi tiết từ AI (phần Viết)</h2>
                 {gradingDetail.feedback_writing &&
                 Object.keys(gradingDetail.feedback_writing).length > 0 ? (
                   Object.entries(gradingDetail.feedback_writing).map(([qkey, fb], idx) => (

@@ -7,7 +7,6 @@ Tự luận (Writing/Speaking): chấm bằng Gemini, mục tiêu bất đồng 
 import json
 import os
 
-import pytest
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -157,6 +156,77 @@ def test_SPEC_GRADE_003_async_grading_via_celery(db_session: Session, monkeypatc
         assert sub.grade is not None
         assert sub.grade.score_writing > 0
         assert sub.grade.score_total > 0
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
+def test_async_grading_mixed_choice_and_writing(db_session: Session, monkeypatch):
+    """Guard cho đề HỖN HỢP (trắc nghiệm + tự luận, vd VSTEP B1 Reading+Writing) đi
+    qua đường chấm bất đồng bộ (SPEC-GRADE-003): worker phải chấm CẢ phần trắc
+    nghiệm (score_multiple_choice = số câu đúng) lẫn phần tự luận (score_writing).
+    """
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.core.celery import celery_app
+    from app.models.exam import Exam
+    import app.workers.tasks as tasks_module
+
+    test_engine = db_session.get_bind()
+    WorkerSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(tasks_module, "SessionLocal", WorkerSession)
+    monkeypatch.setattr(tasks_module.ai_grading_service, "model", None)
+    monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
+    monkeypatch.setattr(celery_app.conf, "task_eager_propagates", True)
+
+    candidate_token = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+    candidate_headers = {"Authorization": f"Bearer {candidate_token}"}
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        exam = Exam(title="VSTEP Mixed", language="EN", exam_type="VSTEP",
+                    duration_minutes=90, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+
+        q1 = Question(exam_id=exam.id, part=1, type="choice", content="R1",
+                      reference_answer="A", options={"A": "a", "B": "b"}, status="approved")
+        q2 = Question(exam_id=exam.id, part=1, type="choice", content="R2",
+                      reference_answer="B", options={"A": "a", "B": "b"}, status="approved")
+        qw = Question(exam_id=exam.id, part=2, type="writing",
+                      content="Write ~150 words about working from home.", status="approved")
+        db_session.add_all([q1, q2, qw])
+        db_session.commit()
+        for q in (q1, q2, qw):
+            db_session.refresh(q)
+
+        # One MCQ correct (q1=A), one wrong (q2: send A but answer is B), plus an essay.
+        resp = client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [
+                {"question_id": q1.id, "answer": "A"},
+                {"question_id": q2.id, "answer": "A"},
+                {"question_id": qw.id, "answer": "Working from home saves commuting time but can feel isolating..."},
+            ]},
+            headers=candidate_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "grading"
+
+        db_session.expire_all()
+        from app.models.submission import Submission as SubmissionModel
+        sub = db_session.query(SubmissionModel).filter(
+            SubmissionModel.id == resp.json()["submission_id"]
+        ).first()
+        assert sub.status == "completed"
+        assert sub.grade is not None
+        assert sub.grade.score_multiple_choice == 1.0, "đúng 1/2 câu trắc nghiệm"
+        assert sub.grade.score_writing > 0, "phần tự luận phải được chấm AI"
     finally:
         fastapi_app.dependency_overrides.clear()
 
