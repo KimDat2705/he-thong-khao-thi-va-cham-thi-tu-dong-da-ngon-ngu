@@ -100,8 +100,8 @@ def grade_toeic_submission(db: Session, submission_id: int) -> Grade:
         db.add(grade)
 
     grade.score_multiple_choice = float(total_score)
-    grade.score_writing = float(reading_score)    # Stores Reading score
-    grade.score_speaking = float(listening_score)  # Stores Listening score
+    grade.score_listening = float(listening_score)  # SPEC-GRADE-002: Listening score
+    grade.score_reading = float(reading_score)      # SPEC-GRADE-002: Reading score
     grade.score_total = float(total_score)
     
     # Store detailed breakdown in feedback fields

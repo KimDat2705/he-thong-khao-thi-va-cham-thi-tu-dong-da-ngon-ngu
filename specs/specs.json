@@ -446,11 +446,11 @@
         "Sau khi chấm TOEIC: score_listening chứa điểm Nghe, score_reading chứa điểm Đọc"
       ],
       "verification": "pytest",
-      "status": "gap",
+      "status": "active",
       "tests": [
         "tests/test_specs_grading.py::test_SPEC_GRADE_002_score_field_semantics"
       ],
-      "notes": "GAP: toeic_grader hiện lưu Listening vào score_speaking, Reading vào score_writing. Cần Alembic thêm cột mới rồi migrate — test XFAIL."
+      "notes": "Đang đạt: model Grade có cột score_listening/score_reading (migration a1b2c3d4e5f6, additive); toeic_grader ghi điểm Nghe/Đọc đúng cột, submission_admin đọc đúng cột. score_speaking/score_writing giữ lại cho chấm tự luận (Writing/Speaking)."
     },
     {
       "id": "SPEC-GRADE-003",

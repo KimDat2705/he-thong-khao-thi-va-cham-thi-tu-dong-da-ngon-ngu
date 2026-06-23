@@ -79,8 +79,8 @@ def test_grade_toeic_submission_success(db_session: Session):
     expected_r_score = table["reading"][r_idx]
     expected_total = expected_l_score + expected_r_score
 
-    assert grade.score_speaking == expected_l_score  # Listening score
-    assert grade.score_writing == expected_r_score   # Reading score
+    assert grade.score_listening == expected_l_score  # Listening score (SPEC-GRADE-002)
+    assert grade.score_reading == expected_r_score    # Reading score (SPEC-GRADE-002)
     assert grade.score_total == expected_total
 
     # Verify breakdown info

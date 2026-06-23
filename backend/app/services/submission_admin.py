@@ -50,16 +50,15 @@ def create_submission_and_grade(
     grade = grade_toeic_submission(db, sub.id)
     db.refresh(sub)
 
-    # 5. Extract scores using convention:
-    # listening = score_speaking, reading = score_writing
+    # 5. Extract scores from semantically-named columns (SPEC-GRADE-002)
     listening_correct = grade.feedback_speaking.get("correct_answers", 0) if grade.feedback_speaking else 0
     reading_correct = grade.feedback_writing.get("correct_answers", 0) if grade.feedback_writing else 0
 
     return {
         "submission_id": sub.id,
         "status": sub.status,
-        "listening_score": grade.score_speaking,
-        "reading_score": grade.score_writing,
+        "listening_score": grade.score_listening,
+        "reading_score": grade.score_reading,
         "total_score": grade.score_total,
         "listening_correct": listening_correct,
         "reading_correct": reading_correct
@@ -75,8 +74,8 @@ def get_submission(db: Session, submission_id: int) -> Optional[dict]:
     if sub.grade:
         grade_info = {
             "score_multiple_choice": sub.grade.score_multiple_choice,
-            "listening_score": sub.grade.score_speaking,
-            "reading_score": sub.grade.score_writing,
+            "listening_score": sub.grade.score_listening,
+            "reading_score": sub.grade.score_reading,
             "total_score": sub.grade.score_total,
             "feedback_speaking": sub.grade.feedback_speaking,
             "feedback_writing": sub.grade.feedback_writing,
@@ -117,8 +116,8 @@ def list_exam_submissions(db: Session, exam_id: int) -> List[dict]:
             "username": sub.user.username,
             "full_name": sub.user.full_name,
             "total_score": grade.score_total if grade else None,
-            "listening_score": grade.score_speaking if grade else None,
-            "reading_score": grade.score_writing if grade else None,
+            "listening_score": grade.score_listening if grade else None,
+            "reading_score": grade.score_reading if grade else None,
             "status": sub.status,
             "submitted_at": sub.submitted_at
         })
@@ -136,8 +135,8 @@ def list_my_submissions(db: Session, user_id: int) -> List[dict]:
             "exam_id": sub.exam_id,
             "exam_title": sub.exam.title,
             "total_score": grade.score_total if grade else None,
-            "listening_score": grade.score_speaking if grade else None,
-            "reading_score": grade.score_writing if grade else None,
+            "listening_score": grade.score_listening if grade else None,
+            "reading_score": grade.score_reading if grade else None,
             "status": sub.status,
             "submitted_at": sub.submitted_at
         })

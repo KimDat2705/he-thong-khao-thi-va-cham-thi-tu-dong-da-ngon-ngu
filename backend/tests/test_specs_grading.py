@@ -46,12 +46,6 @@ def test_SPEC_GRADE_001_scoring_table_properties():
             )
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="GAP SPEC-GRADE-002: toeic_grader đang mượn score_speaking để lưu điểm "
-    "Listening và score_writing để lưu điểm Reading — model Grade chưa có "
-    "score_listening/score_reading (cần Alembic thêm cột)",
-)
 def test_SPEC_GRADE_002_score_field_semantics(db_session: Session):
     """SPEC-GRADE-002: Điểm Listening và Reading phải được lưu trong trường có
     tên đúng ngữ nghĩa (score_listening/score_reading), không mượn trường
