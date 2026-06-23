@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import datetime
 
 from app.models.exam import Exam
+from app.models.question import Question
 from app.models.submission import Submission, SubmissionDetail
 from app.services.toeic_grader import grade_toeic_submission
 
@@ -13,16 +14,27 @@ def create_submission_and_grade(
     user_id: int,
     answers: List[dict]
 ) -> dict:
-    # 1. Validate exam exists, is active, and is TOEIC in service layer
+    # 1. Validate exam exists and is active
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
         raise ValueError("Exam not found")
     if not exam.is_active:
         raise ValueError("Exam is retired")
-    if exam.exam_type.upper() != "TOEIC":
+
+    # 2. Decide grading mode by question type (BEFORE writing any record):
+    #    - exams containing Writing/Speaking questions are graded asynchronously
+    #      by the Celery worker via Gemini (SPEC-GRADE-003);
+    #    - pure multiple-choice TOEIC exams keep synchronous scaled grading (SPEC-SUBMIT-001);
+    #    - anything else (non-TOEIC, no essays) is unsupported -> 400.
+    has_essay = db.query(Question).filter(
+        Question.exam_id == exam_id,
+        Question.type.in_(("writing", "speaking"))
+    ).first() is not None
+
+    if not has_essay and exam.exam_type.upper() != "TOEIC":
         raise ValueError("Exam type is not TOEIC")
 
-    # 2. Create Submission
+    # 3. Create Submission
     now = datetime.datetime.utcnow()
     sub = Submission(
         exam_id=exam_id,
@@ -35,7 +47,7 @@ def create_submission_and_grade(
     db.commit()
     db.refresh(sub)
 
-    # 3. Create SubmissionDetail records
+    # 4. Create SubmissionDetail records
     for ans in answers:
         detail = SubmissionDetail(
             submission_id=sub.id,
@@ -46,11 +58,30 @@ def create_submission_and_grade(
     db.commit()
     db.refresh(sub)
 
-    # 4. Grade the submission
+    # 5a. ASYNC path (SPEC-GRADE-003): enqueue AI grading and return immediately.
+    if has_essay:
+        sub.status = "grading"
+        db.commit()
+        db.refresh(sub)
+        # Lazy import keeps the synchronous TOEIC path free of the Celery/Redis
+        # stack and avoids import cycles.
+        from app.workers.tasks import grade_submission_task
+        grade_submission_task.delay(submission_id=sub.id)
+        return {
+            "submission_id": sub.id,
+            "status": sub.status,  # "grading" — worker fills scores later
+            "listening_score": None,
+            "reading_score": None,
+            "total_score": None,
+            "listening_correct": None,
+            "reading_correct": None,
+        }
+
+    # 5b. SYNC path: grade TOEIC L&R immediately.
     grade = grade_toeic_submission(db, sub.id)
     db.refresh(sub)
 
-    # 5. Extract scores from semantically-named columns (SPEC-GRADE-002)
+    # Extract scores from semantically-named columns (SPEC-GRADE-002)
     listening_correct = grade.feedback_speaking.get("correct_answers", 0) if grade.feedback_speaking else 0
     reading_correct = grade.feedback_writing.get("correct_answers", 0) if grade.feedback_writing else 0
 
@@ -76,6 +107,8 @@ def get_submission(db: Session, submission_id: int) -> Optional[dict]:
             "score_multiple_choice": sub.grade.score_multiple_choice,
             "listening_score": sub.grade.score_listening,
             "reading_score": sub.grade.score_reading,
+            "score_writing": sub.grade.score_writing,
+            "score_speaking": sub.grade.score_speaking,
             "total_score": sub.grade.score_total,
             "feedback_speaking": sub.grade.feedback_speaking,
             "feedback_writing": sub.grade.feedback_writing,

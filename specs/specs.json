@@ -463,11 +463,11 @@
         "Kết quả cuối ghi vào bảng grades, submission.status='completed'"
       ],
       "verification": "pytest",
-      "status": "planned",
+      "status": "active",
       "tests": [
         "tests/test_specs_grading.py::test_SPEC_GRADE_003_async_grading_via_celery"
       ],
-      "notes": "Task grade_submission_task đã định nghĩa trong app/workers/tasks.py nhưng API đang chấm ĐỒNG BỘ — test SKIP đến khi nối queue."
+      "notes": "Đang đạt: endpoint submit định tuyến theo loại câu hỏi — đề có câu writing/speaking được đẩy vào hàng đợi qua grade_submission_task.delay() và trả về ngay status='grading' (chưa điểm); worker Celery chấm ngầm qua ai_grading_service (Gemini, mock-safe) rồi ghi grades + submission.status='completed'. Đề TOEIC trắc nghiệm thuần vẫn chấm đồng bộ (SPEC-SUBMIT-001). Test dùng celery task_always_eager + AI mock mode, không cần Redis/mạng."
     },
     {
       "id": "SPEC-GRADE-004",

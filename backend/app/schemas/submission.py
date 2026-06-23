@@ -15,11 +15,15 @@ class SubmitRequest(BaseModel):
 class SubmissionResult(BaseModel):
     submission_id: int
     status: str
-    listening_score: float
-    reading_score: float
-    total_score: float
-    listening_correct: int
-    reading_correct: int
+    # Scores are None when grading is asynchronous (essay/Writing/Speaking via
+    # Celery): the submit endpoint returns immediately with status "grading" and
+    # the worker fills in the scores later (SPEC-GRADE-003). For synchronous TOEIC
+    # grading these are populated in the response.
+    listening_score: Optional[float] = None
+    reading_score: Optional[float] = None
+    total_score: Optional[float] = None
+    listening_correct: Optional[int] = None
+    reading_correct: Optional[int] = None
 
 
 class AnswerDetailOut(BaseModel):
@@ -41,6 +45,9 @@ class SubmissionDetailOut(BaseModel):
     score_multiple_choice: Optional[float] = None
     listening_score: Optional[float] = None
     reading_score: Optional[float] = None
+    # Essay scores from the AI/Celery grading path (SPEC-GRADE-003)
+    score_writing: Optional[float] = None
+    score_speaking: Optional[float] = None
     total_score: Optional[float] = None
     feedback_speaking: Optional[Any] = None
     feedback_writing: Optional[Any] = None

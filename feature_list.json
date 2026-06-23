@@ -46,9 +46,9 @@
       "id": "celery-worker",
       "name": "Background Task Grading Queue",
       "description": "Celery workers consume submitted candidate exams from Redis queue and trigger asynchronous grading.",
-      "status": "in_progress",
-      "evidence": "app/core/celery.py configured; app/workers/tasks.py defines grade_submission_task — NOT yet wired to the submit API (grading runs synchronously; SPEC-GRADE-003 planned, no test yet).",
-      "testedAt": ""
+      "status": "active",
+      "evidence": "app/core/celery.py configured; app/workers/tasks.py grade_submission_task NOW WIRED to the submit API (SPEC-GRADE-003 active). submission_admin.create_submission_and_grade routes by question type: exams containing writing/speaking questions enqueue grade_submission_task.delay() and return immediately with status='grading' (no scores); the worker grades essays via ai_grading_service (Gemini, mock-safe degrade per SPEC-GRADE-004) and writes Grade.score_writing/score_speaking + submission.status='completed'. Pure multiple-choice TOEIC exams keep synchronous scaled grading (SPEC-SUBMIT-001 unchanged); non-TOEIC exams without essays still 400. No model change (Grade already had score_writing/score_speaking/feedback_* columns). Verified by tests/test_specs_grading.py::test_SPEC_GRADE_003_async_grading_via_celery (celery task_always_eager + AI mock mode + worker SessionLocal pointed at the test engine; asserts immediate 'grading' response then worker fills grades + status='completed'). NOTE: SPEC-GRADE-003 test runs in eager mode; a real Redis broker + `celery -A app.core.celery worker` is needed for true async in production. Speaking path is wired in the worker but no audio-upload submit flow/UI exists yet.",
+      "testedAt": "2026-06-23T00:00:00Z"
     },
     {
       "id": "docx-parser",

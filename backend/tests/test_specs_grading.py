@@ -75,26 +75,90 @@ def test_SPEC_GRADE_002_score_field_semantics(db_session: Session):
     assert grade.score_total == grade.score_listening + grade.score_reading
 
 
-@pytest.mark.skip(
-    reason="SPEC-GRADE-003: task grade_submission_task đã định nghĩa trong "
-    "app/workers/tasks.py nhưng API đang chấm ĐỒNG BỘ — test sẽ dùng celery "
-    "eager mode sau khi endpoint submit được nối vào hàng đợi"
-)
-def test_SPEC_GRADE_003_async_grading_via_celery(db_session: Session):
+def test_SPEC_GRADE_003_async_grading_via_celery(db_session: Session, monkeypatch):
     """SPEC-GRADE-003: Bài Writing/Speaking phải được chấm bất đồng bộ: API nộp
-    bài đẩy task vào hàng đợi Redis và phản hồi trạng thái pending trong <= 2 giây;
-    Celery worker chấm ngầm qua Gemini rồi ghi kết quả vào bảng grades.
+    bài đẩy task vào hàng đợi Redis và phản hồi ngay trạng thái grading; Celery
+    worker chấm ngầm qua Gemini rồi ghi kết quả vào bảng grades.
 
-    Kế hoạch test khi nối queue: bật task_always_eager, gọi endpoint submit với
-    câu writing, assert response trả ngay (status pending/grading) và sau khi task
-    eager chạy xong thì grades có bản ghi, submission.status='completed'.
+    Cô lập: chạy Celery ở eager mode (không cần Redis), ép AI grading về mock mode
+    (không gọi mạng), và trỏ SessionLocal của worker về engine test (StaticPool
+    in-memory) để worker thấy submission vừa tạo.
     """
-    from app.core.celery import celery_app
-    from app.workers.tasks import grade_submission_task
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
 
-    celery_app.conf.task_always_eager = True
-    result = grade_submission_task.delay(submission_id=1)
-    assert result.get()["status"] == "success"
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.core.celery import celery_app
+    from app.models.exam import Exam
+    import app.workers.tasks as tasks_module
+
+    # Worker mở session riêng (SessionLocal) -> trỏ về engine test để thấy dữ liệu.
+    test_engine = db_session.get_bind()
+    WorkerSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(tasks_module, "SessionLocal", WorkerSession)
+
+    # Ép AI grading về mock mode (không gọi Gemini/mạng) — model=None -> nhánh mock.
+    monkeypatch.setattr(tasks_module.ai_grading_service, "model", None)
+
+    # Celery eager: task chạy đồng bộ trong tiến trình test, không cần broker Redis.
+    monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
+    monkeypatch.setattr(celery_app.conf, "task_eager_propagates", True)
+
+    candidate_token = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+    candidate_headers = {"Authorization": f"Bearer {candidate_token}"}
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        # Đề Writing (VSTEP) — có câu tự luận -> phải đi đường chấm bất đồng bộ.
+        exam = Exam(
+            title="VSTEP Writing — SPEC-GRADE-003",
+            language="EN",
+            exam_type="VSTEP",
+            duration_minutes=60,
+            is_active=True,
+        )
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+
+        writing_q = Question(
+            exam_id=exam.id, part=1, type="writing",
+            content="Write an email of about 120 words about protecting the environment.",
+            reference_answer=None, status="approved",
+        )
+        db_session.add(writing_q)
+        db_session.commit()
+        db_session.refresh(writing_q)
+
+        essay = "Dear Sir, I am writing to share some ideas about protecting our environment..."
+        resp = client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [{"question_id": writing_q.id, "answer": essay}]},
+            headers=candidate_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        sub_id = body["submission_id"]
+
+        # API phản hồi NGAY trạng thái grading, KHÔNG chờ điểm Gemini.
+        assert body["status"] == "grading"
+        assert body["total_score"] is None
+        assert body["listening_score"] is None
+
+        # Worker eager đã chạy ngầm -> grades có bản ghi, submission completed.
+        db_session.expire_all()
+        from app.models.submission import Submission as SubmissionModel
+        sub = db_session.query(SubmissionModel).filter(SubmissionModel.id == sub_id).first()
+        assert sub is not None
+        assert sub.status == "completed"
+        assert sub.grade is not None
+        assert sub.grade.score_writing > 0
+        assert sub.grade.score_total > 0
+    finally:
+        fastapi_app.dependency_overrides.clear()
 
 
 def test_SPEC_GRADE_004_ai_grading_degrades_safely(monkeypatch):
