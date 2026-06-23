@@ -231,6 +231,64 @@ def test_async_grading_mixed_choice_and_writing(db_session: Session, monkeypatch
         fastapi_app.dependency_overrides.clear()
 
 
+def test_async_grading_falls_back_to_inline_without_broker(db_session: Session, monkeypatch):
+    """Khi KHÔNG có broker/worker Celery (vd Render free không Redis): submit đề tự
+    luận vẫn phải chấm xong — endpoint bắt lỗi enqueue và chấm nội tuyến (.apply).
+    Mô phỏng bằng cách ép grade_submission_task.delay() raise.
+    """
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.models.exam import Exam
+    import app.workers.tasks as tasks_module
+
+    test_engine = db_session.get_bind()
+    WorkerSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(tasks_module, "SessionLocal", WorkerSession)
+    monkeypatch.setattr(tasks_module.ai_grading_service, "model", None)
+
+    # Giả lập KHÔNG có broker: .delay() ném lỗi -> service phải fallback .apply().
+    def _boom(*a, **k):
+        raise RuntimeError("no broker reachable")
+    monkeypatch.setattr(tasks_module.grade_submission_task, "delay", _boom)
+
+    candidate_token = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        exam = Exam(title="VSTEP fallback", language="EN", exam_type="VSTEP",
+                    duration_minutes=60, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+        qw = Question(exam_id=exam.id, part=1, type="writing",
+                      content="Write about your hometown.", status="approved")
+        db_session.add(qw)
+        db_session.commit()
+        db_session.refresh(qw)
+
+        resp = client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [{"question_id": qw.id, "answer": "My hometown is a quiet coastal town..."}]},
+            headers={"Authorization": f"Bearer {candidate_token}"},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "grading"
+
+        db_session.expire_all()
+        from app.models.submission import Submission as SubmissionModel
+        sub = db_session.query(SubmissionModel).filter(
+            SubmissionModel.id == resp.json()["submission_id"]
+        ).first()
+        assert sub.status == "completed", "fallback inline phải chấm xong dù không có broker"
+        assert sub.grade is not None and sub.grade.score_writing > 0
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
 def test_SPEC_GRADE_004_ai_grading_degrades_safely(monkeypatch):
     """SPEC-GRADE-004: Khi Gemini API thiếu key hoặc lỗi, dịch vụ chấm AI phải
     trả về kết quả có cấu trúc (mock mode), tuyệt đối không ném exception và

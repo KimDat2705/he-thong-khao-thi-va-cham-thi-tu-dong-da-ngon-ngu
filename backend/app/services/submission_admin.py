@@ -66,7 +66,15 @@ def create_submission_and_grade(
         # Lazy import keeps the synchronous TOEIC path free of the Celery/Redis
         # stack and avoids import cycles.
         from app.workers.tasks import grade_submission_task
-        grade_submission_task.delay(submission_id=sub.id)
+        # Enqueue AI grading for a Celery worker. If no broker/worker is reachable
+        # (e.g. Render free tier has no Redis), fall back to grading inline so the
+        # result still completes. Either way the response below returns "grading"
+        # first; with eager/inline the grade is already written by the time the
+        # candidate polls.
+        try:
+            grade_submission_task.delay(submission_id=sub.id)
+        except Exception:
+            grade_submission_task.apply(args=[sub.id])
         return {
             "submission_id": sub.id,
             "status": sub.status,  # "grading" — worker fills scores later

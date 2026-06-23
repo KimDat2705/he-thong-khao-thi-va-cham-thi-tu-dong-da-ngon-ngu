@@ -23,4 +23,8 @@ celery_app.conf.update(
     # eager mode the grade is already written by the time the candidate polls.
     task_always_eager=settings.CELERY_TASK_ALWAYS_EAGER,
     task_eager_propagates=settings.CELERY_TASK_ALWAYS_EAGER,
+    # Fail fast (instead of long retries) when publishing to an unreachable broker
+    # so the submit path can fall back to inline grading without hanging.
+    task_publish_retry=False,
+    broker_connection_retry_on_startup=False,
 )
