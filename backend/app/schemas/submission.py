@@ -70,6 +70,15 @@ class AutosaveResult(BaseModel):
     saved: int
 
 
+class ActiveAttemptItem(BaseModel):
+    """An in-progress attempt a candidate can resume from the exam list."""
+    submission_id: int
+    exam_id: int
+    exam_title: str
+    started_at: Optional[datetime] = None
+    remaining_seconds: int
+
+
 class SubmissionDetailOut(BaseModel):
     id: int
     exam_id: int

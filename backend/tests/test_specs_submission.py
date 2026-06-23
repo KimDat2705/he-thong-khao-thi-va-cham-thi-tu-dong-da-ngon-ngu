@@ -620,3 +620,55 @@ def test_autosave_gating(db_session: Session):
     finally:
         fastapi_app.dependency_overrides.clear()
 
+
+def test_active_attempts_listing(db_session: Session):
+    """GET /submissions/active (C16): liệt kê attempt ĐANG LÀM DỞ của thí sinh để
+    resume từ danh sách đề; sau khi NỘP thì không còn; no-token -> 401."""
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.models.exam import Exam
+    from app.models.question import Question
+
+    cand_headers = {
+        "Authorization": f"Bearer {create_access_token(data={'sub': 'testcandidate', 'role': 'candidate'})}"
+    }
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        exam = Exam(title="Active TOEIC", language="EN", exam_type="TOEIC",
+                    duration_minutes=90, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+        q1 = Question(exam_id=exam.id, part=1, type="choice", content="Q1",
+                      reference_answer="A", options={"A": "a", "B": "b"}, status="approved")
+        db_session.add(q1)
+        db_session.commit()
+        db_session.refresh(q1)
+
+        # No active attempts yet.
+        assert client.get("/api/v1/submissions/active", headers=cand_headers).json() == []
+
+        # Guest -> 401.
+        assert client.get("/api/v1/submissions/active").status_code == 401
+
+        # Start -> appears in active with the exam + a positive remaining time.
+        client.post(f"/api/v1/exams/{exam.id}/start", headers=cand_headers)
+        active = client.get("/api/v1/submissions/active", headers=cand_headers).json()
+        assert len(active) == 1
+        assert active[0]["exam_id"] == exam.id
+        assert active[0]["exam_title"] == "Active TOEIC"
+        assert active[0]["remaining_seconds"] > 0
+
+        # Submit -> no longer in-progress -> active is empty again.
+        client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [{"question_id": q1.id, "answer": "A"}]},
+            headers=cand_headers,
+        )
+        assert client.get("/api/v1/submissions/active", headers=cand_headers).json() == []
+    finally:
+        fastapi_app.dependency_overrides.clear()
+

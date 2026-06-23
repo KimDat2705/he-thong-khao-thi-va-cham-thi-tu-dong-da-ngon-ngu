@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ExamSummary, listExams, getToken, clearToken } from "@/lib/api";
+import { type ExamSummary, listExams, getActiveAttempts, getToken, clearToken } from "@/lib/api";
 
 export default function ExamsPage() {
   const router = useRouter();
@@ -11,6 +11,8 @@ export default function ExamsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Exam ids the candidate has an in-progress attempt for (offer "resume").
+  const [resumableExamIds, setResumableExamIds] = useState<Set<number>>(new Set());
 
   const fetchExams = async () => {
     setLoading(true);
@@ -26,8 +28,16 @@ export default function ExamsPage() {
   };
 
   useEffect(() => {
-    setIsLoggedIn(!!getToken());
+    const loggedIn = !!getToken();
+    setIsLoggedIn(loggedIn);
     fetchExams();
+    if (loggedIn) {
+      getActiveAttempts()
+        .then((list) => setResumableExamIds(new Set(list.map((a) => a.exam_id))))
+        .catch(() => {
+          /* non-fatal — just don't show resume hints */
+        });
+    }
   }, []);
 
   const handleLogout = () => {
@@ -109,9 +119,16 @@ export default function ExamsPage() {
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
-                      {exam.exam_type}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                        {exam.exam_type}
+                      </span>
+                      {resumableExamIds.has(exam.id) && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                          Đang làm dở
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-400">ID: {exam.id}</span>
                   </div>
                   <h3 className="mt-3 font-bold text-gray-900 text-lg leading-snug line-clamp-2">{exam.title}</h3>
@@ -130,9 +147,13 @@ export default function ExamsPage() {
                 <div className="mt-6 flex gap-2 border-t border-gray-100 pt-4">
                   <Link
                     href={`/exam/${exam.id}/take`}
-                    className="flex-1 text-center rounded-md bg-blue-600 hover:bg-blue-700 py-2 text-xs font-semibold text-white transition-colors"
+                    className={`flex-1 text-center rounded-md py-2 text-xs font-semibold text-white transition-colors ${
+                      resumableExamIds.has(exam.id)
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
                   >
-                    Làm bài →
+                    {resumableExamIds.has(exam.id) ? "Tiếp tục bài đang làm →" : "Làm bài →"}
                   </Link>
                   <Link
                     href={`/exam/${exam.id}`}

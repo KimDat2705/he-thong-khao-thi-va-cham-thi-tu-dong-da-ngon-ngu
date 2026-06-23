@@ -413,6 +413,24 @@ export async function autosaveAttempt(
   );
 }
 
+export interface ActiveAttempt {
+  submission_id: number;
+  exam_id: number;
+  exam_title: string;
+  started_at: string | null;
+  remaining_seconds: number;
+}
+
+// In-progress attempts of the current candidate, for resuming from the exam list.
+export async function getActiveAttempts(): Promise<ActiveAttempt[]> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/submissions/active`, {
+      cache: "no-store",
+      headers: { ...authHeaders() },
+    }),
+  );
+}
+
 // Upload a Speaking recording (Blob/File); returns the served audio_url.
 export async function uploadAudio(file: Blob, filename = "recording.webm"): Promise<{ audio_url: string }> {
   const fd = new FormData();

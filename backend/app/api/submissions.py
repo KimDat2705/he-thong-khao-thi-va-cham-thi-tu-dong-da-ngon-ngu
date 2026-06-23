@@ -20,6 +20,7 @@ from app.schemas.submission import (
     StartAttemptResult,
     AutosaveRequest,
     AutosaveResult,
+    ActiveAttemptItem,
 )
 from app.services import submission_admin
 
@@ -131,6 +132,16 @@ def list_my_submissions(
     List submissions of the current candidate.
     """
     return submission_admin.list_my_submissions(db, current_user.id)
+
+
+@router.get("/api/v1/submissions/active", response_model=List[ActiveAttemptItem])
+def list_active_attempts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """In-progress attempts of the current candidate (for resuming from the exam list).
+    Declared before /{id} so 'active' isn't captured as a submission id."""
+    return submission_admin.list_active_attempts(db, current_user.id)
 
 
 @router.get("/api/v1/submissions/{id}", response_model=SubmissionDetailOut)

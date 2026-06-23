@@ -233,6 +233,34 @@ def autosave_attempt(
     return {"submission_id": sub.id, "saved": saved}
 
 
+def list_active_attempts(db: Session, user_id: int) -> List[dict]:
+    """In-progress (started, not-yet-submitted) attempts for a candidate, so the
+    exam list can offer "resume". Only attempts on still-active exams are returned
+    (a retired exam can't be resumed — /start would 404)."""
+    subs = (
+        db.query(Submission)
+        .filter(Submission.user_id == user_id, Submission.submitted_at.is_(None))
+        .order_by(Submission.id.desc())
+        .all()
+    )
+    now = datetime.datetime.utcnow()
+    result = []
+    for sub in subs:
+        exam = sub.exam
+        if exam is None or not exam.is_active:
+            continue
+        duration = exam.duration_minutes or 0
+        elapsed = (now - _naive(sub.started_at or now)).total_seconds()
+        result.append({
+            "submission_id": sub.id,
+            "exam_id": sub.exam_id,
+            "exam_title": exam.title,
+            "started_at": sub.started_at,
+            "remaining_seconds": max(0, int(duration * 60 - elapsed)),
+        })
+    return result
+
+
 def get_submission(db: Session, submission_id: int) -> Optional[dict]:
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
