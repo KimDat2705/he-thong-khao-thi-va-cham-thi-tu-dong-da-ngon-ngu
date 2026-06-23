@@ -305,6 +305,8 @@ def test_SPEC_SUBMIT_002_submissions_listing(db_session: Session):
             assert "full_name" in item
             assert "status" in item
             assert "submitted_at" in item
+            assert "exam_type" in item
+            assert "writing_score" in item
             if item["submission_id"] == sub_no_grade.id:
                 # Ungraded submission has null scores
                 assert item["total_score"] is None

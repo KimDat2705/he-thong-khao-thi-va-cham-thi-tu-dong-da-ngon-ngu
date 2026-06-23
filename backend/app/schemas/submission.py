@@ -58,9 +58,11 @@ class SubmissionListItem(BaseModel):
     user_id: int
     username: str
     full_name: Optional[str] = None
+    exam_type: Optional[str] = None
     total_score: Optional[float] = None
     listening_score: Optional[float] = None
     reading_score: Optional[float] = None
+    writing_score: Optional[float] = None
     status: str
     submitted_at: Optional[datetime] = None
 
@@ -69,9 +71,11 @@ class MySubmissionListItem(BaseModel):
     submission_id: int
     exam_id: int
     exam_title: str
+    exam_type: Optional[str] = None
     total_score: Optional[float] = None
     listening_score: Optional[float] = None
     reading_score: Optional[float] = None
+    writing_score: Optional[float] = None
     status: str
     submitted_at: Optional[datetime] = None
 

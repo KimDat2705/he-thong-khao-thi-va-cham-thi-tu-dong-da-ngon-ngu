@@ -398,9 +398,11 @@ export interface SubmissionListItem {
   user_id: number;
   username: string;
   full_name: string | null;
+  exam_type: string | null;
   total_score: number | null;
   listening_score: number | null;
   reading_score: number | null;
+  writing_score: number | null;
   status: string;
   submitted_at: string | null;
 }
@@ -409,9 +411,11 @@ export interface MySubmissionListItem {
   submission_id: number;
   exam_id: number;
   exam_title: string;
+  exam_type: string | null;
   total_score: number | null;
   listening_score: number | null;
   reading_score: number | null;
+  writing_score: number | null;
   status: string;
   submitted_at: string | null;
 }

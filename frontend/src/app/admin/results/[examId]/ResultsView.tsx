@@ -19,10 +19,13 @@ export default function ResultsView({ examId }: ResultsViewProps) {
   const router = useRouter();
   const [submissions, setSubmissions] = useState<SubmissionListItem[]>([]);
   const [examTitle, setExamTitle] = useState<string>(`Kết quả đề #${examId}`);
+  const [examType, setExamType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  // Essay exams (VSTEP Writing, etc.) show an AI Writing score instead of L/R.
+  const isEssay = examType !== null && examType.toUpperCase() !== "TOEIC";
 
   useEffect(() => {
     const token = getToken();
@@ -41,6 +44,7 @@ export default function ResultsView({ examId }: ResultsViewProps) {
         try {
           const exam = await getExam(examId, false);
           setExamTitle(`Kết quả đề thi: ${exam.title}`);
+          setExamType(exam.exam_type);
         } catch (titleErr) {
           console.warn("Failed to fetch exam title, falling back:", titleErr);
           // Keep default fallback title: "Kết quả đề #{examId}"
@@ -124,8 +128,14 @@ export default function ResultsView({ examId }: ResultsViewProps) {
               <thead>
                 <tr className="border-b bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   <th className="px-6 py-3">Thí sinh</th>
-                  <th className="px-6 py-3">Điểm nghe</th>
-                  <th className="px-6 py-3">Điểm đọc</th>
+                  {isEssay ? (
+                    <th className="px-6 py-3">Điểm Viết (AI)</th>
+                  ) : (
+                    <>
+                      <th className="px-6 py-3">Điểm nghe</th>
+                      <th className="px-6 py-3">Điểm đọc</th>
+                    </>
+                  )}
                   <th className="px-6 py-3">Tổng điểm</th>
                   <th className="px-6 py-3">Trạng thái</th>
                   <th className="px-6 py-3">Thời gian nộp</th>
@@ -141,12 +151,20 @@ export default function ResultsView({ examId }: ResultsViewProps) {
                   return (
                     <tr key={sub.submission_id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 font-medium text-gray-900">{candidateName}</td>
-                      <td className="px-6 py-4">
-                        {sub.listening_score !== null && sub.listening_score !== undefined ? sub.listening_score : "—"}
-                      </td>
-                      <td className="px-6 py-4">
-                        {sub.reading_score !== null && sub.reading_score !== undefined ? sub.reading_score : "—"}
-                      </td>
+                      {isEssay ? (
+                        <td className="px-6 py-4 font-semibold text-emerald-700">
+                          {sub.writing_score !== null && sub.writing_score !== undefined ? `${sub.writing_score} điểm` : "—"}
+                        </td>
+                      ) : (
+                        <>
+                          <td className="px-6 py-4">
+                            {sub.listening_score !== null && sub.listening_score !== undefined ? sub.listening_score : "—"}
+                          </td>
+                          <td className="px-6 py-4">
+                            {sub.reading_score !== null && sub.reading_score !== undefined ? sub.reading_score : "—"}
+                          </td>
+                        </>
+                      )}
                       <td className="px-6 py-4 font-bold text-blue-600">
                         {sub.total_score !== null && sub.total_score !== undefined ? sub.total_score : "—"}
                       </td>

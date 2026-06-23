@@ -123,6 +123,7 @@ export default function MyResultsPage() {
               const formattedDate = sub.submitted_at
                 ? new Date(sub.submitted_at).toLocaleString("vi-VN")
                 : "—";
+              const isEssay = !!sub.exam_type && sub.exam_type.toUpperCase() !== "TOEIC";
 
               return (
                 <div
@@ -132,7 +133,7 @@ export default function MyResultsPage() {
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
                       <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
-                        TOEIC
+                        {sub.exam_type ?? "Đề thi"}
                       </span>
                       <span className="text-xs text-gray-400">Bài nộp #{sub.submission_id}</span>
                     </div>
@@ -155,19 +156,30 @@ export default function MyResultsPage() {
                   </div>
 
                   <div className="flex items-center gap-6 border-t border-gray-100 pt-4 sm:border-0 sm:pt-0 shrink-0">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-400 font-medium">Nghe</div>
-                      <div className="text-sm font-semibold text-gray-700">
-                        {sub.listening_score !== null && sub.listening_score !== undefined ? sub.listening_score : "—"}
+                    {isEssay ? (
+                      <div className="text-center">
+                        <div className="text-xs text-gray-400 font-medium">Viết (AI)</div>
+                        <div className="text-sm font-semibold text-emerald-700">
+                          {sub.writing_score !== null && sub.writing_score !== undefined ? sub.writing_score : "—"}
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-px h-8 bg-gray-200"></div>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-400 font-medium">Đọc</div>
-                      <div className="text-sm font-semibold text-gray-700">
-                        {sub.reading_score !== null && sub.reading_score !== undefined ? sub.reading_score : "—"}
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="text-center">
+                          <div className="text-xs text-gray-400 font-medium">Nghe</div>
+                          <div className="text-sm font-semibold text-gray-700">
+                            {sub.listening_score !== null && sub.listening_score !== undefined ? sub.listening_score : "—"}
+                          </div>
+                        </div>
+                        <div className="w-px h-8 bg-gray-200"></div>
+                        <div className="text-center">
+                          <div className="text-xs text-gray-400 font-medium">Đọc</div>
+                          <div className="text-sm font-semibold text-gray-700">
+                            {sub.reading_score !== null && sub.reading_score !== undefined ? sub.reading_score : "—"}
+                          </div>
+                        </div>
+                      </>
+                    )}
                     <div className="w-px h-8 bg-gray-200"></div>
                     <div className="text-center">
                       <div className="text-xs text-gray-400 font-semibold">Tổng điểm</div>

@@ -148,9 +148,11 @@ def list_exam_submissions(db: Session, exam_id: int) -> List[dict]:
             "user_id": sub.user_id,
             "username": sub.user.username,
             "full_name": sub.user.full_name,
+            "exam_type": exam.exam_type,
             "total_score": grade.score_total if grade else None,
             "listening_score": grade.score_listening if grade else None,
             "reading_score": grade.score_reading if grade else None,
+            "writing_score": grade.score_writing if grade else None,
             "status": sub.status,
             "submitted_at": sub.submitted_at
         })
@@ -167,9 +169,11 @@ def list_my_submissions(db: Session, user_id: int) -> List[dict]:
             "submission_id": sub.id,
             "exam_id": sub.exam_id,
             "exam_title": sub.exam.title,
+            "exam_type": sub.exam.exam_type,
             "total_score": grade.score_total if grade else None,
             "listening_score": grade.score_listening if grade else None,
             "reading_score": grade.score_reading if grade else None,
+            "writing_score": grade.score_writing if grade else None,
             "status": sub.status,
             "submitted_at": sub.submitted_at
         })
