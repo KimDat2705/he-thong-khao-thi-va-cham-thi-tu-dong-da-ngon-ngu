@@ -19,6 +19,11 @@ import {
   clearToken,
 } from "@/lib/api";
 import { useMediaRecorder } from "@/hooks/useMediaRecorder";
+import { useProctoring } from "@/hooks/useProctoring";
+
+// Three-strikes proctoring: after this many tab-switch / fullscreen-exit
+// violations the exam auto-submits.
+const MAX_VIOLATIONS = 3;
 
 function QuestionItem({
   q,
@@ -235,8 +240,16 @@ export default function TakeView({ id }: { id: string }) {
   const [gradingDetail, setGradingDetail] = useState<SubmissionDetail | null>(null);
   const [polling, setPolling] = useState(false);
   const mountedRef = useRef(true);
-  // Countdown timer (seconds remaining); null until the exam is loaded.
+  // Countdown timer (seconds remaining); null until the exam starts.
   const [remainingSec, setRemainingSec] = useState<number | null>(null);
+
+  // Proctoring (exam-room integrity): webcam monitoring + fullscreen lock +
+  // tab-switch / fullscreen-exit detection. Questions only render after the
+  // candidate consents and starts via the proctoring gate.
+  const proctor = useProctoring();
+  const [proctoringStarted, setProctoringStarted] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -317,6 +330,15 @@ export default function TakeView({ id }: { id: string }) {
     setAudioUrls((prev) => ({ ...prev, [qid]: url }));
   };
 
+  // Enter the proctored exam room: render questions first (so the webcam <video>
+  // mounts), request fullscreen, then start the webcam (best-effort — a denied
+  // camera is non-fatal but downgrades proctoring).
+  const startExam = () => {
+    setProctoringStarted(true);
+    proctor.requestFullscreen();
+    proctor.startWebcam();
+  };
+
   const pollGrading = async (submissionId: number) => {
     setPolling(true);
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -380,15 +402,56 @@ export default function TakeView({ id }: { id: string }) {
     }
   };
 
-  // Initialize the countdown once the exam (with duration) is loaded.
+  // Bind the webcam stream to the self-view <video> once both exist.
   useEffect(() => {
-    if (exam && remainingSec === null) {
+    if (videoRef.current && proctor.webcamStream) {
+      videoRef.current.srcObject = proctor.webcamStream;
+    }
+  }, [proctor.webcamStream, proctoringStarted]);
+
+  // React to proctoring violations (tab switch / fullscreen exit): warn the
+  // candidate, and auto-submit once the strike limit is reached.
+  useEffect(() => {
+    const v = proctor.visibilityViolations;
+    if (!proctoringStarted || v === 0 || result || submitting) return;
+    if (v >= MAX_VIOLATIONS) {
+      setWarning(`Bạn đã vi phạm quy chế ${v} lần — bài thi được tự động nộp.`);
+      handleSubmit(true);
+    } else {
+      setWarning(
+        `Cảnh báo (${v}/${MAX_VIOLATIONS}): bạn vừa rời khỏi màn hình thi. Tiếp tục vi phạm sẽ bị nộp bài tự động.`,
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proctor.visibilityViolations]);
+
+  // Stop the webcam and leave fullscreen once the exam is submitted.
+  useEffect(() => {
+    if (result) {
+      proctor.stopWebcam();
+      if (typeof document !== "undefined" && document.fullscreenElement) {
+        document.exitFullscreen?.();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  // Auto-dismiss the violation warning banner after a few seconds.
+  useEffect(() => {
+    if (!warning) return;
+    const t = setTimeout(() => setWarning(null), 5000);
+    return () => clearTimeout(t);
+  }, [warning]);
+
+  // Initialize the countdown once the candidate enters the proctored room.
+  useEffect(() => {
+    if (proctoringStarted && exam && remainingSec === null) {
       setRemainingSec(Math.max(0, (exam.duration_minutes ?? 0) * 60));
     }
-  }, [exam, remainingSec]);
+  }, [proctoringStarted, exam, remainingSec]);
 
   // Tick every second while the exam is in progress (not submitted/submitting).
-  const timerActive = remainingSec !== null && !result && !submitting;
+  const timerActive = proctoringStarted && remainingSec !== null && !result && !submitting;
   useEffect(() => {
     if (!timerActive) return;
     const t = setInterval(() => {
@@ -426,6 +489,10 @@ export default function TakeView({ id }: { id: string }) {
       setGradingDetail(null);
       setPolling(false);
       setSelectedAnswers({});
+      setProctoringStarted(false);
+      setRemainingSec(null);
+      setWarning(null);
+      proctor.resetViolations();
     };
     return (
       <main className="mx-auto max-w-2xl px-6 py-12">
@@ -590,6 +657,10 @@ export default function TakeView({ id }: { id: string }) {
               onClick={() => {
                 setResult(null);
                 setSelectedAnswers({});
+                setProctoringStarted(false);
+                setRemainingSec(null);
+                setWarning(null);
+                proctor.resetViolations();
               }}
               className="w-full rounded-md bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
             >
@@ -602,6 +673,53 @@ export default function TakeView({ id }: { id: string }) {
               Quay lại quản trị
             </Link>
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Proctoring gate: explain monitoring, then start the webcam + fullscreen.
+  if (!proctoringStarted) {
+    return (
+      <main className="mx-auto max-w-2xl px-6 py-12">
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl space-y-6">
+          <div className="text-center">
+            <span className="text-3xl">🛡️</span>
+            <h1 className="mt-2 text-2xl font-bold text-gray-900">Phòng thi giám sát</h1>
+            <p className="mt-1 text-sm text-gray-500">{exam.title}</p>
+          </div>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-gray-700 space-y-2">
+            <p className="font-semibold text-amber-700">Trước khi bắt đầu, vui lòng lưu ý:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Bài thi sẽ chuyển sang chế độ <strong>toàn màn hình</strong>.</li>
+              <li><strong>Webcam</strong> được bật để giám sát trong suốt quá trình làm bài.</li>
+              <li>Việc <strong>chuyển tab / thoát toàn màn hình</strong> sẽ được ghi nhận là vi phạm.</li>
+              <li>Vi phạm <strong>{MAX_VIOLATIONS} lần</strong> → bài thi <strong>tự động nộp</strong>.</li>
+              {exam.duration_minutes ? (
+                <li>Thời gian làm bài: <strong>{exam.duration_minutes} phút</strong> (đồng hồ chạy khi bắt đầu).</li>
+              ) : null}
+            </ul>
+          </div>
+
+          {proctor.error && (
+            <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {proctor.error} — bạn vẫn có thể làm bài, nhưng phần giám sát bằng webcam sẽ bị hạn chế.
+            </div>
+          )}
+
+          <button
+            onClick={startExam}
+            className="w-full rounded-md bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          >
+            Bắt đầu làm bài
+          </button>
+          <Link
+            href="/exams"
+            className="block text-center text-sm text-gray-500 hover:text-gray-700"
+          >
+            ← Quay lại danh sách đề
+          </Link>
         </div>
       </main>
     );
@@ -628,6 +746,16 @@ export default function TakeView({ id }: { id: string }) {
           </div>
 
           <div className="flex shrink-0 items-center gap-3">
+            <div
+              className={`rounded-md px-2.5 py-1 text-xs font-bold ${
+                proctor.visibilityViolations > 0
+                  ? "bg-red-50 text-red-600"
+                  : "bg-emerald-50 text-emerald-600"
+              }`}
+              title="Số lần vi phạm quy chế (chuyển tab / thoát toàn màn hình)"
+            >
+              ⚠ {proctor.visibilityViolations}/{MAX_VIOLATIONS}
+            </div>
             {remainingSec !== null && (
               <div
                 className={`rounded-md px-2.5 py-1 text-sm font-bold tabular-nums ${
@@ -652,6 +780,33 @@ export default function TakeView({ id }: { id: string }) {
           </div>
         </div>
       </header>
+
+      {/* Proctoring violation warning */}
+      {warning && (
+        <div className="fixed left-1/2 top-20 z-20 w-[90%] max-w-lg -translate-x-1/2 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-center text-sm font-semibold text-red-700 shadow-lg">
+          {warning}
+        </div>
+      )}
+
+      {/* Webcam self-view (proctoring) */}
+      <div className="fixed bottom-4 right-4 z-20 overflow-hidden rounded-lg border-2 border-gray-300 bg-black shadow-lg">
+        {proctor.webcamStream ? (
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className="h-24 w-32 object-cover"
+          />
+        ) : (
+          <div className="flex h-24 w-32 items-center justify-center px-2 text-center text-[10px] text-gray-300">
+            📷 Webcam chưa bật
+          </div>
+        )}
+        <div className="bg-red-600 px-1 py-0.5 text-center text-[9px] font-bold uppercase tracking-wider text-white">
+          ● Đang giám sát
+        </div>
+      </div>
 
       {/* Main Questions Container */}
       <div className="space-y-8">
