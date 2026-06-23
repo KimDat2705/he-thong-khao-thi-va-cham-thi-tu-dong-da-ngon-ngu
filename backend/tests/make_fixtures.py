@@ -1,4 +1,5 @@
 import os
+import io
 import docx
 
 def create_valid_docx(filepath):
@@ -120,9 +121,7 @@ def create_real_listening_docx(filepath):
         ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
         idat = zlib.compress(b"\x00\xff\x00\x00")
         return sig + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", idat) + _chunk(b"IEND", b"")
-    temp_img_path = os.path.join(os.path.dirname(filepath), "temp_mock_img.png")
-    with open(temp_img_path, "wb") as f:
-        f.write(_png_1px())
+    png_data = _png_1px()
     
     doc = docx.Document()
     
@@ -146,23 +145,23 @@ def create_real_listening_docx(filepath):
     # 3. Directions table (Table 2) with "PART 1"
     t2 = doc.add_table(rows=1, cols=1)
     t2.cell(0, 0).text = "LISTENING TEST\nPART 1\nDirections: ..."
-    t2.cell(0, 0).paragraphs[0].add_run().add_picture(temp_img_path)
+    t2.cell(0, 0).paragraphs[0].add_run().add_picture(io.BytesIO(png_data))
     
     # Part 1 questions
     p1 = doc.add_paragraph("1.")
-    p1.add_run().add_picture(temp_img_path)
+    p1.add_run().add_picture(io.BytesIO(png_data))
     doc.add_paragraph("")
     
     p2 = doc.add_paragraph("2.")
-    p2.add_run().add_picture(temp_img_path)
+    p2.add_run().add_picture(io.BytesIO(png_data))
     
     doc.add_paragraph("3.")
     p4 = doc.add_paragraph("")
-    p4.add_run().add_picture(temp_img_path)
+    p4.add_run().add_picture(io.BytesIO(png_data))
     
     t3 = doc.add_table(rows=1, cols=2)
     t3.cell(0, 0).text = "4."
-    t3.cell(0, 1).paragraphs[0].add_run().add_picture(temp_img_path)
+    t3.cell(0, 1).paragraphs[0].add_run().add_picture(io.BytesIO(png_data))
     doc.add_paragraph("")
     
     # Part 2 directions
@@ -230,7 +229,7 @@ def create_real_listening_docx(filepath):
     cell.add_paragraph("(C) Option C")
     cell.add_paragraph("(D) Option D")
     
-    cell.paragraphs[-1].add_run().add_picture(temp_img_path)
+    cell.paragraphs[-1].add_run().add_picture(io.BytesIO(png_data))
     
     doc.add_paragraph("")
     
@@ -261,13 +260,10 @@ def create_real_listening_docx(filepath):
     cell8.add_paragraph("(C) Option C")
     cell8.add_paragraph("(D) Option D")
     
-    cell8.paragraphs[-1].add_run().add_picture(temp_img_path)
+    cell8.paragraphs[-1].add_run().add_picture(io.BytesIO(png_data))
     
     doc.add_paragraph("THE END")
     doc.save(filepath)
-    
-    if os.path.exists(temp_img_path):
-        os.remove(temp_img_path)
 
 
 def create_real_answer_key_xlsx(filepath):
@@ -353,9 +349,7 @@ def create_real_reading_docx(filepath):
         ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
         idat = zlib.compress(b"\x00\xff\x00\x00")
         return sig + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", idat) + _chunk(b"IEND", b"")
-    temp_img_path = os.path.join(os.path.dirname(filepath), "temp_mock_img_reading.png")
-    with open(temp_img_path, "wb") as f:
-        f.write(_png_1px())
+    png_data = _png_1px()
     
     doc = docx.Document()
     
@@ -426,7 +420,7 @@ def create_real_reading_docx(filepath):
     t_passage1 = doc.add_table(rows=1, cols=1)
     p_cell = t_passage1.cell(0, 0).paragraphs[0]
     p_cell.text = "ANNOUNCEMENT: Office renovation is starting tomorrow."
-    p_cell.add_run().add_picture(temp_img_path)
+    p_cell.add_run().add_picture(io.BytesIO(png_data))
     
     # All-options-inline paragraph format
     doc.add_paragraph("7. What is starting tomorrow?\n(A) Renovation\n(B) Class\n(C) Holiday\n(D) Meeting")
@@ -483,8 +477,6 @@ def create_real_reading_docx(filepath):
     t_opt12.cell(3, 1).text = "Option D"
     
     doc.save(filepath)
-    if os.path.exists(temp_img_path):
-        os.remove(temp_img_path)
 
 
 def main():
