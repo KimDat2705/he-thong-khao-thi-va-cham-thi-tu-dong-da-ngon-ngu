@@ -454,3 +454,169 @@ def test_SPEC_SUBMIT_002_submissions_listing(db_session: Session):
     finally:
         fastapi_app.dependency_overrides.clear()
 
+
+def test_exam_session_start_autosave_resume_submit(db_session: Session):
+    """Phiên thi bền server-side (C15 — SPEC-SCALE-003 AC /start + /autosave):
+    /start tạo attempt in_progress + trả remaining_seconds tính ở SERVER (không reset
+    được phía client) + answers rỗng; /start lại (reload) trả ĐÚNG attempt cũ; /autosave
+    lưu đáp án -> /start sau đó khôi phục được; attempt chưa nộp KHÔNG hiện trong
+    /submissions/me; /submit TÁI DÙNG attempt (cùng submission_id) + hoàn tất, KHÔNG
+    tạo bản ghi trùng.
+    """
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.models.exam import Exam
+    from app.models.question import Question
+    from app.models.user import User
+    from app.models.submission import Submission
+
+    cand_headers = {
+        "Authorization": f"Bearer {create_access_token(data={'sub': 'testcandidate', 'role': 'candidate'})}"
+    }
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        exam = Exam(title="Session TOEIC", language="EN", exam_type="TOEIC",
+                    duration_minutes=120, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+        q1 = Question(exam_id=exam.id, part=1, type="choice", content="Q1",
+                      reference_answer="A", options={"A": "a", "B": "b"}, status="approved")
+        q2 = Question(exam_id=exam.id, part=2, type="choice", content="Q2",
+                      reference_answer="B", options={"A": "a", "B": "b"}, status="approved")
+        db_session.add_all([q1, q2])
+        db_session.commit()
+        for q in (q1, q2):
+            db_session.refresh(q)
+
+        # START -> new in_progress attempt, full time, no saved answers.
+        r = client.post(f"/api/v1/exams/{exam.id}/start", headers=cand_headers)
+        assert r.status_code == 200, r.text
+        s = r.json()
+        sub_id = s["submission_id"]
+        assert 120 * 60 - 60 < s["remaining_seconds"] <= 120 * 60
+        assert s["answers"] == []
+
+        # START again (reload) -> SAME attempt (idempotent resume).
+        again = client.post(f"/api/v1/exams/{exam.id}/start", headers=cand_headers)
+        assert again.json()["submission_id"] == sub_id
+
+        # AUTOSAVE q1=A.
+        ra = client.post(
+            f"/api/v1/submissions/{sub_id}/autosave",
+            json={"answers": [{"question_id": q1.id, "answer": "A"}]},
+            headers=cand_headers,
+        )
+        assert ra.status_code == 200, ra.text
+        assert ra.json()["saved"] == 1
+
+        # RESUME via /start restores the saved answer.
+        resumed = client.post(f"/api/v1/exams/{exam.id}/start", headers=cand_headers).json()
+        saved = {a["question_id"]: a["candidate_text"] for a in resumed["answers"]}
+        assert saved.get(q1.id) == "A"
+
+        # in_progress attempt is hidden from /submissions/me until submitted.
+        me = client.get("/api/v1/submissions/me", headers=cand_headers).json()
+        assert all(m["submission_id"] != sub_id for m in me)
+
+        # SUBMIT reuses the SAME attempt and finalizes.
+        rs = client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [
+                {"question_id": q1.id, "answer": "A"},
+                {"question_id": q2.id, "answer": "B"},
+            ]},
+            headers=cand_headers,
+        )
+        assert rs.status_code == 200, rs.text
+        assert rs.json()["submission_id"] == sub_id, "submit phải TÁI DÙNG attempt từ /start"
+        assert rs.json()["status"] == "completed"
+
+        # Now visible in /submissions/me.
+        me2 = client.get("/api/v1/submissions/me", headers=cand_headers).json()
+        assert any(m["submission_id"] == sub_id for m in me2)
+
+        # Exactly ONE submission row for this candidate+exam (no duplicate).
+        cand = db_session.query(User).filter(User.username == "testcandidate").first()
+        rows = db_session.query(Submission).filter(
+            Submission.exam_id == exam.id, Submission.user_id == cand.id
+        ).all()
+        assert len(rows) == 1, "start + submit chỉ được tạo 1 bản ghi submission"
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
+def test_autosave_gating(db_session: Session):
+    """Autosave bị chặn: người KHÁC (không phải chủ attempt) -> 404; và sau khi attempt
+    ĐÃ NỘP -> 404 (không cho ghi đè bài đã nộp)."""
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token, hash_password
+    from app.models.exam import Exam
+    from app.models.question import Question
+    from app.models.user import User
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        other = User(username="other_cand", hashed_password=hash_password("x"),
+                     full_name="Other", role="candidate", is_active=True)
+        db_session.add(other)
+        db_session.commit()
+
+        exam = Exam(title="Gate TOEIC", language="EN", exam_type="TOEIC",
+                    duration_minutes=60, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+        q1 = Question(exam_id=exam.id, part=1, type="choice", content="Q1",
+                      reference_answer="A", options={"A": "a", "B": "b"}, status="approved")
+        db_session.add(q1)
+        db_session.commit()
+        db_session.refresh(q1)
+
+        cand_headers = {
+            "Authorization": f"Bearer {create_access_token(data={'sub': 'testcandidate', 'role': 'candidate'})}"
+        }
+        other_headers = {
+            "Authorization": f"Bearer {create_access_token(data={'sub': 'other_cand', 'role': 'candidate'})}"
+        }
+
+        sub_id = client.post(f"/api/v1/exams/{exam.id}/start", headers=cand_headers).json()["submission_id"]
+
+        # Not the owner -> 404.
+        r = client.post(
+            f"/api/v1/submissions/{sub_id}/autosave",
+            json={"answers": [{"question_id": q1.id, "answer": "A"}]},
+            headers=other_headers,
+        )
+        assert r.status_code == 404
+
+        # Owner autosave OK.
+        assert client.post(
+            f"/api/v1/submissions/{sub_id}/autosave",
+            json={"answers": [{"question_id": q1.id, "answer": "A"}]},
+            headers=cand_headers,
+        ).status_code == 200
+
+        # Finalize via submit.
+        client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [{"question_id": q1.id, "answer": "A"}]},
+            headers=cand_headers,
+        )
+
+        # Already submitted -> autosave 404.
+        r2 = client.post(
+            f"/api/v1/submissions/{sub_id}/autosave",
+            json={"answers": [{"question_id": q1.id, "answer": "A"}]},
+            headers=cand_headers,
+        )
+        assert r2.status_code == 404
+    finally:
+        fastapi_app.dependency_overrides.clear()
+

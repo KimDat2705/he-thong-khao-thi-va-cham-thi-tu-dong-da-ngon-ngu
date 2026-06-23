@@ -17,6 +17,9 @@ from app.schemas.submission import (
     MySubmissionListItem,
     AudioUploadResult,
     GradeOverrideRequest,
+    StartAttemptResult,
+    AutosaveRequest,
+    AutosaveResult,
 )
 from app.services import submission_admin
 
@@ -45,6 +48,47 @@ async def upload_audio(
     with open(os.path.join(_UPLOAD_DIR, fname), "wb") as f:
         f.write(content)
     return {"audio_url": f"/static/uploads/{fname}"}
+
+
+@router.post("/api/v1/exams/{exam_id}/start", response_model=StartAttemptResult)
+def start_exam_attempt(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Start (or resume) a server-authoritative exam session: returns the
+    server-computed remaining time and any autosaved answers so a reload keeps the
+    same countdown and restores progress. Authenticated users only.
+    """
+    try:
+        return submission_admin.start_attempt(db, exam_id, current_user.id)
+    except ValueError as e:
+        err_msg = str(e)
+        if "not found" in err_msg.lower() or "retired" in err_msg.lower():
+            raise HTTPException(status_code=404, detail=err_msg)
+        raise HTTPException(status_code=400, detail=err_msg)
+
+
+@router.post("/api/v1/submissions/{id}/autosave", response_model=AutosaveResult)
+def autosave_submission(
+    id: int,
+    payload: AutosaveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Autosave in-progress answers (so a disconnect/crash does not lose work).
+    Owner-gated; 404 if the attempt is missing, not owned, or already submitted.
+    """
+    ans_dicts = [
+        {"question_id": a.question_id, "answer": a.answer, "audio_url": a.audio_url}
+        for a in payload.answers
+    ]
+    result = submission_admin.autosave_attempt(db, id, current_user.id, ans_dicts)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Active attempt not found")
+    return result
 
 
 @router.post("/api/v1/exams/{exam_id}/submit", response_model=SubmissionResult)

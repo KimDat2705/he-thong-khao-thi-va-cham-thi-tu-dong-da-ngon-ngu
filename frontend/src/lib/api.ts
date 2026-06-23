@@ -377,6 +377,42 @@ export async function submitExam(
   );
 }
 
+export interface StartAttemptResult {
+  submission_id: number;
+  exam_id: number;
+  started_at: string;
+  server_time: string;
+  duration_minutes: number | null;
+  // Server-authoritative remaining time (survives reload, can't be reset client-side).
+  remaining_seconds: number;
+  // Previously autosaved answers, for resuming an in-progress attempt.
+  answers: { question_id: number; candidate_text: string | null; audio_url: string | null }[];
+}
+
+// Start (or resume) a server-authoritative exam session.
+export async function startAttempt(examId: number | string): Promise<StartAttemptResult> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${examId}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+    }),
+  );
+}
+
+// Autosave in-progress answers so a disconnect/crash does not lose work.
+export async function autosaveAttempt(
+  submissionId: number,
+  answers: { question_id: number; answer: string; audio_url?: string | null }[],
+): Promise<{ submission_id: number; saved: number }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/submissions/${submissionId}/autosave`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ answers }),
+    }),
+  );
+}
+
 // Upload a Speaking recording (Blob/File); returns the served audio_url.
 export async function uploadAudio(file: Blob, filename = "recording.webm"): Promise<{ audio_url: string }> {
   const fd = new FormData();

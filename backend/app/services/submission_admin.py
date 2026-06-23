@@ -35,18 +35,43 @@ def create_submission_and_grade(
     if not has_essay and exam.exam_type.upper() != "TOEIC":
         raise ValueError("Exam type is not TOEIC")
 
-    # 3. Create Submission
+    # 3. Reuse an in-progress server-side attempt (from POST /start + autosave) if
+    #    one exists for this candidate+exam; otherwise create a fresh submission.
+    #    Backward compatible: a direct submit without /start finds no attempt and
+    #    creates one as before.
     now = datetime.datetime.utcnow()
-    sub = Submission(
-        exam_id=exam_id,
-        user_id=user_id,
-        status="pending",
-        started_at=now,
-        submitted_at=now
+    sub = (
+        db.query(Submission)
+        .filter(
+            Submission.exam_id == exam_id,
+            Submission.user_id == user_id,
+            Submission.submitted_at.is_(None),
+        )
+        .order_by(Submission.id.desc())
+        .first()
     )
-    db.add(sub)
-    db.commit()
-    db.refresh(sub)
+    if sub is None:
+        sub = Submission(
+            exam_id=exam_id,
+            user_id=user_id,
+            status="pending",
+            started_at=now,
+            submitted_at=now,
+        )
+        db.add(sub)
+        db.commit()
+        db.refresh(sub)
+    else:
+        # Finalize the in-progress attempt; keep its authoritative started_at.
+        sub.submitted_at = now
+        sub.status = "pending"
+        db.commit()
+        # The submit payload is authoritative — drop any autosaved details first.
+        db.query(SubmissionDetail).filter(
+            SubmissionDetail.submission_id == sub.id
+        ).delete()
+        db.commit()
+        db.refresh(sub)
 
     # 4. Create SubmissionDetail records
     for ans in answers:
@@ -104,6 +129,108 @@ def create_submission_and_grade(
         "listening_correct": listening_correct,
         "reading_correct": reading_correct
     }
+
+
+def _naive(dt: datetime.datetime) -> datetime.datetime:
+    """Drop tzinfo so naive utcnow() arithmetic never raises (SQLite may return
+    either naive or aware datetimes for DateTime(timezone=True) columns)."""
+    return dt.replace(tzinfo=None) if dt and dt.tzinfo else dt
+
+
+def start_attempt(db: Session, exam_id: int, user_id: int) -> dict:
+    """Server-authoritative exam session (SPEC-SCALE-003 AC /start).
+
+    Resumes an existing in-progress attempt (so a reload keeps the same countdown
+    and restores autosaved answers) or starts a new one. remaining_seconds is
+    computed from the authoritative started_at — it cannot be reset client-side.
+    """
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise ValueError("Exam not found")
+    if not exam.is_active:
+        raise ValueError("Exam is retired")
+
+    sub = (
+        db.query(Submission)
+        .filter(
+            Submission.exam_id == exam_id,
+            Submission.user_id == user_id,
+            Submission.submitted_at.is_(None),
+        )
+        .order_by(Submission.id.desc())
+        .first()
+    )
+    now = datetime.datetime.utcnow()
+    if sub is None:
+        sub = Submission(
+            exam_id=exam_id,
+            user_id=user_id,
+            status="in_progress",
+            started_at=now,
+            submitted_at=None,
+        )
+        db.add(sub)
+        db.commit()
+        db.refresh(sub)
+
+    duration = exam.duration_minutes or 0
+    elapsed = (now - _naive(sub.started_at or now)).total_seconds()
+    remaining = max(0, int(duration * 60 - elapsed))
+
+    return {
+        "submission_id": sub.id,
+        "exam_id": exam_id,
+        "started_at": sub.started_at,
+        "server_time": now,
+        "duration_minutes": exam.duration_minutes,
+        "remaining_seconds": remaining,
+        "answers": [
+            {
+                "question_id": d.question_id,
+                "candidate_text": d.candidate_text,
+                "audio_url": d.audio_url,
+            }
+            for d in sub.details
+        ],
+    }
+
+
+def autosave_attempt(
+    db: Session, submission_id: int, user_id: int, answers: List[dict]
+) -> Optional[dict]:
+    """Persist in-progress answers so a disconnect/crash does not lose work.
+
+    Owner-gated; only an attempt that has NOT been submitted can be autosaved.
+    Returns None (-> 404 at the API) if the attempt is missing, not owned, or
+    already submitted. Upserts SubmissionDetail rows by question_id.
+    """
+    sub = db.query(Submission).filter(Submission.id == submission_id).first()
+    if sub is None or sub.user_id != user_id or sub.submitted_at is not None:
+        return None
+
+    existing = {d.question_id: d for d in sub.details}
+    saved = 0
+    for ans in answers:
+        qid = ans["question_id"]
+        text = ans.get("answer", "")
+        audio = ans.get("audio_url")
+        d = existing.get(qid)
+        if d is None:
+            d = SubmissionDetail(
+                submission_id=sub.id,
+                question_id=qid,
+                candidate_text=text,
+                audio_url=audio,
+            )
+            db.add(d)
+            existing[qid] = d
+        else:
+            d.candidate_text = text
+            if audio is not None:
+                d.audio_url = audio
+        saved += 1
+    db.commit()
+    return {"submission_id": sub.id, "saved": saved}
 
 
 def get_submission(db: Session, submission_id: int) -> Optional[dict]:
@@ -190,7 +317,12 @@ def list_exam_submissions(db: Session, exam_id: int) -> List[dict]:
     if not exam:
         raise ValueError("Exam not found")
 
-    submissions = db.query(Submission).filter(Submission.exam_id == exam_id).order_by(Submission.submitted_at.desc()).all()
+    submissions = (
+        db.query(Submission)
+        .filter(Submission.exam_id == exam_id, Submission.submitted_at.isnot(None))
+        .order_by(Submission.submitted_at.desc())
+        .all()
+    )
     
     result = []
     for sub in submissions:
@@ -212,7 +344,12 @@ def list_exam_submissions(db: Session, exam_id: int) -> List[dict]:
 
 
 def list_my_submissions(db: Session, user_id: int) -> List[dict]:
-    submissions = db.query(Submission).filter(Submission.user_id == user_id).order_by(Submission.submitted_at.desc()).all()
+    submissions = (
+        db.query(Submission)
+        .filter(Submission.user_id == user_id, Submission.submitted_at.isnot(None))
+        .order_by(Submission.submitted_at.desc())
+        .all()
+    )
     
     result = []
     for sub in submissions:

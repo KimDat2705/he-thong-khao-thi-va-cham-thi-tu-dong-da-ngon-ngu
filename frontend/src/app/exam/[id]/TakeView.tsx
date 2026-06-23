@@ -11,6 +11,8 @@ import {
   submitExam,
   getSubmission,
   uploadAudio,
+  startAttempt,
+  autosaveAttempt,
   type SubmissionResult,
   type SubmissionDetail,
   audioSrc,
@@ -250,6 +252,8 @@ export default function TakeView({ id }: { id: string }) {
   const [proctoringStarted, setProctoringStarted] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Server-authoritative exam session: the attempt id whose answers get autosaved.
+  const [attemptId, setAttemptId] = useState<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -332,11 +336,36 @@ export default function TakeView({ id }: { id: string }) {
 
   // Enter the proctored exam room: render questions first (so the webcam <video>
   // mounts), request fullscreen, then start the webcam (best-effort — a denied
-  // camera is non-fatal but downgrades proctoring).
-  const startExam = () => {
+  // camera is non-fatal but downgrades proctoring). Also open a server-authoritative
+  // session so the countdown survives reload and answers can be autosaved/resumed.
+  const startExam = async () => {
     setProctoringStarted(true);
     proctor.requestFullscreen();
     proctor.startWebcam();
+    try {
+      const session = await startAttempt(id);
+      setAttemptId(session.submission_id);
+      setRemainingSec(session.remaining_seconds);
+      if (session.answers && session.answers.length > 0) {
+        const restoredChoices: Record<number, string> = {};
+        const restoredAudio: Record<number, string> = {};
+        session.answers.forEach((a) => {
+          if (a.audio_url) restoredAudio[a.question_id] = a.audio_url;
+          else if (a.candidate_text) restoredChoices[a.question_id] = a.candidate_text;
+        });
+        setSelectedAnswers((prev) => ({ ...restoredChoices, ...prev }));
+        setAudioUrls((prev) => ({ ...restoredAudio, ...prev }));
+      }
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      if (m.includes("401")) {
+        clearToken();
+        router.push("/login");
+        return;
+      }
+      // Fallback to a client-side countdown if the session call fails.
+      setRemainingSec(Math.max(0, (exam?.duration_minutes ?? 0) * 60));
+    }
   };
 
   const pollGrading = async (submissionId: number) => {
@@ -443,12 +472,32 @@ export default function TakeView({ id }: { id: string }) {
     return () => clearTimeout(t);
   }, [warning]);
 
-  // Initialize the countdown once the candidate enters the proctored room.
+  // Keep a fresh snapshot of answers for the autosave interval (avoids
+  // re-subscribing the interval on every keystroke/selection).
+  const autosavePayloadRef = useRef<() => { question_id: number; answer: string; audio_url: string | null }[]>(
+    () => [],
+  );
+  autosavePayloadRef.current = () =>
+    questions
+      .map((q) => ({
+        question_id: q.id,
+        answer: q.type === "speaking" ? "" : (selectedAnswers[q.id] ?? ""),
+        audio_url: audioUrls[q.id] ?? null,
+      }))
+      .filter((a) => a.answer !== "" || a.audio_url);
+
+  // Autosave in-progress answers every 15s so a disconnect/crash doesn't lose work.
   useEffect(() => {
-    if (proctoringStarted && exam && remainingSec === null) {
-      setRemainingSec(Math.max(0, (exam.duration_minutes ?? 0) * 60));
-    }
-  }, [proctoringStarted, exam, remainingSec]);
+    if (!proctoringStarted || attemptId === null || result || submitting) return;
+    const t = setInterval(() => {
+      const payload = autosavePayloadRef.current();
+      if (payload.length === 0) return;
+      autosaveAttempt(attemptId, payload).catch(() => {
+        /* transient — local state is kept; the next tick retries */
+      });
+    }, 15000);
+    return () => clearInterval(t);
+  }, [proctoringStarted, attemptId, result, submitting]);
 
   // Tick every second while the exam is in progress (not submitted/submitting).
   const timerActive = proctoringStarted && remainingSec !== null && !result && !submitting;
@@ -489,7 +538,9 @@ export default function TakeView({ id }: { id: string }) {
       setGradingDetail(null);
       setPolling(false);
       setSelectedAnswers({});
+      setAudioUrls({});
       setProctoringStarted(false);
+      setAttemptId(null);
       setRemainingSec(null);
       setWarning(null);
       proctor.resetViolations();
@@ -658,6 +709,7 @@ export default function TakeView({ id }: { id: string }) {
                 setResult(null);
                 setSelectedAnswers({});
                 setProctoringStarted(false);
+                setAttemptId(null);
                 setRemainingSec(null);
                 setWarning(null);
                 proctor.resetViolations();

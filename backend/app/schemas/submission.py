@@ -25,6 +25,10 @@ class SubmitRequest(BaseModel):
     answers: List[AnswerItem]
 
 
+class AutosaveRequest(BaseModel):
+    answers: List[AnswerItem]
+
+
 class SubmissionResult(BaseModel):
     submission_id: int
     status: str
@@ -43,6 +47,27 @@ class AnswerDetailOut(BaseModel):
     question_id: int
     candidate_text: Optional[str] = None
     audio_url: Optional[str] = None
+
+
+class StartAttemptResult(BaseModel):
+    """Returned by POST /exams/{id}/start — the server-authoritative exam session.
+
+    remaining_seconds is computed on the server from started_at + duration so the
+    countdown survives a page reload and cannot be reset client-side. answers holds
+    any previously autosaved responses so the candidate can resume where they left off.
+    """
+    submission_id: int
+    exam_id: int
+    started_at: datetime
+    server_time: datetime
+    duration_minutes: Optional[int] = None
+    remaining_seconds: int
+    answers: List[AnswerDetailOut] = []
+
+
+class AutosaveResult(BaseModel):
+    submission_id: int
+    saved: int
 
 
 class SubmissionDetailOut(BaseModel):
