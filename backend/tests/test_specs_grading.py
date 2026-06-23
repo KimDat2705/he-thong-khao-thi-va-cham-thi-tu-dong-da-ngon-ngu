@@ -347,6 +347,56 @@ def test_async_grading_falls_back_to_inline_without_broker(db_session: Session, 
         fastapi_app.dependency_overrides.clear()
 
 
+def test_grade_speaking_real_mode_loads_local_static_audio():
+    """Bug-fix guard (real-mode Speaking): khi CÓ Gemini key, grade_speaking phải
+    đọc được file ghi âm lưu cục bộ tại /static/uploads/... bằng cách đọc ĐĨA, không
+    gọi httpx với URL tương đối (trước đây raise UnsupportedProtocol -> điểm 0).
+
+    Non-tautological: dùng FakeModel để vào nhánh real-mode (model != None); nếu
+    audio không nạp được, FakeModel không nhận đúng bytes và assert sẽ đỏ.
+    """
+    from app.services.ai_grading import AIGradingService
+
+    backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # backend/
+    uploads = os.path.join(backend_root, "static", "uploads")
+    os.makedirs(uploads, exist_ok=True)
+    fname = "test_speaking_guard.webm"
+    fpath = os.path.join(uploads, fname)
+    with open(fpath, "wb") as f:
+        f.write(b"FAKE-AUDIO-BYTES")
+
+    captured = {}
+
+    class _FakeResponse:
+        text = json.dumps({
+            "score": 7.0,
+            "transcription": "hello",
+            "feedback": "ok",
+            "pronunciation_issues": [],
+        })
+
+    class _FakeModel:
+        def generate_content(self, contents, generation_config=None):
+            # contents = [audio_part, prompt]
+            captured["data"] = contents[0]["data"]
+            captured["mime"] = contents[0]["mime_type"]
+            return _FakeResponse()
+
+    try:
+        service = AIGradingService()
+        service.model = _FakeModel()  # ép nhánh real-mode (không gọi mạng thật)
+        result = service.grade_speaking(
+            audio_url=f"/static/uploads/{fname}",
+            prompt_requirements="Talk about your hometown.",
+            language="EN",
+        )
+        assert result["score"] == 7.0, "real-mode phải trả điểm từ model, không phải nhánh lỗi (0.0)"
+        assert captured.get("data") == b"FAKE-AUDIO-BYTES", "phải đọc đúng bytes file ghi âm cục bộ từ đĩa"
+        assert captured.get("mime") == "audio/webm", "mime suy từ đuôi .webm"
+    finally:
+        os.remove(fpath)
+
+
 def test_SPEC_GRADE_004_ai_grading_degrades_safely(monkeypatch):
     """SPEC-GRADE-004: Khi Gemini API thiếu key hoặc lỗi, dịch vụ chấm AI phải
     trả về kết quả có cấu trúc (mock mode), tuyệt đối không ném exception và

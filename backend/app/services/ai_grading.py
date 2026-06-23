@@ -1,10 +1,21 @@
 import json
 import logging
+import os
 import httpx
 import google.generativeai as genai
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Map a recording's file extension to the mime type Gemini expects.
+_AUDIO_MIME = {
+    ".webm": "audio/webm",
+    ".ogg": "audio/ogg",
+    ".mp3": "audio/mp3",
+    ".mp4": "audio/mp4",
+    ".m4a": "audio/mp4",
+    ".wav": "audio/wav",
+}
 
 class AIGradingService:
     def __init__(self):
@@ -63,6 +74,31 @@ class AIGradingService:
                 "grammar_errors": []
             }
 
+    def _load_audio_bytes(self, audio_url: str) -> bytes:
+        """Load a recording's bytes from either a remote http(s) URL (e.g. S3) or a
+        local /static path served by this backend.
+
+        Speaking answers are uploaded to backend/static/uploads and stored as a
+        relative path like "/static/uploads/xxx.webm". Calling httpx.get() on a
+        relative path raises UnsupportedProtocol, so local paths are read straight
+        from disk — robust on single-host deploys (Render) where a self-HTTP-fetch
+        would need the public base URL.
+        """
+        if audio_url.startswith("http://") or audio_url.startswith("https://"):
+            with httpx.Client() as client:
+                resp = client.get(audio_url)
+            if resp.status_code != 200:
+                raise Exception(f"Failed to fetch audio file from URL: {audio_url} (status {resp.status_code})")
+            return resp.content
+
+        # Local static path -> resolve to backend/static/... on disk.
+        backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        local_path = os.path.join(backend_root, *audio_url.lstrip("/").split("/"))
+        if not os.path.isfile(local_path):
+            raise Exception(f"Audio file not found on disk for {audio_url}")
+        with open(local_path, "rb") as f:
+            return f.read()
+
     def grade_speaking(self, audio_url: str, prompt_requirements: str, reference_answer: str = None, language: str = "EN") -> dict:
         """
         Grades spoken audio by fetching the audio file and sending it to Gemini's multimodal API.
@@ -77,21 +113,18 @@ class AIGradingService:
             }
 
         try:
-            # Download audio file from the storage URL (e.g. S3, local storage)
-            async_client = httpx.Client()
-            audio_response = async_client.get(audio_url)
-            if audio_response.status_code != 200:
-                raise Exception(f"Failed to fetch audio file from URL: {audio_url}")
-            
-            audio_bytes = audio_response.content
-            
+            # Load the recording (remote URL or local /static path on disk).
+            audio_bytes = self._load_audio_bytes(audio_url)
+
             # Formulate prompt for Speaking
             rubric = "VSTEP Speaking B1-C1 Rubric (Pronunciation, Fluency, Grammar, Content)" if language == "EN" else "HSK Speaking Rubric (Pronunciation, Tone Accuracy, Vocabulary, Fluency)"
-            
-            # Gemini 1.5 Flash supports audio directly as inline mime bytes
+
+            # Gemini 1.5 Flash supports audio directly as inline mime bytes;
+            # derive the mime type from the recording's extension.
+            mime_type = _AUDIO_MIME.get(os.path.splitext(audio_url)[1].lower(), "audio/webm")
             audio_part = {
-                "mime_type": "audio/webm",  # Or audio/wav, audio/mp3 based on recording format
-                "data": audio_bytes
+                "mime_type": mime_type,
+                "data": audio_bytes,
             }
             
             prompt = (

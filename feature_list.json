@@ -39,8 +39,8 @@
       "name": "Gemini AI Grading Service",
       "description": "Connects to Gemini API to grade writing essays and speaking audio recordings based on rubrics.",
       "status": "active",
-      "evidence": "backend/app/services/ai_grading.py — grade_writing()/grade_speaking() with safe mock fallback; verified by tests/test_specs_grading.py::test_SPEC_GRADE_004_ai_grading_degrades_safely (SPEC-GRADE-004 active).",
-      "testedAt": "2026-06-12T09:00:00Z"
+      "evidence": "backend/app/services/ai_grading.py — grade_writing()/grade_speaking() with safe mock fallback; verified by tests/test_specs_grading.py::test_SPEC_GRADE_004_ai_grading_degrades_safely (SPEC-GRADE-004 active). REAL-MODE SPEAKING FIX (C14): grade_speaking previously did httpx.get() on the stored relative path (/static/uploads/xxx.webm) which raises UnsupportedProtocol -> real-mode Speaking always scored 0 the moment GEMINI_API_KEY is set. Added _load_audio_bytes() that reads local /static paths straight from disk (robust on single-host Render — no self-HTTP/public-URL needed) while still fetching genuine http(s) URLs (remote storage); mime type now derived from the recording extension. Guarded by tests/test_specs_grading.py::test_grade_speaking_real_mode_loads_local_static_audio (FakeModel forces the real-mode branch + a real local file -> asserts the model receives the exact disk bytes and returns the parsed score; non-tautological — fails before the fix). Full suite 54 passed / 0 failed; ruff + architecture clean. NOTE: actual Gemini network call still unverifiable without a key (mock on LIVE until GEMINI_API_KEY set on Render); google.generativeai SDK is EOL (FutureWarning) — migration to google.genai is a separate follow-up.",
+      "testedAt": "2026-06-24T00:00:00Z"
     },
     {
       "id": "celery-worker",
