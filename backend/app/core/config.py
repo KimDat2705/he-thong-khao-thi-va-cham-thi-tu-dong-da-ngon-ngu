@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     
     # Redis Settings
     REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Celery: when True, tasks run inline (no broker/worker needed). Default off
+    # for real async in production; set CELERY_TASK_ALWAYS_EAGER=true in
+    # environments without a dedicated Celery worker (local demo, Render free tier)
+    # so essay/AI grading still completes synchronously on submit.
+    CELERY_TASK_ALWAYS_EAGER: bool = False
     
     # Security Settings
     SECRET_KEY: str = "SUPER_SECRET_TOKEN_CHANGE_ME"

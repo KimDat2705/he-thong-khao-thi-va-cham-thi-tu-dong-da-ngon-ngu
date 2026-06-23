@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -9,7 +9,9 @@ import {
   type GroupOut,
   getExam,
   submitExam,
+  getSubmission,
   type SubmissionResult,
+  type SubmissionDetail,
   audioSrc,
   imageSrc,
   getToken,
@@ -27,16 +29,30 @@ function QuestionItem({
 }) {
   const img = imageSrc(q.image_url);
   const hasOptions = q.options && Object.keys(q.options).length > 0;
+  const isWriting = q.type === "writing";
   return (
     <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="text-sm font-medium text-gray-900">
+      <div className="text-sm font-medium text-gray-900 whitespace-pre-wrap">
         {q.content?.trim() ? q.content : <span className="text-gray-400">[Câu hình ảnh — nhìn ảnh và nghe audio]</span>}
       </div>
       {img && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={img} alt={`Câu ${q.id}`} className="mt-2 max-h-96 rounded border" />
       )}
-      {hasOptions ? (
+      {isWriting ? (
+        <div className="mt-3">
+          <textarea
+            rows={8}
+            placeholder="Viết bài làm của bạn ở đây…"
+            value={selectedValue || ""}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm leading-relaxed focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
+          />
+          <div className="mt-1 text-right text-xs text-gray-400">
+            {(selectedValue || "").trim() ? (selectedValue || "").trim().split(/\s+/).length : 0} từ
+          </div>
+        </div>
+      ) : hasOptions ? (
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {Object.entries(q.options!).map(([letter, text]) => (
             <label
@@ -123,6 +139,17 @@ export default function TakeView({ id }: { id: string }) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmissionResult | null>(null);
+  // Async (essay/AI) grading: poll the submission until it completes.
+  const [gradingDetail, setGradingDetail] = useState<SubmissionDetail | null>(null);
+  const [polling, setPolling] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -178,12 +205,42 @@ export default function TakeView({ id }: { id: string }) {
   const answeredCount = Object.keys(selectedAnswers).filter(
     (key) => selectedAnswers[Number(key)]?.trim() !== ""
   ).length;
+  // Essay exams (Writing/Speaking) are graded asynchronously by AI — the result
+  // panel polls for the score instead of showing TOEIC L/R numbers immediately.
+  const isEssayExam = questions.some((q) => q.type === "writing" || q.type === "speaking");
 
   const handleSelectAnswer = (qid: number, value: string) => {
     setSelectedAnswers((prev) => ({
       ...prev,
       [qid]: value,
     }));
+  };
+
+  const pollGrading = async (submissionId: number) => {
+    setPolling(true);
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    // ~40 * 2.5s = 100s ceiling, well above the AI grading turnaround.
+    for (let i = 0; i < 40; i++) {
+      try {
+        const detail = await getSubmission(submissionId);
+        if (!mountedRef.current) return;
+        if (detail.status === "completed") {
+          setGradingDetail(detail);
+          setPolling(false);
+          return;
+        }
+      } catch (err) {
+        const m = err instanceof Error ? err.message : String(err);
+        if (m.includes("401")) {
+          clearToken();
+          router.push("/login");
+          return;
+        }
+        // transient error -> keep polling
+      }
+      await sleep(2500);
+    }
+    if (mountedRef.current) setPolling(false);
   };
 
   const handleSubmit = async () => {
@@ -202,6 +259,10 @@ export default function TakeView({ id }: { id: string }) {
       const res = await submitExam(exam.id, answersPayload);
       setResult(res);
       window.scrollTo({ top: 0, behavior: "smooth" });
+      // Async essay grading: returned status is "grading" with no scores yet.
+      if (res.status !== "completed") {
+        pollGrading(res.submission_id);
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes("401")) {
@@ -228,6 +289,97 @@ export default function TakeView({ id }: { id: string }) {
 
   if (loading || !exam) {
     return <main className="mx-auto max-w-3xl px-6 py-10 text-sm text-gray-500">Đang tải đề thi…</main>;
+  }
+
+  if (result && isEssayExam) {
+    const resetEssay = () => {
+      setResult(null);
+      setGradingDetail(null);
+      setPolling(false);
+      setSelectedAnswers({});
+    };
+    return (
+      <main className="mx-auto max-w-2xl px-6 py-12">
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl space-y-6">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900">Kết Quả Bài Viết</h1>
+            <p className="text-sm text-gray-500 mt-1">{exam.title}</p>
+          </div>
+
+          {!gradingDetail ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+              <p className="text-sm font-medium text-gray-700">Đang chấm bằng AI (Gemini)…</p>
+              <p className="text-xs text-gray-400">
+                {polling ? "Bài đã nộp, vui lòng đợi trong giây lát." : "Đang xử lý…"}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col items-center justify-center py-4">
+                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-emerald-50 border-4 border-emerald-500 shadow-inner">
+                  <div className="text-center">
+                    <span className="text-3xl font-extrabold text-emerald-600">
+                      {gradingDetail.score_writing ?? gradingDetail.total_score ?? 0}
+                    </span>
+                    <span className="block text-[10px] uppercase tracking-wider font-semibold text-gray-400 mt-0.5">Điểm AI</span>
+                  </div>
+                </div>
+                <span className="mt-2 text-xs font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                  Trạng thái: {gradingDetail.status}
+                </span>
+              </div>
+
+              <div className="space-y-4 border-t border-gray-100 pt-5">
+                <h2 className="text-sm font-bold text-gray-900">Nhận xét chi tiết từ AI</h2>
+                {gradingDetail.feedback_writing &&
+                Object.keys(gradingDetail.feedback_writing).length > 0 ? (
+                  Object.entries(gradingDetail.feedback_writing).map(([qkey, fb], idx) => (
+                    <div key={qkey} className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-gray-800">Bài {idx + 1}</span>
+                        <span className="text-sm font-bold text-emerald-600">{fb.score}/10</span>
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm text-gray-700">{fb.feedback}</p>
+                      {fb.grammar_errors && fb.grammar_errors.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-xs font-semibold text-gray-500">Lỗi & gợi ý sửa:</span>
+                          {fb.grammar_errors.map((ge, gi) => (
+                            <div key={gi} className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-gray-700">
+                              <span className="line-through text-red-500">{ge.error}</span>
+                              {" → "}
+                              <span className="font-semibold text-emerald-700">{ge.correction}</span>
+                              {ge.explanation && <span className="block text-gray-500 mt-0.5">{ge.explanation}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">Không có nhận xét chi tiết.</p>
+                )}
+              </div>
+            </>
+          )}
+
+          <div className="flex flex-col gap-2 pt-2">
+            <button
+              onClick={resetEssay}
+              className="w-full rounded-md bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+            >
+              Làm lại bài
+            </button>
+            <Link
+              href="/my-results"
+              className="w-full rounded-md border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors inline-block text-center"
+            >
+              Kết quả của tôi
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (result) {

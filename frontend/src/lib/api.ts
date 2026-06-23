@@ -291,11 +291,53 @@ export async function approveBankQuestions(ids: number[]): Promise<{ updated: nu
 export interface SubmissionResult {
   submission_id: number;
   status: string;
-  listening_score: number;
-  reading_score: number;
-  total_score: number;
-  listening_correct: number;
-  reading_correct: number;
+  // Null while grading is asynchronous (essay/Writing via AI): the submit
+  // response returns status "grading" first; scores arrive via getSubmission().
+  listening_score: number | null;
+  reading_score: number | null;
+  total_score: number | null;
+  listening_correct: number | null;
+  reading_correct: number | null;
+}
+
+export interface EssayGrammarError {
+  error: string;
+  correction: string;
+  explanation: string;
+}
+
+export interface EssayFeedback {
+  score: number;
+  feedback: string;
+  grammar_errors?: EssayGrammarError[];
+}
+
+export interface SubmissionDetail {
+  id: number;
+  exam_id: number;
+  user_id: number;
+  started_at: string | null;
+  submitted_at: string | null;
+  status: string;
+  answers: { question_id: number; candidate_text: string | null; audio_url: string | null }[];
+  score_multiple_choice: number | null;
+  listening_score: number | null;
+  reading_score: number | null;
+  score_writing: number | null;
+  score_speaking: number | null;
+  total_score: number | null;
+  feedback_writing: Record<string, EssayFeedback> | null;
+  feedback_speaking: Record<string, EssayFeedback> | null;
+}
+
+// Poll a submission's grading status/result (owner or admin/teacher only).
+export async function getSubmission(id: number | string): Promise<SubmissionDetail> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/submissions/${id}`, {
+      cache: "no-store",
+      headers: { ...authHeaders() },
+    }),
+  );
 }
 
 export async function submitExam(

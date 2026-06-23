@@ -18,4 +18,9 @@ celery_app.conf.update(
     enable_utc=True,
     task_track_started=True,
     worker_prefetch_multiplier=1,  # Don't prefetch too many tasks since AI grading is heavy
+    # Run tasks inline when no dedicated worker/broker is available (local demo,
+    # Render free tier). The submit endpoint still returns "grading" first; with
+    # eager mode the grade is already written by the time the candidate polls.
+    task_always_eager=settings.CELERY_TASK_ALWAYS_EAGER,
+    task_eager_propagates=settings.CELERY_TASK_ALWAYS_EAGER,
 )
