@@ -153,6 +153,12 @@ export default function MyResultsPage() {
                         </span>
                       )}
                     </div>
+                    <Link
+                      href={`/submissions/${sub.submission_id}`}
+                      className="inline-block text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                      Xem chi tiết →
+                    </Link>
                   </div>
 
                   <div className="flex items-center gap-6 border-t border-gray-100 pt-4 sm:border-0 sm:pt-0 shrink-0">

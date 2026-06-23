@@ -139,6 +139,7 @@ export default function ResultsView({ examId }: ResultsViewProps) {
                   <th className="px-6 py-3">Tổng điểm</th>
                   <th className="px-6 py-3">Trạng thái</th>
                   <th className="px-6 py-3">Thời gian nộp</th>
+                  <th className="px-6 py-3">Chi tiết</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -180,6 +181,14 @@ export default function ResultsView({ examId }: ResultsViewProps) {
                         )}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500">{formattedDate}</td>
+                      <td className="px-6 py-4">
+                        <Link
+                          href={`/submissions/${sub.submission_id}`}
+                          className="text-sm font-semibold text-blue-600 hover:underline"
+                        >
+                          Xem
+                        </Link>
+                      </td>
                     </tr>
                   );
                 })}
