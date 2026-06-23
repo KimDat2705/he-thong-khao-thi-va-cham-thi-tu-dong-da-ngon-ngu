@@ -214,6 +214,81 @@ def test_upload_audio_endpoint(db_session: Session):
         fastapi_app.dependency_overrides.clear()
 
 
+def test_SPEC_SUBMIT_003_teacher_grade_override(db_session: Session, monkeypatch):
+    """SPEC-SUBMIT-003: giáo viên/admin điều chỉnh điểm AI tự luận + ghi nhận xét;
+    tổng tính lại; candidate không được sửa (403), không token (401), không có (404).
+    """
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token, hash_password
+    from app.core.celery import celery_app
+    from app.models.exam import Exam
+    from app.models.question import Question
+    from app.models.user import User
+    import app.workers.tasks as tasks_module
+
+    # Eager + mock AI so the essay gets an AI grade to override.
+    test_engine = db_session.get_bind()
+    WorkerSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(tasks_module, "SessionLocal", WorkerSession)
+    monkeypatch.setattr(tasks_module.ai_grading_service, "model", None)
+    monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
+    monkeypatch.setattr(celery_app.conf, "task_eager_propagates", True)
+
+    teacher = User(username="teacher_s3", hashed_password=hash_password("x"),
+                   full_name="Teacher S3", role="teacher", is_active=True)
+    db_session.add(teacher)
+    db_session.commit()
+
+    cand_h = {"Authorization": f"Bearer {create_access_token(data={'sub': 'testcandidate', 'role': 'candidate'})}"}
+    teach_h = {"Authorization": f"Bearer {create_access_token(data={'sub': 'teacher_s3', 'role': 'teacher'})}"}
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        exam = Exam(title="VSTEP Override", language="EN", exam_type="VSTEP",
+                    duration_minutes=60, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+        qw = Question(exam_id=exam.id, part=1, type="writing",
+                      content="Write about your favourite book.", status="approved")
+        db_session.add(qw)
+        db_session.commit()
+        db_session.refresh(qw)
+
+        resp = client.post(f"/api/v1/exams/{exam.id}/submit",
+                           json={"answers": [{"question_id": qw.id, "answer": "My favourite book is..."}]},
+                           headers=cand_h)
+        assert resp.status_code == 200
+        sid = resp.json()["submission_id"]
+
+        # Mock AI gave 8.0; teacher lowers to 6.5 and adds a note.
+        resp = client.patch(f"/api/v1/submissions/{sid}/grade",
+                            json={"score_writing": 6.5, "teacher_note": "Cần cải thiện ngữ pháp."},
+                            headers=teach_h)
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["score_writing"] == 6.5
+        assert data["total_score"] == 6.5  # mc 0 + writing 6.5 + speaking 0
+        assert (data["feedback_writing"] or {}).get("teacher_note") == "Cần cải thiện ngữ pháp."
+
+        # Gating: candidate -> 403
+        resp = client.patch(f"/api/v1/submissions/{sid}/grade", json={"score_writing": 9.0}, headers=cand_h)
+        assert resp.status_code == 403
+        # No token -> 401
+        resp = client.patch(f"/api/v1/submissions/{sid}/grade", json={"score_writing": 9.0})
+        assert resp.status_code == 401
+        # Non-existent -> 404
+        resp = client.patch("/api/v1/submissions/99999/grade", json={"score_writing": 9.0}, headers=teach_h)
+        assert resp.status_code == 404
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
 def test_SPEC_SUBMIT_002_submissions_listing(db_session: Session):
     from fastapi.testclient import TestClient
     from app.main import app as fastapi_app

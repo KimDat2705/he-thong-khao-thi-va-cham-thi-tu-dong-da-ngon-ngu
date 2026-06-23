@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   getSubmission,
   getExam,
+  getMe,
+  overrideGrade,
   getToken,
   clearToken,
   API_BASE,
@@ -22,6 +24,13 @@ export default function SubmissionDetailView({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
+  // Teacher/admin moderation (human-in-the-loop) state.
+  const [role, setRole] = useState<string | null>(null);
+  const [editWriting, setEditWriting] = useState("");
+  const [editSpeaking, setEditSpeaking] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -32,6 +41,17 @@ export default function SubmissionDetailView({ id }: { id: string }) {
       try {
         const data = await getSubmission(id);
         setSub(data);
+        setEditWriting(data.score_writing != null ? String(data.score_writing) : "");
+        setEditSpeaking(data.score_speaking != null ? String(data.score_speaking) : "");
+        const tn0 = (data.feedback_writing as Record<string, unknown> | null)?.["teacher_note"];
+        setEditNote(typeof tn0 === "string" ? tn0 : "");
+        // Role decides whether to show the teacher moderation panel (best-effort).
+        try {
+          const me = await getMe();
+          setRole(me.role);
+        } catch {
+          /* not critical — just hide the edit panel */
+        }
         // Best-effort fetch of the exam to show prompts (active exams only).
         try {
           const exam = await getExam(data.exam_id, false);
@@ -93,6 +113,29 @@ export default function SubmissionDetailView({ id }: { id: string }) {
   const audioFullUrl = (u: string | null) =>
     !u ? null : u.startsWith("http") ? u : `${API_BASE}${u}`;
 
+  const isTeacher = role === "admin" || role === "teacher";
+  const teacherNoteRaw = (sub.feedback_writing as Record<string, unknown> | null)?.["teacher_note"];
+  const teacherNote = typeof teacherNoteRaw === "string" ? teacherNoteRaw : null;
+
+  const handleSaveGrade = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const payload: { score_writing?: number; score_speaking?: number; teacher_note?: string } = {
+        teacher_note: editNote,
+      };
+      if (editWriting.trim() !== "") payload.score_writing = Number(editWriting);
+      if (editSpeaking.trim() !== "") payload.score_speaking = Number(editSpeaking);
+      const updated = await overrideGrade(sub.id, payload);
+      setSub(updated);
+      setSaveMsg("Đã lưu điểm.");
+    } catch (e) {
+      setSaveMsg("Lưu lỗi: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-10 space-y-6">
       <Link href="/my-results" className="text-sm font-semibold text-blue-600 hover:underline">
@@ -139,6 +182,13 @@ export default function SubmissionDetailView({ id }: { id: string }) {
           </div>
         </div>
       </div>
+
+      {teacherNote && (
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4">
+          <div className="text-xs font-semibold text-indigo-700">Nhận xét của giáo viên</div>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{teacherNote}</p>
+        </div>
+      )}
 
       {essayAnswers.length === 0 && speakingAnswers.length === 0 && (
         <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 bg-white">
@@ -236,6 +286,65 @@ export default function SubmissionDetailView({ id }: { id: string }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {isTeacher && (essayAnswers.length > 0 || speakingAnswers.length > 0) && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-5 space-y-3">
+          <div>
+            <h2 className="text-sm font-bold text-gray-900">Duyệt / điều chỉnh điểm (giáo viên)</h2>
+            <p className="text-xs text-gray-500">Điểm AI là gợi ý — bạn có thể điều chỉnh trước khi công bố.</p>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            {essayAnswers.length > 0 && (
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-medium text-gray-600">Điểm Viết</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="10"
+                  value={editWriting}
+                  onChange={(e) => setEditWriting(e.target.value)}
+                  className="w-28 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                />
+              </label>
+            )}
+            {speakingAnswers.length > 0 && (
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-medium text-gray-600">Điểm Nói</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="10"
+                  value={editSpeaking}
+                  onChange={(e) => setEditSpeaking(e.target.value)}
+                  className="w-28 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                />
+              </label>
+            )}
+          </div>
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs font-medium text-gray-600">Nhận xét của giáo viên</span>
+            <textarea
+              rows={3}
+              value={editNote}
+              onChange={(e) => setEditNote(e.target.value)}
+              placeholder="Nhận xét / lý do điều chỉnh…"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSaveGrade}
+              disabled={saving}
+              className="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {saving ? "Đang lưu…" : "Lưu điểm"}
+            </button>
+            {saveMsg && <span className="text-xs text-gray-600">{saveMsg}</span>}
+          </div>
         </div>
       )}
     </main>

@@ -347,6 +347,20 @@ export async function getSubmission(id: number | string): Promise<SubmissionDeta
   );
 }
 
+// Teacher/admin override of AI essay grades (human-in-the-loop).
+export async function overrideGrade(
+  id: number | string,
+  payload: { score_writing?: number | null; score_speaking?: number | null; teacher_note?: string | null },
+): Promise<SubmissionDetail> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/submissions/${id}/grade`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
 export async function submitExam(
   examId: number | string,
   answers: { question_id: number; answer: string; audio_url?: string | null }[],

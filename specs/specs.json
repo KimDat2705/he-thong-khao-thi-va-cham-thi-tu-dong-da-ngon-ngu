@@ -727,6 +727,24 @@
         "tests/test_specs_submission.py::test_SPEC_SUBMIT_002_submissions_listing"
       ],
       "notes": "Chấm điểm tự động và liệt kê danh sách bài nộp."
+    },
+    {
+      "id": "SPEC-SUBMIT-003",
+      "domain": "SUBMIT",
+      "title": "Giáo viên duyệt/điều chỉnh điểm AI (human-in-the-loop)",
+      "statement": "Điểm chấm tự luận bằng AI (Writing/Speaking) không phải là quyết định cuối: giáo viên/admin có quyền điều chỉnh điểm và ghi nhận xét; tổng điểm được tính lại từ các thành phần. Thí sinh không được phép sửa điểm.",
+      "acceptance_criteria": [
+        "PATCH /api/v1/submissions/{id}/grade cho phép cập nhật score_writing và/hoặc score_speaking và/hoặc teacher_note; trường bỏ trống giữ nguyên giá trị cũ.",
+        "Sau khi cập nhật, score_total được tính lại = score_multiple_choice + score_writing + score_speaking.",
+        "Chỉ admin/teacher được phép (candidate trả về 403 Forbidden, không token trả về 401 Unauthorized); trả về 404 nếu submission hoặc grade không tồn tại.",
+        "teacher_note được lưu lại và xuất hiện khi đọc chi tiết bài nộp."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_submission.py::test_SPEC_SUBMIT_003_teacher_grade_override"
+      ],
+      "notes": "Đang đạt: endpoint PATCH grade cho phép giáo viên điều chỉnh điểm AI + ghi nhận xét, tính lại tổng, gating admin/teacher."
     }
   ]
 }

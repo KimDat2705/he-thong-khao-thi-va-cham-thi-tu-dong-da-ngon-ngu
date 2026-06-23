@@ -16,6 +16,7 @@ from app.schemas.submission import (
     SubmissionListItem,
     MySubmissionListItem,
     AudioUploadResult,
+    GradeOverrideRequest,
 )
 from app.services import submission_admin
 
@@ -107,6 +108,30 @@ def get_submission(
         raise HTTPException(status_code=403, detail="Not enough permissions to access this submission")
 
     return sub_data
+
+
+@router.patch("/api/v1/submissions/{id}/grade", response_model=SubmissionDetailOut)
+def override_submission_grade(
+    id: int,
+    payload: GradeOverrideRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher")),
+):
+    """
+    Teacher/admin override of AI essay grades (human-in-the-loop): adjust the
+    Writing/Speaking scores and/or attach a note. Only admin/teacher (403 for
+    candidate, 401 if unauthenticated). Returns 404 if the submission/grade is not found.
+    """
+    result = submission_admin.override_grade(
+        db,
+        submission_id=id,
+        score_writing=payload.score_writing,
+        score_speaking=payload.score_speaking,
+        teacher_note=payload.teacher_note,
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="Submission or grade not found")
+    return result
 
 
 @router.get("/api/v1/exams/{exam_id}/submissions", response_model=List[SubmissionListItem])

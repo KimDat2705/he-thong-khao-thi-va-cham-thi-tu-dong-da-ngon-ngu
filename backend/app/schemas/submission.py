@@ -14,6 +14,13 @@ class AudioUploadResult(BaseModel):
     audio_url: str
 
 
+class GradeOverrideRequest(BaseModel):
+    # Teacher/admin moderation of AI grades. Any field omitted is left unchanged.
+    score_writing: Optional[float] = None
+    score_speaking: Optional[float] = None
+    teacher_note: Optional[str] = None
+
+
 class SubmitRequest(BaseModel):
     answers: List[AnswerItem]
 

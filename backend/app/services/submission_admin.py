@@ -5,6 +5,7 @@ import datetime
 from app.models.exam import Exam
 from app.models.question import Question
 from app.models.submission import Submission, SubmissionDetail
+from app.models.grade import Grade
 from app.services.toeic_grader import grade_toeic_submission
 
 
@@ -140,6 +141,48 @@ def get_submission(db: Session, submission_id: int) -> Optional[dict]:
         ],
         **grade_info
     }
+
+
+def override_grade(
+    db: Session,
+    submission_id: int,
+    score_writing: Optional[float] = None,
+    score_speaking: Optional[float] = None,
+    teacher_note: Optional[str] = None,
+) -> Optional[dict]:
+    """
+    Teacher/admin moderation of AI grades (human-in-the-loop): adjust the essay
+    Writing/Speaking scores and/or attach a note. The total is recomputed from all
+    components. Returns the updated submission detail, or None if the submission /
+    its grade does not exist.
+    """
+    grade = (
+        db.query(Grade)
+        .filter(Grade.submission_id == submission_id)
+        .first()
+    )
+    if grade is None:
+        return None
+
+    if score_writing is not None:
+        grade.score_writing = float(score_writing)
+    if score_speaking is not None:
+        grade.score_speaking = float(score_speaking)
+    # Recompute the total from every component (MCQ + Writing + Speaking).
+    grade.score_total = (
+        (grade.score_multiple_choice or 0.0)
+        + (grade.score_writing or 0.0)
+        + (grade.score_speaking or 0.0)
+    )
+    if teacher_note is not None:
+        # Store the teacher note in the writing-feedback JSON under a reserved key
+        # (reassign a new dict so SQLAlchemy persists the JSON change).
+        fw = dict(grade.feedback_writing) if isinstance(grade.feedback_writing, dict) else {}
+        fw["teacher_note"] = teacher_note
+        grade.feedback_writing = fw
+
+    db.commit()
+    return get_submission(db, submission_id)
 
 
 def list_exam_submissions(db: Session, exam_id: int) -> List[dict]:
