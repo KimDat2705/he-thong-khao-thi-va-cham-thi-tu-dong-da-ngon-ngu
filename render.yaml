@@ -16,6 +16,10 @@ services:
         value: sqlite:///./demo_toeic.db
       - key: AUDIO_DIR
         value: ./audio_data
+      # Render free không có Celery worker/Redis riêng — chạy chấm AI tự luận
+      # nội tuyến lúc nộp để mạch GRADE-003 (Writing/Speaking) hoàn tất.
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "true"
       # Đặt = URL frontend Vercel sau khi deploy frontend (vd https://xxx.vercel.app).
       # Để trống/"*" thì CORS mở cho mọi nguồn (đủ cho demo).
       - key: ALLOWED_ORIGINS

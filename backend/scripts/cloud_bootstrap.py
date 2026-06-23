@@ -86,6 +86,16 @@ def main() -> None:
     print("Bootstrap: seeding database ...")
     import seed_toeic_demo  # noqa: E402  (scripts/ on sys.path via __file__ dir)
     seed_toeic_demo.main()
+
+    # Seed the free-text (AI-graded) demo exams too — no partner data needed.
+    # These make the GRADE-003/Gemini essay-grading path demoable live (Writing +
+    # a mixed VSTEP Reading+Writing exam). Requires CELERY_TASK_ALWAYS_EAGER=true
+    # in the environment so grading completes without a separate Celery worker.
+    print("Bootstrap: seeding free-text demo exams (Writing / VSTEP) ...")
+    import seed_writing_demo  # noqa: E402
+    seed_writing_demo.main()
+    import seed_vstep_demo  # noqa: E402
+    seed_vstep_demo.main()
     print("Bootstrap: done.")
 
 
