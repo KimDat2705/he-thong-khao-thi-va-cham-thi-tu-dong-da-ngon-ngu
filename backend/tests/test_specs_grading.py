@@ -397,6 +397,32 @@ def test_grade_speaking_real_mode_loads_local_static_audio():
         os.remove(fpath)
 
 
+def test_grade_speaking_without_audio_does_not_crash():
+    """Bug-fix guard: câu Nói nộp KHÔNG có bản ghi (audio_url=None) phải trả về 0
+    điểm một cách an toàn, KHÔNG ném lỗi — kể cả ở real-mode (trước đây
+    _load_audio_bytes(None) gây AttributeError 'NoneType'... .startswith).
+
+    Non-tautological: gắn FakeModel (real-mode); guard phải chặn TRƯỚC khi gọi model
+    nên model.generate_content không bao giờ được gọi.
+    """
+    from app.services.ai_grading import AIGradingService
+
+    class _BoomModel:
+        def generate_content(self, *a, **k):
+            raise AssertionError("không được gọi model khi không có audio")
+
+    service = AIGradingService()
+    service.model = _BoomModel()  # real-mode, nhưng guard phải chặn trước
+    for missing in (None, ""):
+        result = service.grade_speaking(
+            audio_url=missing,
+            prompt_requirements="Giới thiệu bản thân.",
+            language="EN",
+        )
+        assert result["score"] == 0.0
+        assert {"score", "transcription", "feedback", "pronunciation_issues"} <= set(result.keys())
+
+
 def test_SPEC_GRADE_004_ai_grading_degrades_safely(monkeypatch):
     """SPEC-GRADE-004: Khi Gemini API thiếu key hoặc lỗi, dịch vụ chấm AI phải
     trả về kết quả có cấu trúc (mock mode), tuyệt đối không ném exception và

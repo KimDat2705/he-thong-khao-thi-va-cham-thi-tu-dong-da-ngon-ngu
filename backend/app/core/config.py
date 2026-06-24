@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # AI Keys
     GEMINI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
+    # Gemini model id for grading. Configurable via env so a retired model name
+    # (e.g. the old gemini-1.5-flash, now returns 404) can be swapped without code.
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     
     # Grading Sandbox
     SANDBOX_URL: Optional[str] = None  # E.g., Judge0 API URL if using SaaS

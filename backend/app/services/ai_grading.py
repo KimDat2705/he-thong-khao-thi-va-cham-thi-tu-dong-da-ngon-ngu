@@ -22,7 +22,7 @@ class AIGradingService:
         # Initialize Google GenAI if key is present
         if settings.GEMINI_API_KEY:
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            self.model = genai.GenerativeModel("gemini-1.5-flash")
+            self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
         else:
             self.model = None
             logger.warning("GEMINI_API_KEY is not set. AI Grading will run in mock mode.")
@@ -103,6 +103,16 @@ class AIGradingService:
         """
         Grades spoken audio by fetching the audio file and sending it to Gemini's multimodal API.
         """
+        # No recording for this question -> nothing to grade (don't crash in real mode
+        # where _load_audio_bytes(None) would fail).
+        if not audio_url:
+            return {
+                "score": 0.0,
+                "transcription": "",
+                "feedback": "Không có bản ghi âm cho câu này.",
+                "pronunciation_issues": [],
+            }
+
         if not self.model:
             # Mock speaking grading
             return {
