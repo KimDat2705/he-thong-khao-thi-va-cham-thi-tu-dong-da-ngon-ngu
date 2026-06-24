@@ -25,8 +25,11 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     # Gemini model id for grading. Configurable via env so a retired model name
-    # (e.g. the old gemini-1.5-flash, now returns 404) can be swapped without code.
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    # (e.g. the old gemini-1.5-flash / gemini-2.0-flash, now return 404) can be
+    # swapped without code. Default = newest flash (Đạt: dùng model flash xịn nhất).
+    # If 3.5-flash is 503-saturated on free tier, override GEMINI_MODEL via env
+    # (e.g. gemini-flash-latest) — no code change needed.
+    GEMINI_MODEL: str = "gemini-3.5-flash"
     
     # Grading Sandbox
     SANDBOX_URL: Optional[str] = None  # E.g., Judge0 API URL if using SaaS
