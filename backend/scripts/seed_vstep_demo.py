@@ -1,18 +1,26 @@
 """
-Seed a small VSTEP (English B1) demo exam — a SECOND exam type alongside TOEIC —
-to demonstrate the system handling a different exam format end-to-end, with MIXED
-grading: a Reading section (multiple-choice, auto-graded) plus a Writing task
-(free-text, AI-graded via the GRADE-003 Celery/Gemini path).
+Seed a FULL VSTEP B1 (English) demo exam — a second exam type alongside TOEIC —
+covering all four skills end-to-end: LISTENING + READING (multiple-choice,
+auto-graded) plus WRITING (2 tasks) and SPEAKING (3 parts) which are AI-graded via
+the GRADE-003 Celery/Gemini path.
 
-The questions are attached directly to the exam (exam_id set) rather than to the
-shared question bank (exam_id IS NULL), so they do NOT collide with the TOEIC bank
-(the bank has no language/exam_type discriminator — see notes in claude-progress).
+The questions/groups are attached directly to the exam (exam_id set) rather than to
+the shared question bank (exam_id IS NULL), so they do NOT collide with the TOEIC
+bank (the bank has no language/exam_type discriminator — see notes in
+claude-progress / memory bank-thieu-cot-exam-type).
 
-Submitting this exam routes through the asynchronous AI grading path because it
-contains a writing question; the worker grades the multiple-choice answers
-(score_multiple_choice) and the essay (score_writing) together.
+Listening note: this demo has no audio file, so the Listening section shows the
+audio *script* as the group passage (clearly labelled). When a real recording is
+available it attaches at the group's audio_url via the parser pipeline (TOEIC-style)
+and the script can be hidden — no structural change needed.
 
-Idempotent: re-running does not duplicate the exam (matched by title).
+Submitting this exam routes through the asynchronous AI grading path (it contains
+writing/speaking questions); the worker grades the multiple-choice answers
+(score_multiple_choice) and the essays/speech (score_writing/score_speaking).
+
+Idempotent: re-running does not duplicate the exam (matched by title). The older
+thin "VSTEP B1 Demo (Reading + Writing...)" exam, if present, is left untouched —
+retire it from the admin UI if you no longer want it.
 
 Run (from backend/):
     DATABASE_URL="sqlite:///./demo_toeic.db" CELERY_TASK_ALWAYS_EAGER=true \
@@ -30,50 +38,136 @@ if BACKEND_DIR not in sys.path:
 from app.core.database import Base, engine, SessionLocal  # noqa: E402
 from app.models.exam import Exam  # noqa: E402
 from app.models.question import Question  # noqa: E402
+from app.models.question_group import QuestionGroup  # noqa: E402
 
-EXAM_TITLE = "VSTEP B1 Demo (Reading + Writing, AI-graded)"
+EXAM_TITLE = "VSTEP B1 — Đề mẫu đầy đủ (Nghe · Đọc · Viết · Nói)"
 
-# Reading section (Part 1): short B1-level multiple-choice items.
-READING_QUESTIONS = [
+# ── Part 1 — LISTENING (transcript-based for the demo; real audio attaches later) ──
+LISTENING_TRANSCRIPT = (
+    "🎧 Phần NGHE — bản ghi nội dung (bản demo chưa gắn file audio; khi có file, "
+    "đoạn này sẽ được thay bằng trình phát audio).\n\n"
+    "Woman: Excuse me, does this bus go to the city centre?\n"
+    "Man: Yes, but you need bus number 12, not number 21. Number 12 stops right in "
+    "front of the museum.\n"
+    "Woman: Great. How often does it come?\n"
+    "Man: Every fifteen minutes on weekdays, but only every half an hour at the weekend.\n"
+    "Woman: And how much is the ticket?\n"
+    "Man: It's two dollars if you pay the driver, but only one fifty if you buy a "
+    "card from that machine over there."
+)
+LISTENING_QUESTIONS = [
     {
-        "content": "Choose the correct option:\n\"If it ____ tomorrow, we will cancel the picnic.\"",
-        "options": {"A": "rains", "B": "rained", "C": "will rain", "D": "is raining"},
+        "content": "Which bus should the woman take?",
+        "options": {"A": "Number 12", "B": "Number 21", "C": "Number 15", "D": "Number 30"},
         "answer": "A",
     },
     {
-        "content": "Read: \"The library closes at 8 p.m. on weekdays and 5 p.m. on weekends.\"\nWhen does the library close on Saturday?",
-        "options": {"A": "8 p.m.", "B": "5 p.m.", "C": "It does not close", "D": "6 p.m."},
+        "content": "How often does the bus come at the weekend?",
+        "options": {"A": "Every 15 minutes", "B": "Every 30 minutes", "C": "Every hour", "D": "Twice a day"},
         "answer": "B",
     },
     {
-        "content": "Choose the word closest in meaning to \"purchase\".",
-        "options": {"A": "sell", "B": "return", "C": "buy", "D": "borrow"},
-        "answer": "C",
-    },
-    {
-        "content": "Choose the correct option:\n\"She has worked here ____ 2019.\"",
-        "options": {"A": "since", "B": "for", "C": "during", "D": "from"},
-        "answer": "A",
+        "content": "How much is the ticket if she buys a card from the machine?",
+        "options": {"A": "$2.00", "B": "$1.50", "C": "$1.20", "D": "It is free"},
+        "answer": "B",
     },
 ]
 
-# Writing section (Part 2): a free-text task graded by AI.
-WRITING_PROMPT = (
-    "Task — Write a paragraph of about 150 words about the advantages and "
-    "disadvantages of working from home. Give at least two reasons and an example."
+# ── Part 2 — READING: a short passage + comprehension, plus language-use items ──
+READING_PASSAGE = (
+    "Greenfield Community Garden — Notice\n\n"
+    "The Greenfield Community Garden is open to all residents from 7 a.m. to 7 p.m. "
+    "every day. Members pay a small yearly fee of $20, which covers water and basic "
+    "tools. New members must attend a short training session before they start. "
+    "Children under 12 are welcome but must be with an adult at all times. The garden "
+    "also holds a free market every Sunday morning, where members can sell the "
+    "vegetables they grow."
+)
+READING_PASSAGE_QUESTIONS = [
+    {
+        "content": "What time does the garden close?",
+        "options": {"A": "7 a.m.", "B": "12 p.m.", "C": "7 p.m.", "D": "It never closes"},
+        "answer": "C",
+    },
+    {
+        "content": "What does the yearly fee cover?",
+        "options": {"A": "Water and basic tools", "B": "Seeds and plants", "C": "Training only", "D": "Nothing"},
+        "answer": "A",
+    },
+    {
+        "content": "What must new members do before they start?",
+        "options": {"A": "Pay an extra $50", "B": "Attend a training session", "C": "Bring their own water", "D": "Sell vegetables first"},
+        "answer": "B",
+    },
+    {
+        "content": "When is the free market held?",
+        "options": {"A": "Every day", "B": "Saturday evening", "C": "Sunday morning", "D": "Once a year"},
+        "answer": "C",
+    },
+]
+READING_LANGUAGE_QUESTIONS = [
+    {
+        "content": "Choose the correct option:\n\"I'm really interested ____ learning Japanese.\"",
+        "options": {"A": "in", "B": "on", "C": "at", "D": "for"},
+        "answer": "A",
+    },
+    {
+        "content": "Choose the word closest in meaning to \"enormous\".",
+        "options": {"A": "tiny", "B": "huge", "C": "empty", "D": "quiet"},
+        "answer": "B",
+    },
+]
+
+# ── Part 3 — WRITING (2 tasks, AI-graded) ──
+WRITING_TASK_1 = (
+    "Writing — Task 1 (viết khoảng 120 từ). You recently bought a product online "
+    "but it arrived damaged. Write an email to the shop. In your email:\n"
+    "• describe the problem;\n"
+    "• say when and how you bought it;\n"
+    "• ask what the shop will do to solve it."
+)
+WRITING_TASK_2 = (
+    "Writing — Task 2 (viết khoảng 250 từ). Some people think students should study "
+    "online, while others prefer traditional classrooms. Discuss both views and give "
+    "your own opinion. Give reasons and relevant examples to support your answer."
 )
 
-# Speaking section (Part 3): a spoken task graded by AI (audio upload/recording).
-SPEAKING_PROMPT = (
-    "Speaking — Talk for about 1 minute about a place you would like to visit. "
-    "Say where it is, why you want to go there, and what you would do."
+# ── Part 4 — SPEAKING (3 parts, AI-graded via audio upload/recording) ──
+SPEAKING_PART_1 = (
+    "Speaking — Part 1 (Social interaction). Answer these questions: Where do you "
+    "live, and what do you like about it? What do you usually do in your free time?"
 )
+SPEAKING_PART_2 = (
+    "Speaking — Part 2 (Solution discussion). Your friend wants to improve their "
+    "English. Suggest some solutions (for example: watching films, joining a club, "
+    "using apps) and recommend the best one, giving reasons."
+)
+SPEAKING_PART_3 = (
+    "Speaking — Part 3 (Topic development). Talk for about two minutes about the "
+    "benefits of learning a foreign language. Develop ideas such as travel, work "
+    "opportunities, and understanding other cultures."
+)
+
+
+def _add_choice(db, exam_id, part, item, topic, group_id=None):
+    db.add(Question(
+        exam_id=exam_id,
+        group_id=group_id,
+        part=part,
+        type="choice",
+        content=item["content"],
+        options=item["options"],
+        reference_answer=item["answer"],
+        status="approved",
+        difficulty="medium",
+        topic=topic,
+    ))
 
 
 def seed_vstep_exam(db) -> Exam:
     existing = db.query(Exam).filter(Exam.title == EXAM_TITLE).first()
     if existing:
-        print(f"VSTEP demo exam already exists (id={existing.id}).")
+        print(f"VSTEP B1 full demo exam already exists (id={existing.id}).")
         return existing
 
     exam = Exam(
@@ -87,46 +181,54 @@ def seed_vstep_exam(db) -> Exam:
     db.commit()
     db.refresh(exam)
 
-    # Part 1 — Reading (multiple choice, auto-graded)
-    for item in READING_QUESTIONS:
+    # Part 1 — Listening (one passage group: shared transcript + comprehension MCQ)
+    listen_group = QuestionGroup(
+        exam_id=exam.id, part=1, topic="Listening",
+        passage_text=LISTENING_TRANSCRIPT, passage_type="conversation",
+        speaker_count=2, status="approved", difficulty="medium",
+    )
+    db.add(listen_group)
+    db.commit()
+    db.refresh(listen_group)
+    for item in LISTENING_QUESTIONS:
+        _add_choice(db, exam.id, 1, item, "Listening", group_id=listen_group.id)
+
+    # Part 2 — Reading (one passage group + standalone language-use items)
+    read_group = QuestionGroup(
+        exam_id=exam.id, part=2, topic="Reading",
+        passage_text=READING_PASSAGE, passage_type="notice",
+        status="approved", difficulty="medium",
+    )
+    db.add(read_group)
+    db.commit()
+    db.refresh(read_group)
+    for item in READING_PASSAGE_QUESTIONS:
+        _add_choice(db, exam.id, 2, item, "Reading", group_id=read_group.id)
+    for item in READING_LANGUAGE_QUESTIONS:
+        _add_choice(db, exam.id, 2, item, "Reading")
+
+    # Part 3 — Writing (2 free-text tasks, AI-graded)
+    for prompt in (WRITING_TASK_1, WRITING_TASK_2):
         db.add(Question(
-            exam_id=exam.id,
-            part=1,
-            type="choice",
-            content=item["content"],
-            options=item["options"],
-            reference_answer=item["answer"],
-            status="approved",
-            difficulty="medium",
-            topic="Reading",
+            exam_id=exam.id, part=3, type="writing", content=prompt,
+            reference_answer=None, status="approved", difficulty="medium", topic="Writing",
         ))
 
-    # Part 2 — Writing (free-text, AI-graded)
-    db.add(Question(
-        exam_id=exam.id,
-        part=2,
-        type="writing",
-        content=WRITING_PROMPT,
-        reference_answer=None,
-        status="approved",
-        difficulty="medium",
-        topic="Writing",
-    ))
+    # Part 4 — Speaking (3 spoken tasks, AI-graded)
+    for prompt in (SPEAKING_PART_1, SPEAKING_PART_2, SPEAKING_PART_3):
+        db.add(Question(
+            exam_id=exam.id, part=4, type="speaking", content=prompt,
+            reference_answer=None, status="approved", difficulty="medium", topic="Speaking",
+        ))
 
-    # Part 3 — Speaking (audio, AI-graded)
-    db.add(Question(
-        exam_id=exam.id,
-        part=3,
-        type="speaking",
-        content=SPEAKING_PROMPT,
-        reference_answer=None,
-        status="approved",
-        difficulty="medium",
-        topic="Speaking",
-    ))
     db.commit()
-    print(f"Seeded VSTEP demo exam id={exam.id}: "
-          f"{len(READING_QUESTIONS)} reading MCQ + 1 writing + 1 speaking task.")
+    n_reading = len(READING_PASSAGE_QUESTIONS) + len(READING_LANGUAGE_QUESTIONS)
+    n_choice = len(LISTENING_QUESTIONS) + n_reading
+    print(
+        f"Seeded FULL VSTEP B1 exam id={exam.id}: "
+        f"Listening {len(LISTENING_QUESTIONS)} + Reading {n_reading} "
+        f"(= {n_choice} MCQ) + Writing 2 + Speaking 3."
+    )
     return exam
 
 
