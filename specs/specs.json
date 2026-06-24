@@ -745,6 +745,26 @@
         "tests/test_specs_submission.py::test_SPEC_SUBMIT_003_teacher_grade_override"
       ],
       "notes": "Đang đạt: endpoint PATCH grade cho phép giáo viên điều chỉnh điểm AI + ghi nhận xét, tính lại tổng, gating admin/teacher."
+    },
+    {
+      "id": "SPEC-STATS-001",
+      "domain": "STATS",
+      "title": "Phân tích kết quả thi và thống kê chi tiết từng câu",
+      "statement": "Hệ thống cung cấp API thống kê điểm số và phân tích chi tiết kết quả làm bài của từng câu hỏi (item-analysis) cho các bài thi đã nộp của một đề thi.",
+      "acceptance_criteria": [
+        "Chỉ tính các bài nộp đã nộp hoàn tất (submitted_at IS NOT NULL).",
+        "Trả về tổng số bài nộp (submission_count) và thống kê điểm tổng (score_summary gồm mean, min, max).",
+        "Trả về chi tiết từng câu hỏi (items) trong đề thi: question_id, part, type, content (rút gọn ~80 ký tự), answered_count, correct_count.",
+        "Với câu hỏi trắc nghiệm (choice), tính correct_rate (đúng/đã-trả-lời) và option_distribution (đếm phân bố các lựa chọn A/B/C/D thực tế).",
+        "Với câu hỏi tự luận (writing/speaking), tính avg_score (điểm trung bình AI).",
+        "correct_rate và option_distribution của các câu tự luận phải là null. avg_score của câu trắc nghiệm phải là null."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_stats.py::test_SPEC_STATS_001_exam_analytics"
+      ],
+      "notes": "Thống kê kết quả thi và phân tích phân bố lựa chọn."
     }
   ]
 }

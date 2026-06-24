@@ -25,6 +25,7 @@ from app.schemas.submission import (
     AutosaveResult,
     ActiveAttemptItem,
     ExamActiveAttemptItem,
+    ExamAnalytics,
 )
 from app.services import submission_admin
 
@@ -264,3 +265,19 @@ def export_exam_results_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="exam_{exam_id}_results.csv"'},
     )
+
+
+@router.get("/api/v1/exams/{exam_id}/analytics", response_model=ExamAnalytics)
+def get_exam_analytics(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher")),
+):
+    """
+    Get detailed score statistics and item analysis for the exam.
+    Accessible only to admin and teacher.
+    """
+    try:
+        return submission_admin.get_exam_analytics(db, exam_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

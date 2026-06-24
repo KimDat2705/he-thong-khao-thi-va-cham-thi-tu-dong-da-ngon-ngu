@@ -425,3 +425,135 @@ def list_my_submissions(db: Session, user_id: int) -> List[dict]:
         })
     return result
 
+
+def get_exam_analytics(db: Session, exam_id: int) -> dict:
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise ValueError("Exam not found")
+
+    submissions = (
+        db.query(Submission)
+        .filter(Submission.exam_id == exam_id, Submission.submitted_at.isnot(None))
+        .all()
+    )
+    submission_count = len(submissions)
+
+    scores = [
+        sub.grade.score_total
+        for sub in submissions
+        if sub.grade is not None and sub.grade.score_total is not None
+    ]
+    if scores:
+        score_summary = {
+            "mean": sum(scores) / len(scores),
+            "min": min(scores),
+            "max": max(scores)
+        }
+    else:
+        score_summary = {
+            "mean": None,
+            "min": None,
+            "max": None
+        }
+
+    questions = (
+        db.query(Question)
+        .filter(Question.exam_id == exam_id)
+        .order_by(Question.id.asc())
+        .all()
+    )
+
+    sub_ids = [sub.id for sub in submissions]
+    details = (
+        db.query(SubmissionDetail)
+        .filter(SubmissionDetail.submission_id.in_(sub_ids))
+        .all()
+    ) if sub_ids else []
+
+    details_by_question = {}
+    for d in details:
+        details_by_question.setdefault(d.question_id, []).append(d)
+
+    items = []
+    for q in questions:
+        q_details = details_by_question.get(q.id, [])
+
+        # answered_count chỉ đếm câu có candidate_text KHÔNG rỗng
+        answered_details = [d for d in q_details if d.candidate_text is not None and d.candidate_text != ""]
+        answered_count = len(answered_details)
+
+        correct_count = 0
+        correct_rate = None
+        option_distribution = None
+        avg_score = None
+
+        if q.type == "choice":
+            for d in answered_details:
+                if d.candidate_text == q.reference_answer:
+                    correct_count += 1
+            if answered_count > 0:
+                correct_rate = correct_count / answered_count
+            else:
+                correct_rate = None
+
+            option_distribution = {}
+            if q.options:
+                for opt in q.options.keys():
+                    option_distribution[opt] = 0
+            for d in answered_details:
+                ans = d.candidate_text
+                if ans in option_distribution:
+                    option_distribution[ans] += 1
+        elif q.type in ("writing", "speaking"):
+            # calculate average score of writing/speaking
+            q_scores = []
+            for sub in submissions:
+                grade = sub.grade
+                if not grade:
+                    continue
+                if q.type == "writing":
+                    fw = grade.feedback_writing
+                    if isinstance(fw, dict):
+                        q_fb = fw.get(f"question_{q.id}")
+                        if isinstance(q_fb, dict):
+                            score = q_fb.get("score")
+                            if score is not None:
+                                try:
+                                    q_scores.append(float(score))
+                                except (ValueError, TypeError):
+                                    pass
+                elif q.type == "speaking":
+                    fs = grade.feedback_speaking
+                    if isinstance(fs, dict):
+                        q_fb = fs.get(f"question_{q.id}")
+                        if isinstance(q_fb, dict):
+                            score = q_fb.get("score")
+                            if score is not None:
+                                try:
+                                    q_scores.append(float(score))
+                                except (ValueError, TypeError):
+                                    pass
+            if q_scores:
+                avg_score = sum(q_scores) / len(q_scores)
+
+        content_summary = q.content[:80] if q.content else ""
+
+        items.append({
+            "question_id": q.id,
+            "part": q.part,
+            "type": q.type,
+            "content": content_summary,
+            "answered_count": answered_count,
+            "correct_count": correct_count,
+            "correct_rate": correct_rate,
+            "option_distribution": option_distribution,
+            "avg_score": avg_score
+        })
+
+    return {
+        "submission_count": submission_count,
+        "score_summary": score_summary,
+        "items": items
+    }
+
+

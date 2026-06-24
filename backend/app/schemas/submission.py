@@ -136,3 +136,28 @@ class MySubmissionListItem(BaseModel):
     status: str
     submitted_at: Optional[datetime] = None
 
+
+class ScoreSummary(BaseModel):
+    mean: Optional[float] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+
+
+class ExamAnalyticsItem(BaseModel):
+    question_id: int
+    part: int
+    type: str
+    content: str
+    answered_count: int
+    correct_count: int
+    correct_rate: Optional[float] = None
+    option_distribution: Optional[dict[str, int]] = None
+    avg_score: Optional[float] = None
+
+
+class ExamAnalytics(BaseModel):
+    submission_count: int
+    score_summary: ScoreSummary
+    items: List[ExamAnalyticsItem]
+
+
