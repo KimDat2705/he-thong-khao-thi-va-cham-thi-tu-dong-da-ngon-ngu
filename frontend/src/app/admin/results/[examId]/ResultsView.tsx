@@ -8,10 +8,12 @@ import {
   getExamSubmissions,
   getExamActiveAttempts,
   getExamResultsCsv,
+  getExamAnalytics,
   getToken,
   clearToken,
   type SubmissionListItem,
   type ExamActiveAttempt,
+  type ExamAnalytics,
 } from "@/lib/api";
 
 interface ResultsViewProps {
@@ -37,6 +39,8 @@ export default function ResultsView({ examId }: ResultsViewProps) {
   // Live invigilation: candidates currently taking this exam (in-progress).
   const [activeAttempts, setActiveAttempts] = useState<ExamActiveAttempt[]>([]);
   const [refreshingActive, setRefreshingActive] = useState(false);
+  const [analytics, setAnalytics] = useState<ExamAnalytics | null>(null);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   // Essay exams (VSTEP Writing, etc.) show an AI Writing score instead of L/R.
   const isEssay = examType !== null && examType.toUpperCase() !== "TOEIC";
 
@@ -68,6 +72,20 @@ export default function ResultsView({ examId }: ResultsViewProps) {
           setActiveAttempts(await getExamActiveAttempts(examId));
         } catch (activeErr) {
           console.warn("Failed to fetch active attempts:", activeErr);
+        }
+
+        // 4. Fetch exam analytics (requires teacher/admin)
+        try {
+          const analyt = await getExamAnalytics(examId);
+          setAnalytics(analyt);
+        } catch (analytErr) {
+          console.warn("Failed to fetch exam analytics:", analytErr);
+          const errMsg = analytErr instanceof Error ? analytErr.message : String(analytErr);
+          if (errMsg.includes("401") || errMsg.includes("403")) {
+            throw analytErr;
+          } else {
+            setAnalyticsError("Không tải được dữ liệu phân tích.");
+          }
         }
 
         setAuthChecked(true);
@@ -226,6 +244,115 @@ export default function ResultsView({ examId }: ResultsViewProps) {
           </ul>
         )}
       </div>
+
+      {/* 📊 Phân tích panel */}
+      {analyticsError ? (
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-xs">
+          {analyticsError}
+        </div>
+      ) : analytics ? (
+        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 shadow-xs">
+          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <span>📊 Phân tích kết quả</span>
+          </h2>
+          
+          {analytics.submission_count === 0 ? (
+            <p className="text-sm text-gray-500">Chưa có dữ liệu phân tích.</p>
+          ) : (
+            <div>
+              {/* Tóm tắt điểm số */}
+              <div className="grid grid-cols-4 gap-4 bg-gray-50 p-3 rounded-md mb-4 text-sm">
+                <div>
+                  <span className="text-gray-500 block text-xs font-semibold">Tổng số bài nộp</span>
+                  <span className="font-bold text-gray-900 text-lg">{analytics.submission_count}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-xs font-semibold">Điểm trung bình</span>
+                  <span className="font-bold text-gray-900 text-lg">
+                    {analytics.score_summary.mean !== null ? analytics.score_summary.mean.toFixed(1) : "Chưa có bài nộp"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-xs font-semibold">Điểm thấp nhất</span>
+                  <span className="font-bold text-gray-900 text-lg">
+                    {analytics.score_summary.min !== null ? analytics.score_summary.min.toFixed(1) : "Chưa có bài nộp"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-xs font-semibold">Điểm cao nhất</span>
+                  <span className="font-bold text-gray-900 text-lg">
+                    {analytics.score_summary.max !== null ? analytics.score_summary.max.toFixed(1) : "Chưa có bài nộp"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Bảng item-analysis */}
+              <div className="overflow-x-auto border border-gray-100 rounded-md">
+                <table className="w-full border-collapse text-left text-xs text-gray-700">
+                  <thead>
+                    <tr className="border-b bg-gray-100 font-semibold text-gray-600">
+                      <th className="px-4 py-2">Câu (Part + Nội dung)</th>
+                      <th className="px-4 py-2">Loại</th>
+                      <th className="px-4 py-2">Đã trả lời</th>
+                      <th className="px-4 py-2">Tỷ lệ đúng</th>
+                      <th className="px-4 py-2">Phân bố lựa chọn</th>
+                      <th className="px-4 py-2">Điểm trung bình AI</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {analytics.items.map((item) => {
+                      let rateBadge = <span>—</span>;
+                      if (item.correct_rate !== null) {
+                        const rate = item.correct_rate;
+                        let colorClass = "text-yellow-700 bg-yellow-50 ring-yellow-600/20";
+                        let difficultyText = "Trung bình";
+                        if (rate >= 0.9) {
+                          colorClass = "text-green-700 bg-green-50 ring-green-600/20";
+                          difficultyText = "Dễ";
+                        } else if (rate <= 0.3) {
+                          colorClass = "text-red-700 bg-red-50 ring-red-600/20";
+                          difficultyText = "Khó";
+                        }
+                        const percent = Math.round(rate * 100);
+                        rateBadge = (
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${colorClass}`}>
+                            {percent}% ({difficultyText})
+                          </span>
+                        );
+                      }
+
+                      // Format option distribution
+                      let optDistStr = "—";
+                      if (item.option_distribution && Object.keys(item.option_distribution).length > 0) {
+                        optDistStr = Object.entries(item.option_distribution)
+                          .map(([opt, cnt]) => `${opt}:${cnt}`)
+                          .join(" ");
+                      }
+
+                      return (
+                        <tr key={item.question_id} className="hover:bg-gray-50">
+                          <td className="px-4 py-2 font-medium text-gray-900">
+                            Part {item.part} - <span className="text-gray-500 font-normal">{item.content}</span>
+                          </td>
+                          <td className="px-4 py-2 capitalize">{item.type}</td>
+                          <td className="px-4 py-2 tabular-nums">{item.answered_count}</td>
+                          <td className="px-4 py-2 font-semibold">
+                            {rateBadge}
+                          </td>
+                          <td className="px-4 py-2 text-gray-500 tabular-nums">{optDistStr}</td>
+                          <td className="px-4 py-2 font-semibold text-emerald-700">
+                            {item.avg_score !== null ? `${item.avg_score.toFixed(1)}/10` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {error && (
         <div className="mt-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">

@@ -561,5 +561,38 @@ export async function getMySubmissions(): Promise<MySubmissionListItem[]> {
   );
 }
 
+export interface ScoreSummary {
+  mean: number | null;
+  min: number | null;
+  max: number | null;
+}
+
+export interface ExamAnalyticsItem {
+  question_id: number;
+  part: number;
+  type: string;
+  content: string;
+  answered_count: number;
+  correct_count: number;
+  correct_rate: number | null;
+  option_distribution: Record<string, number> | null;
+  avg_score: number | null;
+}
+
+export interface ExamAnalytics {
+  submission_count: number;
+  score_summary: ScoreSummary;
+  items: ExamAnalyticsItem[];
+}
+
+export async function getExamAnalytics(examId: number | string): Promise<ExamAnalytics> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${examId}/analytics`, {
+      cache: "no-store",
+      headers: { ...authHeaders() },
+    }),
+  );
+}
+
 
 
