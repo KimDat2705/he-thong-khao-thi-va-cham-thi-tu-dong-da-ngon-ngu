@@ -2,7 +2,8 @@ import json
 import logging
 import os
 import httpx
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -21,9 +22,10 @@ class AIGradingService:
     def __init__(self):
         # Initialize Google GenAI if key is present
         if settings.GEMINI_API_KEY:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+            self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            self.model = self.client
         else:
+            self.client = None
             self.model = None
             logger.warning("GEMINI_API_KEY is not set. AI Grading will run in mock mode.")
 
@@ -61,9 +63,12 @@ class AIGradingService:
         )
 
         try:
-            response = self.model.generate_content(
+            response = self.model.models.generate_content(
+                model=settings.GEMINI_MODEL,
                 contents=[system_instruction, user_prompt],
-                generation_config={"response_mime_type": "application/json"}
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             return json.loads(response.text)
         except Exception as e:
@@ -132,10 +137,10 @@ class AIGradingService:
             # Gemini 1.5 Flash supports audio directly as inline mime bytes;
             # derive the mime type from the recording's extension.
             mime_type = _AUDIO_MIME.get(os.path.splitext(audio_url)[1].lower(), "audio/webm")
-            audio_part = {
-                "mime_type": mime_type,
-                "data": audio_bytes,
-            }
+            audio_part = types.Part.from_bytes(
+                data=audio_bytes,
+                mime_type=mime_type,
+            )
             
             prompt = (
                 f"You are an expert language examiner. Grade the attached student speaking recording.\n"
@@ -149,9 +154,12 @@ class AIGradingService:
                 "- 'pronunciation_issues': list of strings detailing specific pronunciation or tone mistakes.\n"
             )
             
-            response = self.model.generate_content(
+            response = self.model.models.generate_content(
+                model=settings.GEMINI_MODEL,
                 contents=[audio_part, prompt],
-                generation_config={"response_mime_type": "application/json"}
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             return json.loads(response.text)
             

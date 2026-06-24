@@ -375,16 +375,26 @@ def test_grade_speaking_real_mode_loads_local_static_audio():
             "pronunciation_issues": [],
         })
 
-    class _FakeModel:
-        def generate_content(self, contents, generation_config=None):
+    class _FakeModelsService:
+        def generate_content(self, model, contents, config=None):
             # contents = [audio_part, prompt]
-            captured["data"] = contents[0]["data"]
-            captured["mime"] = contents[0]["mime_type"]
+            part = contents[0]
+            if hasattr(part, "inline_data") and part.inline_data:
+                captured["data"] = part.inline_data.data
+                captured["mime"] = part.inline_data.mime_type
+            else:
+                captured["data"] = getattr(part, "data", None)
+                captured["mime"] = getattr(part, "mime_type", None)
             return _FakeResponse()
+
+    class _FakeClient:
+        def __init__(self):
+            self.models = _FakeModelsService()
 
     try:
         service = AIGradingService()
-        service.model = _FakeModel()  # ép nhánh real-mode (không gọi mạng thật)
+        service.client = _FakeClient()
+        service.model = service.client  # ép nhánh real-mode (không gọi mạng thật)
         result = service.grade_speaking(
             audio_url=f"/static/uploads/{fname}",
             prompt_requirements="Talk about your hometown.",
@@ -407,12 +417,17 @@ def test_grade_speaking_without_audio_does_not_crash():
     """
     from app.services.ai_grading import AIGradingService
 
-    class _BoomModel:
+    class _BoomModelsService:
         def generate_content(self, *a, **k):
             raise AssertionError("không được gọi model khi không có audio")
 
+    class _BoomClient:
+        def __init__(self):
+            self.models = _BoomModelsService()
+
     service = AIGradingService()
-    service.model = _BoomModel()  # real-mode, nhưng guard phải chặn trước
+    service.client = _BoomClient()
+    service.model = service.client  # real-mode, nhưng guard phải chặn trước
     for missing in (None, ""):
         result = service.grade_speaking(
             audio_url=missing,
