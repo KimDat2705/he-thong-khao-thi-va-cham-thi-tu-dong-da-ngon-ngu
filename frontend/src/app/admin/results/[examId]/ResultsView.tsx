@@ -7,6 +7,7 @@ import {
   getExam,
   getExamSubmissions,
   getExamActiveAttempts,
+  getExamResultsCsv,
   getToken,
   clearToken,
   type SubmissionListItem,
@@ -88,6 +89,31 @@ export default function ResultsView({ examId }: ResultsViewProps) {
     })();
   }, [examId, router]);
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const blob = await getExamResultsCsv(examId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ket_qua_de_${examId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      if (m.includes("401")) {
+        clearToken();
+        router.push("/login");
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const refreshActive = async () => {
     setRefreshingActive(true);
     try {
@@ -137,6 +163,15 @@ export default function ResultsView({ examId }: ResultsViewProps) {
             Danh sách bài nộp và điểm số chi tiết của các thí sinh.
           </p>
         </div>
+        {submissions.length > 0 && (
+          <button
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="shrink-0 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            {exporting ? "Đang xuất…" : "⬇ Xuất CSV"}
+          </button>
+        )}
       </div>
 
       {/* Live invigilation: candidates currently taking this exam */}

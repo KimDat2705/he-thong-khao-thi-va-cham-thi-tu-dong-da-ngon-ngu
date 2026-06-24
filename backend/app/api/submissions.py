@@ -1,7 +1,10 @@
+import csv
+import io
 import os
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -220,3 +223,44 @@ def list_exam_submissions(
         return submission_admin.list_exam_submissions(db, exam_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/api/v1/exams/{exam_id}/results.csv")
+def export_exam_results_csv(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher")),
+):
+    """
+    Export the exam's submitted results as a CSV (for record-keeping/registrar
+    reports). Admin/teacher only. Returns 404 if the exam does not exist.
+    """
+    try:
+        rows = submission_admin.list_exam_submissions(db, exam_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Họ tên", "Tài khoản", "Điểm Nghe", "Điểm Đọc", "Điểm Viết",
+        "Tổng điểm", "Trạng thái", "Thời gian nộp",
+    ])
+    for r in rows:
+        writer.writerow([
+            r.get("full_name") or "",
+            r.get("username") or "",
+            r.get("listening_score") if r.get("listening_score") is not None else "",
+            r.get("reading_score") if r.get("reading_score") is not None else "",
+            r.get("writing_score") if r.get("writing_score") is not None else "",
+            r.get("total_score") if r.get("total_score") is not None else "",
+            r.get("status") or "",
+            r.get("submitted_at") or "",
+        ])
+    # Prefix a UTF-8 BOM so Excel renders Vietnamese names correctly.
+    csv_text = "﻿" + output.getvalue()
+    return Response(
+        content=csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="exam_{exam_id}_results.csv"'},
+    )

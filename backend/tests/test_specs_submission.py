@@ -724,3 +724,55 @@ def test_exam_active_attempts_invigilation(db_session: Session, admin_auth_heade
     finally:
         fastapi_app.dependency_overrides.clear()
 
+
+def test_export_exam_results_csv(db_session: Session, admin_auth_headers: dict):
+    """GET /exams/{id}/results.csv (C18): admin/teacher tải kết quả ra CSV (BOM cho
+    Excel + dòng tiêu đề + 1 dòng mỗi bài nộp); thí sinh -> 403; đề không tồn tại -> 404."""
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.models.exam import Exam
+    from app.models.question import Question
+
+    cand_headers = {
+        "Authorization": f"Bearer {create_access_token(data={'sub': 'testcandidate', 'role': 'candidate'})}"
+    }
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        exam = Exam(title="CSV TOEIC", language="EN", exam_type="TOEIC",
+                    duration_minutes=120, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+        q1 = Question(exam_id=exam.id, part=1, type="choice", content="Q1",
+                      reference_answer="A", options={"A": "a", "B": "b"}, status="approved")
+        db_session.add(q1)
+        db_session.commit()
+        db_session.refresh(q1)
+
+        # A candidate submits so there is a row to export.
+        client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [{"question_id": q1.id, "answer": "A"}]},
+            headers=cand_headers,
+        )
+
+        # Teacher/admin exports CSV.
+        resp = client.get(f"/api/v1/exams/{exam.id}/results.csv", headers=admin_auth_headers)
+        assert resp.status_code == 200, resp.text
+        assert "text/csv" in resp.headers["content-type"]
+        body = resp.text
+        assert ord(body[0]) == 0xFEFF, "CSV phải có BOM (U+FEFF) cho Excel"
+        assert "Họ tên" in body and "Tổng điểm" in body, "thiếu dòng tiêu đề"
+        assert "testcandidate" in body, "thiếu dòng bài nộp của thí sinh"
+
+        # A candidate cannot export -> 403.
+        assert client.get(f"/api/v1/exams/{exam.id}/results.csv", headers=cand_headers).status_code == 403
+
+        # Non-existent exam -> 404.
+        assert client.get("/api/v1/exams/999999/results.csv", headers=admin_auth_headers).status_code == 404
+    finally:
+        fastapi_app.dependency_overrides.clear()
+

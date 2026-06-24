@@ -450,6 +450,17 @@ export async function getExamActiveAttempts(examId: number | string): Promise<Ex
   );
 }
 
+// Download the exam's results as a CSV blob (admin/teacher).
+export async function getExamResultsCsv(examId: number | string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/api/v1/exams/${examId}/results.csv`, {
+    cache: "no-store",
+    headers: { ...authHeaders() },
+  });
+  if (res.status === 401) clearToken();
+  if (!res.ok) throw new Error(`${res.status}`);
+  return res.blob();
+}
+
 // Upload a Speaking recording (Blob/File); returns the served audio_url.
 export async function uploadAudio(file: Blob, filename = "recording.webm"): Promise<{ audio_url: string }> {
   const fd = new FormData();
