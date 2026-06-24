@@ -672,3 +672,55 @@ def test_active_attempts_listing(db_session: Session):
     finally:
         fastapi_app.dependency_overrides.clear()
 
+
+def test_exam_active_attempts_invigilation(db_session: Session, admin_auth_headers: dict):
+    """GET /exams/{id}/active-attempts (C17 — giám sát LIVE): admin/teacher thấy thí
+    sinh ĐANG làm bài (in_progress) kèm tên + thời gian còn lại; thí sinh thường -> 403;
+    sau khi nộp thì biến mất khỏi danh sách giám sát."""
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.models.exam import Exam
+    from app.models.question import Question
+
+    cand_headers = {
+        "Authorization": f"Bearer {create_access_token(data={'sub': 'testcandidate', 'role': 'candidate'})}"
+    }
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        exam = Exam(title="Invigilation TOEIC", language="EN", exam_type="TOEIC",
+                    duration_minutes=120, is_active=True)
+        db_session.add(exam)
+        db_session.commit()
+        db_session.refresh(exam)
+        q1 = Question(exam_id=exam.id, part=1, type="choice", content="Q1",
+                      reference_answer="A", options={"A": "a", "B": "b"}, status="approved")
+        db_session.add(q1)
+        db_session.commit()
+        db_session.refresh(q1)
+
+        # No one taking yet.
+        assert client.get(f"/api/v1/exams/{exam.id}/active-attempts", headers=admin_auth_headers).json() == []
+
+        # Candidate starts -> appears in the teacher's live list.
+        client.post(f"/api/v1/exams/{exam.id}/start", headers=cand_headers)
+        live = client.get(f"/api/v1/exams/{exam.id}/active-attempts", headers=admin_auth_headers).json()
+        assert len(live) == 1
+        assert live[0]["username"] == "testcandidate"
+        assert live[0]["remaining_seconds"] > 0
+
+        # A candidate cannot use the invigilation endpoint -> 403.
+        assert client.get(f"/api/v1/exams/{exam.id}/active-attempts", headers=cand_headers).status_code == 403
+
+        # After submit -> no longer in-progress -> drops off the live list.
+        client.post(
+            f"/api/v1/exams/{exam.id}/submit",
+            json={"answers": [{"question_id": q1.id, "answer": "A"}]},
+            headers=cand_headers,
+        )
+        assert client.get(f"/api/v1/exams/{exam.id}/active-attempts", headers=admin_auth_headers).json() == []
+    finally:
+        fastapi_app.dependency_overrides.clear()
+

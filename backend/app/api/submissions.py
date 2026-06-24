@@ -21,6 +21,7 @@ from app.schemas.submission import (
     AutosaveRequest,
     AutosaveResult,
     ActiveAttemptItem,
+    ExamActiveAttemptItem,
 )
 from app.services import submission_admin
 
@@ -187,6 +188,22 @@ def override_submission_grade(
     if result is None:
         raise HTTPException(status_code=404, detail="Submission or grade not found")
     return result
+
+
+@router.get("/api/v1/exams/{exam_id}/active-attempts", response_model=List[ExamActiveAttemptItem])
+def list_exam_active_attempts(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher")),
+):
+    """
+    Live invigilation: candidates currently taking this exam (in-progress, not yet
+    submitted), with start time and server-computed time remaining. Admin/teacher only.
+    """
+    try:
+        return submission_admin.list_exam_active_attempts(db, exam_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/api/v1/exams/{exam_id}/submissions", response_model=List[SubmissionListItem])

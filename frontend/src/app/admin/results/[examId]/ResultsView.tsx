@@ -6,13 +6,22 @@ import { useRouter } from "next/navigation";
 import {
   getExam,
   getExamSubmissions,
+  getExamActiveAttempts,
   getToken,
   clearToken,
   type SubmissionListItem,
+  type ExamActiveAttempt,
 } from "@/lib/api";
 
 interface ResultsViewProps {
   examId: string;
+}
+
+function formatRemaining(totalSec: number): string {
+  const safe = Math.max(0, totalSec);
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 export default function ResultsView({ examId }: ResultsViewProps) {
@@ -24,6 +33,9 @@ export default function ResultsView({ examId }: ResultsViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  // Live invigilation: candidates currently taking this exam (in-progress).
+  const [activeAttempts, setActiveAttempts] = useState<ExamActiveAttempt[]>([]);
+  const [refreshingActive, setRefreshingActive] = useState(false);
   // Essay exams (VSTEP Writing, etc.) show an AI Writing score instead of L/R.
   const isEssay = examType !== null && examType.toUpperCase() !== "TOEIC";
 
@@ -50,6 +62,13 @@ export default function ResultsView({ examId }: ResultsViewProps) {
           // Keep default fallback title: "Kết quả đề #{examId}"
         }
 
+        // 3. Live in-progress attempts (teacher invigilation).
+        try {
+          setActiveAttempts(await getExamActiveAttempts(examId));
+        } catch (activeErr) {
+          console.warn("Failed to fetch active attempts:", activeErr);
+        }
+
         setAuthChecked(true);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -68,6 +87,17 @@ export default function ResultsView({ examId }: ResultsViewProps) {
       }
     })();
   }, [examId, router]);
+
+  const refreshActive = async () => {
+    setRefreshingActive(true);
+    try {
+      setActiveAttempts(await getExamActiveAttempts(examId));
+    } catch {
+      /* non-fatal — keep the previous snapshot */
+    } finally {
+      setRefreshingActive(false);
+    }
+  };
 
   if (!authChecked) {
     return (
@@ -107,6 +137,59 @@ export default function ResultsView({ examId }: ResultsViewProps) {
             Danh sách bài nộp và điểm số chi tiết của các thí sinh.
           </p>
         </div>
+      </div>
+
+      {/* Live invigilation: candidates currently taking this exam */}
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 shadow-xs">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+            <span className="relative flex h-2.5 w-2.5">
+              {activeAttempts.length > 0 && (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              )}
+              <span
+                className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+                  activeAttempts.length > 0 ? "bg-emerald-500" : "bg-gray-300"
+                }`}
+              />
+            </span>
+            Đang làm bài ({activeAttempts.length})
+          </h2>
+          <button
+            onClick={refreshActive}
+            disabled={refreshingActive}
+            className="rounded-md border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {refreshingActive ? "Đang tải…" : "↻ Làm mới"}
+          </button>
+        </div>
+        {activeAttempts.length === 0 ? (
+          <p className="mt-3 text-sm text-gray-500">Hiện không có thí sinh nào đang làm bài.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-gray-100">
+            {activeAttempts.map((a) => {
+              const name = a.full_name ? `${a.full_name} (${a.username})` : a.username;
+              const started = a.started_at
+                ? new Date(a.started_at).toLocaleTimeString("vi-VN")
+                : "—";
+              return (
+                <li key={a.submission_id} className="flex items-center justify-between py-2 text-sm">
+                  <span className="font-medium text-gray-900">{name}</span>
+                  <span className="flex items-center gap-4 text-xs text-gray-500">
+                    <span>Bắt đầu: {started}</span>
+                    <span
+                      className={`font-semibold tabular-nums ${
+                        a.remaining_seconds <= 300 ? "text-red-600" : "text-emerald-700"
+                      }`}
+                    >
+                      ⏱ {formatRemaining(a.remaining_seconds)} còn lại
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       {error && (

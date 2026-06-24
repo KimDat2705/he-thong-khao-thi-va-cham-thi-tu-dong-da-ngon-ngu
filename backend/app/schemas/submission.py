@@ -79,6 +79,16 @@ class ActiveAttemptItem(BaseModel):
     remaining_seconds: int
 
 
+class ExamActiveAttemptItem(BaseModel):
+    """An in-progress attempt for teacher live invigilation of one exam."""
+    submission_id: int
+    user_id: int
+    username: str
+    full_name: Optional[str] = None
+    started_at: Optional[datetime] = None
+    remaining_seconds: int
+
+
 class SubmissionDetailOut(BaseModel):
     id: int
     exam_id: int

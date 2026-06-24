@@ -431,6 +431,25 @@ export async function getActiveAttempts(): Promise<ActiveAttempt[]> {
   );
 }
 
+export interface ExamActiveAttempt {
+  submission_id: number;
+  user_id: number;
+  username: string;
+  full_name: string | null;
+  started_at: string | null;
+  remaining_seconds: number;
+}
+
+// Teacher live invigilation: candidates currently taking a given exam.
+export async function getExamActiveAttempts(examId: number | string): Promise<ExamActiveAttempt[]> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/exams/${examId}/active-attempts`, {
+      cache: "no-store",
+      headers: { ...authHeaders() },
+    }),
+  );
+}
+
 // Upload a Speaking recording (Blob/File); returns the served audio_url.
 export async function uploadAudio(file: Blob, filename = "recording.webm"): Promise<{ audio_url: string }> {
   const fd = new FormData();

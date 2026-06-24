@@ -261,6 +261,35 @@ def list_active_attempts(db: Session, user_id: int) -> List[dict]:
     return result
 
 
+def list_exam_active_attempts(db: Session, exam_id: int) -> List[dict]:
+    """In-progress attempts for one exam (teacher live invigilation): who is
+    currently taking the exam, when they started, and how much time is left.
+    Raises ValueError if the exam does not exist."""
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise ValueError("Exam not found")
+    subs = (
+        db.query(Submission)
+        .filter(Submission.exam_id == exam_id, Submission.submitted_at.is_(None))
+        .order_by(Submission.started_at.asc())
+        .all()
+    )
+    now = datetime.datetime.utcnow()
+    duration = exam.duration_minutes or 0
+    result = []
+    for sub in subs:
+        elapsed = (now - _naive(sub.started_at or now)).total_seconds()
+        result.append({
+            "submission_id": sub.id,
+            "user_id": sub.user_id,
+            "username": sub.user.username,
+            "full_name": sub.user.full_name,
+            "started_at": sub.started_at,
+            "remaining_seconds": max(0, int(duration * 60 - elapsed)),
+        })
+    return result
+
+
 def get_submission(db: Session, submission_id: int) -> Optional[dict]:
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
