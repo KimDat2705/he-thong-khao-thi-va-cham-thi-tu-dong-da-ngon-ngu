@@ -86,10 +86,18 @@ def seed_b1_exam(db) -> Exam:
         from app.models.submission import Submission
         has_sub = db.query(Submission).filter(Submission.exam_id == existing.id).first() is not None
         if has_sub:
-            print(f"Exam '{EXAM_TITLE}' already exists and has submissions (id={existing.id}). Skipping recreation to preserve data.")
+            try:
+                print(f"Exam '{EXAM_TITLE}' already exists and has submissions (id={existing.id}). Skipping recreation to preserve data.")
+            except UnicodeEncodeError:
+                safe_title = EXAM_TITLE.encode('ascii', errors='replace').decode('ascii')
+                print(f"Exam '{safe_title}' already exists and has submissions (id={existing.id}). Skipping recreation to preserve data.")
             return existing
         else:
-            print(f"Deleting existing exam '{EXAM_TITLE}' without submissions...")
+            try:
+                print(f"Deleting existing exam '{EXAM_TITLE}' without submissions...")
+            except UnicodeEncodeError:
+                safe_title = EXAM_TITLE.encode('ascii', errors='replace').decode('ascii')
+                print(f"Deleting existing exam '{safe_title}' without submissions...")
             db.delete(existing)
             db.commit()
 
@@ -104,9 +112,37 @@ def seed_b1_exam(db) -> Exam:
     speaking_doc = os.path.join(b1_dir, "4. NÓI (Speaking card, gồm đề 2601-2610).doc")
 
     # 3. Conversions
-    print("Converting legacy .doc files to .docx...")
-    listening_key_docx = convert_doc_to_docx(listening_key_doc)
-    speaking_docx = convert_doc_to_docx(speaking_doc)
+    listening_key_docx_sibling = os.path.join(b1_dir, "6. ĐÁP ÁN Nghe — B1 2601.docx")
+    if os.path.exists(listening_key_docx_sibling):
+        try:
+            print(f"Using sibling .docx version for listening key: {listening_key_docx_sibling}")
+        except UnicodeEncodeError:
+            safe_path = listening_key_docx_sibling.encode('ascii', errors='replace').decode('ascii')
+            print(f"Using sibling .docx version for listening key: {safe_path}")
+        listening_key_docx = listening_key_docx_sibling
+    elif os.path.exists(listening_key_doc):
+        print("Converting legacy .doc listening key to .docx...")
+        listening_key_docx = convert_doc_to_docx(listening_key_doc)
+    else:
+        raise FileNotFoundError(
+            f"Could not find listening key. Tried:\n  - {listening_key_docx_sibling}\n  - {listening_key_doc}"
+        )
+
+    speaking_docx_sibling = os.path.join(b1_dir, "4. NÓI (Speaking card, gồm đề 2601-2610).docx")
+    if os.path.exists(speaking_docx_sibling):
+        try:
+            print(f"Using sibling .docx version for speaking card: {speaking_docx_sibling}")
+        except UnicodeEncodeError:
+            safe_path = speaking_docx_sibling.encode('ascii', errors='replace').decode('ascii')
+            print(f"Using sibling .docx version for speaking card: {safe_path}")
+        speaking_docx = speaking_docx_sibling
+    elif os.path.exists(speaking_doc):
+        print("Converting legacy .doc speaking card to .docx...")
+        speaking_docx = convert_doc_to_docx(speaking_doc)
+    else:
+        raise FileNotFoundError(
+            f"Could not find speaking card. Tried:\n  - {speaking_docx_sibling}\n  - {speaking_doc}"
+        )
 
     # 4. Parsing
     print("Parsing exam files...")
@@ -219,7 +255,11 @@ def seed_b1_exam(db) -> Exam:
         db.add(q)
 
     db.commit()
-    print(f"Successfully seeded exam '{EXAM_TITLE}' (id={exam.id}) with Reading/Writing/Listening/Speaking.")
+    try:
+        print(f"Successfully seeded exam '{EXAM_TITLE}' (id={exam.id}) with Reading/Writing/Listening/Speaking.")
+    except UnicodeEncodeError:
+        safe_title = EXAM_TITLE.encode('ascii', errors='replace').decode('ascii')
+        print(f"Successfully seeded exam '{safe_title}' (id={exam.id}) with Reading/Writing/Listening/Speaking.")
     return exam
 
 
