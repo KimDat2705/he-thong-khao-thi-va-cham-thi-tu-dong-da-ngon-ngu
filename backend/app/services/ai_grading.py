@@ -1,9 +1,12 @@
 import json
 import logging
 import os
+import random
+import time
 import httpx
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -28,6 +31,65 @@ class AIGradingService:
             self.client = None
             self.model = None
             logger.warning("GEMINI_API_KEY is not set. AI Grading will run in mock mode.")
+
+    def _call_with_retry(self, fn, *args, **kwargs):
+        """
+        Calls a model generation function with retry and backoff.
+        Only retries on transient errors: HTTP 503 / 429 / "UNAVAILABLE" / "RESOURCE_EXHAUSTED" / timeout.
+        Fails fast on permanent errors: HTTP 404, 401, 403, etc.
+        """
+        max_retries = getattr(settings, "GEMINI_MAX_RETRIES", 4)
+        base_delay = getattr(settings, "GEMINI_RETRY_BASE_DELAY", 1.5)
+        max_accumulated_delay = 20.0  # Limit total backoff time to 20 seconds
+        total_sleep_time = 0.0
+        
+        attempt = 0
+        while True:
+            try:
+                return fn(*args, **kwargs)
+            except (APIError, httpx.TimeoutException) as e:
+                # 1. Identify if it's a permanent or transient error
+                if isinstance(e, APIError):
+                    # We check if it is a transient error: code 503/429, status "UNAVAILABLE"/"RESOURCE_EXHAUSTED"
+                    is_transient = False
+                    if e.code in (429, 503):
+                        is_transient = True
+                    elif e.status in ("UNAVAILABLE", "RESOURCE_EXHAUSTED"):
+                        is_transient = True
+                    elif e.message and any(kw in e.message.upper() for kw in ("UNAVAILABLE", "RESOURCE_EXHAUSTED", "HIGH DEMAND")):
+                        is_transient = True
+                    
+                    if not is_transient:
+                        logger.warning(f"Permanent Gemini error {e.code} / {e.status}: {e}. Failing fast.")
+                        raise e
+                
+                # If it's a transient error or httpx.TimeoutException, we retry
+                attempt += 1
+                if attempt > max_retries:
+                    logger.error(f"Gemini API retry limit reached ({max_retries} attempts). Error: {e}")
+                    raise e
+                
+                # Calculate backoff delay = base_delay * 2^(attempt - 1) + jitter
+                jitter = random.uniform(0.0, 0.5)
+                delay = base_delay * (2 ** (attempt - 1)) + jitter
+                
+                # Enforce total backoff limit <= 20s
+                if total_sleep_time + delay > max_accumulated_delay:
+                    remaining_delay = max_accumulated_delay - total_sleep_time
+                    if remaining_delay > 0:
+                        logger.warning(
+                            f"Gemini API transient error: {e}. Delay {delay:.2f}s is capped to {remaining_delay:.2f}s "
+                            f"to respect the {max_accumulated_delay}s timeout budget. Attempt {attempt}."
+                        )
+                        time.sleep(remaining_delay)
+                        total_sleep_time += remaining_delay
+                    else:
+                        logger.error(f"Gemini API time budget exceeded. Cannot retry. Error: {e}")
+                        raise e
+                else:
+                    logger.warning(f"Gemini API transient error: {e}. Retrying in {delay:.2f}s (attempt {attempt}).")
+                    time.sleep(delay)
+                    total_sleep_time += delay
 
     def grade_writing(self, essay_text: str, prompt_requirements: str, reference_answer: str = None, language: str = "EN") -> dict:
         """
@@ -63,7 +125,8 @@ class AIGradingService:
         )
 
         try:
-            response = self.model.models.generate_content(
+            response = self._call_with_retry(
+                self.model.models.generate_content,
                 model=settings.GEMINI_MODEL,
                 contents=[system_instruction, user_prompt],
                 config=types.GenerateContentConfig(
@@ -154,7 +217,8 @@ class AIGradingService:
                 "- 'pronunciation_issues': list of strings detailing specific pronunciation or tone mistakes.\n"
             )
             
-            response = self.model.models.generate_content(
+            response = self._call_with_retry(
+                self.model.models.generate_content,
                 model=settings.GEMINI_MODEL,
                 contents=[audio_part, prompt],
                 config=types.GenerateContentConfig(

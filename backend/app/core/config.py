@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # If 3.5-flash is 503-saturated on free tier, override GEMINI_MODEL via env
     # (e.g. gemini-flash-latest) — no code change needed.
     GEMINI_MODEL: str = "gemini-3.5-flash"
+    GEMINI_MAX_RETRIES: int = 4
+    GEMINI_RETRY_BASE_DELAY: float = 1.5
     
     # Grading Sandbox
     SANDBOX_URL: Optional[str] = None  # E.g., Judge0 API URL if using SaaS

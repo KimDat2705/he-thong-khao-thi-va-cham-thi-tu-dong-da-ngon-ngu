@@ -466,3 +466,144 @@ def test_SPEC_GRADE_004_ai_grading_degrades_safely(monkeypatch):
     assert isinstance(speaking_result, dict)
     assert {"score", "transcription", "feedback", "pronunciation_issues"} <= set(speaking_result.keys()), \
         "grade_speaking mock thiếu key bắt buộc"
+
+
+def test_SPEC_GRADE_005_ai_grading_retry_and_backoff(monkeypatch):
+    """SPEC-GRADE-005: Thêm retry + backoff cho chấm AI khi Gemini trả lỗi tạm thời (503/429),
+    fail-fast với lỗi vĩnh viễn (404/401/403/JSON parse), có chặn thời gian (<= 20s), không bao giờ crash.
+    """
+    import time
+    from app.services.ai_grading import AIGradingService
+    from google.genai.errors import ServerError, ClientError
+
+    # Mock settings
+    monkeypatch.setattr(settings, "GEMINI_MAX_RETRIES", 4)
+    monkeypatch.setattr(settings, "GEMINI_RETRY_BASE_DELAY", 0.001)
+
+    # Mock sleep to prevent delays in test
+    sleep_calls = []
+    def mock_sleep(seconds):
+        sleep_calls.append(seconds)
+    monkeypatch.setattr("app.services.ai_grading.time.sleep", mock_sleep)
+
+    # Case 1: Transient 503 (ServerError) twice, then success
+    call_count = 0
+    class _FakeTransientModelsService:
+        def generate_content(self, model, contents, config=None):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise ServerError(code=503, response_json={"error": {"status": "UNAVAILABLE", "message": "Service Unavailable"}})
+            
+            # Return valid JSON response on 3rd attempt
+            class _FakeResponse:
+                text = json.dumps({
+                    "score": 8.5,
+                    "feedback": "Good essay after retry",
+                    "grammar_errors": []
+                })
+            return _FakeResponse()
+
+    class _FakeTransientClient:
+        def __init__(self):
+            self.models = _FakeTransientModelsService()
+
+    service = AIGradingService()
+    service.client = _FakeTransientClient()
+    service.model = service.client # Force real-mode mock
+
+    res = service.grade_writing(
+        essay_text="Environment protection essay...",
+        prompt_requirements="Write an email about the environment."
+    )
+
+    # Assertions
+    assert call_count == 3, "Should retry and succeed on the 3rd attempt"
+    assert res["score"] == 8.5
+    assert len(sleep_calls) == 2, "Should sleep twice"
+    assert sleep_calls[0] > 0
+
+    # Case 2: Permanent 404 (ClientError)
+    call_count_perm = 0
+    class _FakePermanentModelsService:
+        def generate_content(self, model, contents, config=None):
+            nonlocal call_count_perm
+            call_count_perm += 1
+            raise ClientError(code=404, response_json={"error": {"status": "NOT_FOUND", "message": "Model not found"}})
+
+    class _FakePermanentClient:
+        def __init__(self):
+            self.models = _FakePermanentModelsService()
+
+    service_perm = AIGradingService()
+    service_perm.client = _FakePermanentClient()
+    service_perm.model = service_perm.client
+
+    res_perm = service_perm.grade_writing(
+        essay_text="Environment protection essay...",
+        prompt_requirements="Write an email about the environment."
+    )
+
+    assert call_count_perm == 1, "Should fail fast and not retry permanent error"
+    assert res_perm["score"] == 0.0, "Should return score 0 gracefully"
+    assert "NOT_FOUND" in res_perm["feedback"] or "404" in res_perm["feedback"]
+
+    # Case 3: Transient 429 (ClientError) exceeds limit
+    call_count_limit = 0
+    class _FakeLimitModelsService:
+        def generate_content(self, model, contents, config=None):
+            nonlocal call_count_limit
+            call_count_limit += 1
+            raise ClientError(code=429, response_json={"error": {"status": "RESOURCE_EXHAUSTED", "message": "Rate limit exceeded"}})
+
+    class _FakeLimitClient:
+        def __init__(self):
+            self.models = _FakeLimitModelsService()
+
+    service_limit = AIGradingService()
+    service_limit.client = _FakeLimitClient()
+    service_limit.model = service_limit.client
+
+    sleep_calls.clear()
+
+    res_limit = service_limit.grade_writing(
+        essay_text="Environment protection essay...",
+        prompt_requirements="Write an email about the environment."
+    )
+
+    # GEMINI_MAX_RETRIES is 4, so first try + 4 retries = 5 calls total
+    assert call_count_limit == 5, f"Should try exactly 5 times (1 original + 4 retries), got {call_count_limit}"
+    assert len(sleep_calls) == 4, f"Should sleep 4 times, got {len(sleep_calls)}"
+    assert res_limit["score"] == 0.0
+
+    # Case 4: Time budget cap (20s)
+    call_count_budget = 0
+    class _FakeBudgetModelsService:
+        def generate_content(self, model, contents, config=None):
+            nonlocal call_count_budget
+            call_count_budget += 1
+            raise ServerError(code=503, response_json={"error": {"status": "UNAVAILABLE", "message": "Service Unavailable"}})
+
+    class _FakeBudgetClient:
+        def __init__(self):
+            self.models = _FakeBudgetModelsService()
+
+    service_budget = AIGradingService()
+    service_budget.client = _FakeBudgetClient()
+    service_budget.model = service_budget.client
+
+    # Set base delay large enough to exceed 20s budget quickly
+    monkeypatch.setattr(settings, "GEMINI_RETRY_BASE_DELAY", 15.0)
+    sleep_calls.clear()
+
+    res_budget = service_budget.grade_writing(
+        essay_text="Environment protection essay...",
+        prompt_requirements="Write an email about the environment."
+    )
+
+    # Assert cumulative sleep time is clamped to <= 20s
+    total_sleep = sum(sleep_calls)
+    assert total_sleep <= 20.0, f"Total sleep time should be capped under 20.0s, got {total_sleep}"
+    assert total_sleep >= 10.0, f"Total sleep time should be significant, got {total_sleep}"
+    assert call_count_budget >= 2, f"Should try at least twice, got {call_count_budget}"
+

@@ -488,6 +488,24 @@
       "notes": "Đang đạt: ai_grading.py có mock fallback và try/except bao quanh lời gọi Gemini."
     },
     {
+      "id": "SPEC-GRADE-005",
+      "domain": "GRADE",
+      "title": "Chấm tự luận AI bền bỉ với cơ chế retry và backoff",
+      "statement": "Khi gọi Gemini chấm AI gặp lỗi tạm thời (503/429/timeout), hệ thống tự động thử lại với backoff mũ + jitter có chặn tổng thời gian ngủ <= 20s. Hệ thống fail-fast khi gặp lỗi vĩnh viễn (404/401/403/JSON parse) và không bao giờ crash.",
+      "acceptance_criteria": [
+        "Thử lại thành công trên các lỗi tạm thời (HTTP 503, 429, UNAVAILABLE, RESOURCE_EXHAUSTED, timeout)",
+        "Fail-fast đối với các lỗi vĩnh viễn (HTTP 404, 401, 403, JSON parse lỗi) mà không thử lại",
+        "Giới hạn tổng thời gian ngủ tích lũy (backoff delay) tối đa không quá 20 giây",
+        "Nếu lỗi kéo dài vượt quá số lần thử tối đa hoặc vượt quỹ thời gian, hệ thống tự động trả về score 0.0 cùng thông báo lỗi thay vì crash"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_grading.py::test_SPEC_GRADE_005_ai_grading_retry_and_backoff"
+      ],
+      "notes": "Retry + backoff với lỗi tạm thời và fail-fast với lỗi vĩnh viễn cho phân hệ chấm AI."
+    },
+    {
       "id": "SPEC-COLLATE-004",
       "domain": "I18N",
       "legacy": true,
