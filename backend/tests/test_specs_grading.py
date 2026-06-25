@@ -607,3 +607,192 @@ def test_SPEC_GRADE_005_ai_grading_retry_and_backoff(monkeypatch):
     assert total_sleep >= 10.0, f"Total sleep time should be significant, got {total_sleep}"
     assert call_count_budget >= 2, f"Should try at least twice, got {call_count_budget}"
 
+
+def test_SPEC_GRADE_006_vstep_b1_grading(db_session: Session, monkeypatch):
+    """SPEC-GRADE-006: Kiểm tra chấm đề VSTEP B1 thang 100 điểm, so khớp điền từ
+    chuẩn hoá, và tính điều kiện đạt/rớt.
+    """
+    from sqlalchemy.orm import sessionmaker
+    from app.core.celery import celery_app
+    from app.models.exam import Exam
+    from app.models.question import Question
+    from app.models.submission import Submission as SubmissionModel, SubmissionDetail
+    from app.models.grade import Grade as GradeModel
+    from app.models.user import User
+    import app.workers.tasks as tasks_module
+
+    # Worker Session trỏ về engine test
+    test_engine = db_session.get_bind()
+    WorkerSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(tasks_module, "SessionLocal", WorkerSession)
+
+    # Mock AI grading
+    def fake_grade_writing(essay_text, prompt_requirements, reference_answer=None, language="EN"):
+        if "Task 1" in prompt_requirements:
+            return {"score": 8.0, "feedback": "Good task 1", "grammar_errors": []}
+        return {"score": 9.0, "feedback": "Excellent task 2", "grammar_errors": []}
+
+    def fake_grade_speaking(audio_url, prompt_requirements, reference_answer=None, language="EN"):
+        if "Part 1" in prompt_requirements:
+            return {"score": 7.0, "feedback": "Good part 1", "pronunciation_issues": []}
+        elif "Part 2" in prompt_requirements:
+            return {"score": 8.0, "feedback": "Good part 2", "pronunciation_issues": []}
+        return {"score": 9.0, "feedback": "Good part 3", "pronunciation_issues": []}
+
+    monkeypatch.setattr(tasks_module.ai_grading_service, "grade_writing", fake_grade_writing)
+    monkeypatch.setattr(tasks_module.ai_grading_service, "grade_speaking", fake_grade_speaking)
+
+    # Celery eager mode
+    monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
+    monkeypatch.setattr(celery_app.conf, "task_eager_propagates", True)
+
+    user = db_session.query(User).filter(User.username == "testcandidate").first()
+
+    # ── Test Case 1: Thí sinh trượt (Không đạt) do thiếu điểm (Tổng 47.0 < 50.0) ──
+    exam_fail = Exam(
+        title="VSTEP B1 Exam - Failing",
+        language="EN",
+        exam_type="VSTEP_B1",
+        duration_minutes=135,
+        is_active=True,
+    )
+    db_session.add(exam_fail)
+    db_session.commit()
+
+    # Tạo câu hỏi
+    q_read_mcq = Question(exam_id=exam_fail.id, part=1, type="choice", reference_answer="A", content="Q1 MCQ")
+    q_read_fill = Question(exam_id=exam_fail.id, part=4, type="fill", reference_answer="12/twelve", content="Q2 Fill")
+    q_write_1 = Question(exam_id=exam_fail.id, part=5, type="writing", content="Task 1 prompt")
+    q_write_2 = Question(exam_id=exam_fail.id, part=6, type="writing", content="Task 2 prompt")
+    q_listen_mcq = Question(exam_id=exam_fail.id, part=7, type="choice", reference_answer="B", content="Q5 MCQ")
+    q_listen_fill = Question(exam_id=exam_fail.id, part=8, type="fill", reference_answer="3/ three", content="Q6 Fill")
+    q_speak_1 = Question(exam_id=exam_fail.id, part=9, type="speaking", content="Part 1 prompt")
+    q_speak_2 = Question(exam_id=exam_fail.id, part=10, type="speaking", content="Part 2 prompt")
+    q_speak_3 = Question(exam_id=exam_fail.id, part=11, type="speaking", content="Part 3 prompt")
+
+    db_session.add_all([
+        q_read_mcq, q_read_fill, q_write_1, q_write_2,
+        q_listen_mcq, q_listen_fill, q_speak_1, q_speak_2, q_speak_3
+    ])
+    db_session.commit()
+
+    sub_fail = SubmissionModel(exam_id=exam_fail.id, user_id=user.id, status="pending")
+    db_session.add(sub_fail)
+    db_session.commit()
+
+    # Thêm câu trả lời
+    db_session.add_all([
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_read_mcq.id, candidate_text="A"), # correct -> 1
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_read_fill.id, candidate_text="twelve"), # correct variation -> 1. Total Reading = 2.0 (Failed threshold < 9.0)
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_write_1.id, candidate_text="Writing 1 text"), # AI score -> 8.0
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_write_2.id, candidate_text="Writing 2 text"), # AI score -> 9.0 * 2 = 18.0. Total Writing = 26.0
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_listen_mcq.id, candidate_text="B"), # correct choice -> 2
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_listen_fill.id, candidate_text="  three  "), # correct variation + spaces -> 1. Total Listening = 3.0 (Failed threshold < 6.0)
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_speak_1.id, audio_url="/static/uploads/s1.webm"), # AI score -> 7.0
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_speak_2.id, audio_url="/static/uploads/s2.webm"), # AI score -> 8.0
+        SubmissionDetail(submission_id=sub_fail.id, question_id=q_speak_3.id, audio_url="/static/uploads/s3.webm"), # AI score -> 9.0. Total Speaking = (24/30)*20 = 16.0
+    ])
+    db_session.commit()
+
+    # Chạy grading task
+    tasks_module.grade_submission_task(submission_id=sub_fail.id)
+
+    db_session.expire_all()
+    sub_res = db_session.query(SubmissionModel).filter(SubmissionModel.id == sub_fail.id).first()
+    assert sub_res.status == "completed"
+    assert sub_res.grade is not None
+    assert sub_res.grade.score_reading == 2.0
+    assert sub_res.grade.score_listening == 3.0
+    assert sub_res.grade.score_writing == 26.0
+    assert sub_res.grade.score_speaking == 16.0
+    assert sub_res.grade.score_total == 47.0
+    
+    # Check result
+    result_fail = sub_res.grade.feedback_writing["vstep_result"]
+    assert result_fail["status"] == "Không đạt"
+    assert result_fail["conditions"]["total_passed"] is False
+    assert result_fail["conditions"]["reading_passed"] is False
+    assert result_fail["conditions"]["listening_passed"] is False
+    assert result_fail["conditions"]["writing_passed"] is True
+    assert result_fail["conditions"]["speaking_passed"] is True
+
+    # ── Test Case 2: Thí sinh Đỗ (Đạt) ──
+    exam_pass = Exam(
+        title="VSTEP B1 Exam - Passing",
+        language="EN",
+        exam_type="VSTEP_B1",
+        duration_minutes=135,
+        is_active=True,
+    )
+    db_session.add(exam_pass)
+    db_session.commit()
+
+    # Reading: tạo 10 câu choice, 2 câu fill (Đọc >= 9.0). Ta tạo 9 câu MCQ và 1 câu Fill
+    read_qs = []
+    for idx in range(9):
+        read_qs.append(Question(exam_id=exam_pass.id, part=1, type="choice", reference_answer="A", content=f"R MCQ {idx}"))
+    read_qs.append(Question(exam_id=exam_pass.id, part=4, type="fill", reference_answer="12/twelve", content="R Fill"))
+
+    # Listening: tạo 3 câu MCQ (worth 6 pts) + 1 fill
+    listen_qs = [
+        Question(exam_id=exam_pass.id, part=7, type="choice", reference_answer="A", content="L MCQ 1"),
+        Question(exam_id=exam_pass.id, part=7, type="choice", reference_answer="A", content="L MCQ 2"),
+        Question(exam_id=exam_pass.id, part=7, type="choice", reference_answer="A", content="L MCQ 3"),
+        Question(exam_id=exam_pass.id, part=8, type="fill", reference_answer="3/ three", content="L Fill")
+    ]
+
+    q_write_1_p = Question(exam_id=exam_pass.id, part=5, type="writing", content="Task 1 prompt")
+    q_write_2_p = Question(exam_id=exam_pass.id, part=6, type="writing", content="Task 2 prompt")
+    q_speak_1_p = Question(exam_id=exam_pass.id, part=9, type="speaking", content="Part 1 prompt")
+    q_speak_2_p = Question(exam_id=exam_pass.id, part=10, type="speaking", content="Part 2 prompt")
+    q_speak_3_p = Question(exam_id=exam_pass.id, part=11, type="speaking", content="Part 3 prompt")
+
+    db_session.add_all(read_qs + listen_qs + [q_write_1_p, q_write_2_p, q_speak_1_p, q_speak_2_p, q_speak_3_p])
+    db_session.commit()
+
+    sub_pass = SubmissionModel(exam_id=exam_pass.id, user_id=user.id, status="pending")
+    db_session.add(sub_pass)
+    db_session.commit()
+
+    # Thí sinh làm đúng hết
+    details = []
+    for rq in read_qs[:-1]:
+        details.append(SubmissionDetail(submission_id=sub_pass.id, question_id=rq.id, candidate_text="A")) # 9 correct -> 9 pts
+    details.append(SubmissionDetail(submission_id=sub_pass.id, question_id=read_qs[-1].id, candidate_text="12")) # correct fill -> 1 pt. Total Reading = 10.0 (PASS)
+    
+    for lq in listen_qs[:3]:
+        details.append(SubmissionDetail(submission_id=sub_pass.id, question_id=lq.id, candidate_text="A")) # 3 correct MCQ x 2 -> 6 pts
+    details.append(SubmissionDetail(submission_id=sub_pass.id, question_id=listen_qs[-1].id, candidate_text="three")) # correct fill -> 1 pt. Total Listening = 7.0 (PASS)
+
+    details.extend([
+        SubmissionDetail(submission_id=sub_pass.id, question_id=q_write_1_p.id, candidate_text="Writing 1 text"), # AI score -> 8.0
+        SubmissionDetail(submission_id=sub_pass.id, question_id=q_write_2_p.id, candidate_text="Writing 2 text"), # AI score -> 9.0 * 2 = 18.0. Total Writing = 26.0 (PASS)
+        SubmissionDetail(submission_id=sub_pass.id, question_id=q_speak_1_p.id, audio_url="/static/uploads/s1.webm"), # AI score -> 7.0
+        SubmissionDetail(submission_id=sub_pass.id, question_id=q_speak_2_p.id, audio_url="/static/uploads/s2.webm"), # AI score -> 8.0
+        SubmissionDetail(submission_id=sub_pass.id, question_id=q_speak_3_p.id, audio_url="/static/uploads/s3.webm"), # AI score -> 9.0. Total Speaking = 16.0 (PASS)
+    ])
+    db_session.add_all(details)
+    db_session.commit()
+
+    # Chạy grading task
+    tasks_module.grade_submission_task(submission_id=sub_pass.id)
+
+    db_session.expire_all()
+    sub_res_p = db_session.query(SubmissionModel).filter(SubmissionModel.id == sub_pass.id).first()
+    assert sub_res_p.status == "completed"
+    assert sub_res_p.grade.score_reading == 10.0
+    assert sub_res_p.grade.score_listening == 7.0
+    assert sub_res_p.grade.score_writing == 26.0
+    assert sub_res_p.grade.score_speaking == 16.0
+    assert sub_res_p.grade.score_total == 59.0
+
+    # Check result
+    result_pass = sub_res_p.grade.feedback_writing["vstep_result"]
+    assert result_pass["status"] == "Đạt"
+    assert result_pass["conditions"]["total_passed"] is True
+    assert result_pass["conditions"]["reading_passed"] is True
+    assert result_pass["conditions"]["listening_passed"] is True
+    assert result_pass["conditions"]["writing_passed"] is True
+    assert result_pass["conditions"]["speaking_passed"] is True
+
+

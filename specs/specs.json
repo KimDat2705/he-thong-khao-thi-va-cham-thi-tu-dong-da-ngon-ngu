@@ -506,6 +506,24 @@
       "notes": "Retry + backoff với lỗi tạm thời và fail-fast với lỗi vĩnh viễn cho phân hệ chấm AI."
     },
     {
+      "id": "SPEC-GRADE-006",
+      "domain": "GRADE",
+      "title": "Chấm đề VSTEP B1 thang 100đ và điền từ chuẩn hoá",
+      "statement": "Hệ thống hỗ trợ chấm điểm tự động đề thi VSTEP B1 theo thang điểm 100 với trọng số phân bổ cho 4 kỹ năng (Đọc 30, Nghe 20, Viết 30, Nói 20), xử lý so khớp đáp án điền từ (fill) chuẩn hóa (lower, strip, chấp nhận nhiều đáp án phân tách bởi dấu '/'), và xác định kết quả Đạt/Không đạt dựa trên tổng điểm và ngưỡng liệt.",
+      "acceptance_criteria": [
+        "So khớp đáp án điền từ không phân biệt hoa thường, khoảng trắng thừa, và khớp với bất kỳ biến thể nào phân tách bởi dấu '/'",
+        "Chấm VSTEP B1 thang 100đ: Đọc 30 (30 câu x 1), Nghe 20 (Q1-5 choice x 2 + Q6-15 fill x 1), Viết 30 (AI graded: Task 1 max 10 + Task 2 max 20), Nói 20 (AI graded: 3 phần scaled sang max 20)",
+        "Xác định kết quả Đạt khi tổng điểm >= 50 và điểm mỗi kỹ năng >= 30% tối đa (Đọc >= 9, Nghe >= 6, Viết >= 9, Nói >= 6), ngược lại là Không đạt",
+        "Kết quả Đạt/Không đạt và chi tiết điều kiện được ghi nhận vào feedback của Grade"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_grading.py::test_SPEC_GRADE_006_vstep_b1_grading"
+      ],
+      "notes": "Chấm VSTEP B1 100đ với điền từ chuẩn hoá và đạt/không đạt."
+    },
+    {
       "id": "SPEC-COLLATE-004",
       "domain": "I18N",
       "legacy": true,

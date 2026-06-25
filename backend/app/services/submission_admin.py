@@ -32,7 +32,8 @@ def create_submission_and_grade(
         Question.type.in_(("writing", "speaking"))
     ).first() is not None
 
-    if not has_essay and exam.exam_type.upper() != "TOEIC":
+    is_vstep_b1 = exam.exam_type == "VSTEP_B1"
+    if not has_essay and exam.exam_type.upper() != "TOEIC" and not is_vstep_b1:
         raise ValueError("Exam type is not TOEIC")
 
     # 3. Reuse an in-progress server-side attempt (from POST /start + autosave) if
@@ -86,7 +87,7 @@ def create_submission_and_grade(
     db.refresh(sub)
 
     # 5a. ASYNC path (SPEC-GRADE-003): enqueue AI grading and return immediately.
-    if has_essay:
+    if has_essay or is_vstep_b1:
         sub.status = "grading"
         db.commit()
         db.refresh(sub)
@@ -358,12 +359,56 @@ def override_grade(
         + (grade.score_writing or 0.0)
         + (grade.score_speaking or 0.0)
     )
-    if teacher_note is not None:
-        # Store the teacher note in the writing-feedback JSON under a reserved key
-        # (reassign a new dict so SQLAlchemy persists the JSON change).
+    
+    # Recalculate VSTEP_B1 result if applicable
+    exam_type = grade.submission.exam.exam_type
+    if exam_type == "VSTEP_B1":
+        score_total = grade.score_total
+        score_reading = grade.score_reading or 0.0
+        score_listening = grade.score_listening or 0.0
+        score_writing_val = grade.score_writing or 0.0
+        score_speaking_val = grade.score_speaking or 0.0
+        
+        is_passed = (
+            score_total >= 50.0 and
+            score_reading >= 9.0 and
+            score_listening >= 6.0 and
+            score_writing_val >= 9.0 and
+            score_speaking_val >= 6.0
+        )
+        
+        vstep_result = {
+            "status": "Đạt" if is_passed else "Không đạt",
+            "total_score": score_total,
+            "score_reading": score_reading,
+            "score_listening": score_listening,
+            "score_writing": score_writing_val,
+            "score_speaking": score_speaking_val,
+            "conditions": {
+                "total_passed": score_total >= 50.0,
+                "reading_passed": score_reading >= 9.0,
+                "listening_passed": score_listening >= 6.0,
+                "writing_passed": score_writing_val >= 9.0,
+                "speaking_passed": score_speaking_val >= 6.0,
+            }
+        }
+        
         fw = dict(grade.feedback_writing) if isinstance(grade.feedback_writing, dict) else {}
-        fw["teacher_note"] = teacher_note
+        fw["vstep_result"] = vstep_result
+        if teacher_note is not None:
+            fw["teacher_note"] = teacher_note
         grade.feedback_writing = fw
+        
+        fs = dict(grade.feedback_speaking) if isinstance(grade.feedback_speaking, dict) else {}
+        fs["vstep_result"] = vstep_result
+        grade.feedback_speaking = fs
+    else:
+        if teacher_note is not None:
+            # Store the teacher note in the writing-feedback JSON under a reserved key
+            # (reassign a new dict so SQLAlchemy persists the JSON change).
+            fw = dict(grade.feedback_writing) if isinstance(grade.feedback_writing, dict) else {}
+            fw["teacher_note"] = teacher_note
+            grade.feedback_writing = fw
 
     db.commit()
     return get_submission(db, submission_id)
