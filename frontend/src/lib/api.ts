@@ -213,6 +213,7 @@ export async function getExam(
 export function audioSrc(audioUrl: string | null): string | null {
   if (!audioUrl) return null;
   if (audioUrl.startsWith("http")) return audioUrl;
+  if (audioUrl.startsWith("/")) return `${API_BASE}${audioUrl}`;
   return `${API_BASE}/audio/${encodeURIComponent(audioUrl)}`;
 }
 

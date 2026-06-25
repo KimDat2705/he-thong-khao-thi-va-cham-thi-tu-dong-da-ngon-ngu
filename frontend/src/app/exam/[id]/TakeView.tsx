@@ -36,9 +36,18 @@ function QuestionItem({
   selectedValue?: string;
   onChange: (value: string) => void;
 }) {
-  const img = imageSrc(q.image_url);
+  const isMultiImage = !!(q.image_url && q.image_url.includes(","));
+  const imageUrls = isMultiImage
+    ? q.image_url!.split(",").map((url) => url.trim()).filter(Boolean)
+    : [];
+  const letters = ["A", "B", "C", "D"];
+
+  const img = isMultiImage ? null : imageSrc(q.image_url);
   const hasOptions = q.options && Object.keys(q.options).length > 0;
   const isWriting = q.type === "writing";
+  const isFill = q.type === "fill";
+  const isLetterOnlyOptions = hasOptions && Object.values(q.options!).every((val) => !val || val.trim() === "");
+
   return (
     <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
       <div className="text-sm font-medium text-gray-900 whitespace-pre-wrap">
@@ -60,6 +69,59 @@ function QuestionItem({
           <div className="mt-1 text-right text-xs text-gray-400">
             {(selectedValue || "").trim() ? (selectedValue || "").trim().split(/\s+/).length : 0} từ
           </div>
+        </div>
+      ) : isMultiImage ? (
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {imageUrls.map((url, index) => {
+            const letter = letters[index] || String.fromCharCode(65 + index);
+            const src = imageSrc(url);
+            if (!src) return null;
+            const isSelected = selectedValue === letter;
+            return (
+              <button
+                key={letter}
+                type="button"
+                onClick={() => onChange(letter)}
+                className={`flex flex-col items-center gap-3 rounded-lg border-2 p-3 text-center transition-all ${
+                  isSelected
+                    ? "border-blue-500 bg-blue-50/30 ring-2 ring-blue-500/20"
+                    : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                }`}
+              >
+                <span className={`inline-flex items-center justify-center rounded-full h-8 w-8 text-sm font-bold shadow-sm transition-colors ${
+                  isSelected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"
+                }`}>
+                  {letter}
+                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={`Lựa chọn ${letter}`}
+                  className="max-h-48 rounded object-contain border border-gray-100"
+                />
+              </button>
+            );
+          })}
+        </div>
+      ) : isLetterOnlyOptions ? (
+        <div className="mt-3 flex flex-wrap gap-3">
+          {Object.keys(q.options!).map((letter) => {
+            const isSelected = selectedValue === letter;
+            return (
+              <button
+                key={letter}
+                type="button"
+                onClick={() => onChange(letter)}
+                className={`inline-flex items-center justify-center rounded-lg border-2 h-11 w-16 text-sm font-bold transition-all ${
+                  isSelected
+                    ? "border-blue-500 bg-blue-50/30 text-blue-600 ring-2 ring-blue-500/20"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-gray-50"
+                }`}
+              >
+                {letter}
+              </button>
+            );
+          })}
         </div>
       ) : hasOptions ? (
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -84,6 +146,16 @@ function QuestionItem({
               </span>
             </label>
           ))}
+        </div>
+      ) : isFill ? (
+        <div className="mt-2">
+          <input
+            type="text"
+            placeholder="Điền từ vào đây…"
+            value={selectedValue || ""}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
+          />
         </div>
       ) : (
         <div className="mt-2">
