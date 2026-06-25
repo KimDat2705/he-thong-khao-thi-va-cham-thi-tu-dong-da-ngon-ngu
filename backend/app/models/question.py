@@ -21,6 +21,8 @@ class Question(Base):
     topic = Column(String, nullable=True)  # Topic domain
     status = Column(String, default="approved")  # "draft" | "approved"
     explanation = Column(Text, nullable=True)  # AI/Teacher explanation for grading feedback
+    exam_type = Column(String, default="TOEIC", server_default="TOEIC", nullable=False)
+    language = Column(String, default="EN", server_default="EN", nullable=False)
     
     # New columns for M2
     source_question_id = Column(Integer, ForeignKey("questions.id", ondelete="SET NULL"), nullable=True, index=True)

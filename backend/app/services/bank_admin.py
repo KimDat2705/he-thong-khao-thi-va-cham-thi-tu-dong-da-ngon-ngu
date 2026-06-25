@@ -14,12 +14,16 @@ def list_bank_questions(
     topic: Optional[str] = None,
     difficulty: Optional[str] = None,
     limit: int = 100,
-    offset: int = 0
+    offset: int = 0,
+    exam_type: Optional[str] = "TOEIC"
 ) -> Dict[str, Any]:
     """
     List bank questions (where exam_id is NULL) with pagination and filters.
     """
     query = db.query(Question).filter(Question.exam_id.is_(None))
+    
+    if exam_type is not None:
+        query = query.filter(Question.exam_type == exam_type)
     
     if part is not None:
         query = query.filter(Question.part == part)
@@ -91,7 +95,7 @@ def compute_bank_stats(db: Session) -> BankStats:
     """
     # 1. Count questions by part and status (only bank questions)
     q_stats = db.query(Question.part, Question.status, func.count(Question.id))\
-        .filter(Question.exam_id.is_(None))\
+        .filter(Question.exam_id.is_(None), Question.exam_type == "TOEIC")\
         .group_by(Question.part, Question.status).all()
         
     question_counts = {}
@@ -103,7 +107,7 @@ def compute_bank_stats(db: Session) -> BankStats:
         
     # 2. Count groups by part and status (only bank groups)
     g_stats = db.query(QuestionGroup.part, QuestionGroup.status, func.count(QuestionGroup.id))\
-        .filter(QuestionGroup.exam_id.is_(None))\
+        .filter(QuestionGroup.exam_id.is_(None), QuestionGroup.questions.any(Question.exam_type == "TOEIC"))\
         .group_by(QuestionGroup.part, QuestionGroup.status).all()
         
     group_counts = {}
@@ -126,7 +130,8 @@ def compute_bank_stats(db: Session) -> BankStats:
                 Question.exam_id.is_(None),
                 Question.group_id.is_(None),
                 Question.part == part,
-                Question.status == "approved"
+                Question.status == "approved",
+                Question.exam_type == "TOEIC"
             ).count()
             needed_count = part_spec.get("count", 0)
             
@@ -134,7 +139,8 @@ def compute_bank_stats(db: Session) -> BankStats:
             approved_count = db.query(QuestionGroup).filter(
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
-                QuestionGroup.status == "approved"
+                QuestionGroup.status == "approved",
+                QuestionGroup.questions.any(Question.exam_type == "TOEIC")
             ).count()
             needed_count = part_spec.get("groups", 0)
             
@@ -142,7 +148,8 @@ def compute_bank_stats(db: Session) -> BankStats:
             approved_groups = db.query(QuestionGroup).filter(
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
-                QuestionGroup.status == "approved"
+                QuestionGroup.status == "approved",
+                QuestionGroup.questions.any(Question.exam_type == "TOEIC")
             ).all()
             approved_count = sum(len(g.questions) for g in approved_groups)
             needed_count = part_spec.get("target_questions", 0)

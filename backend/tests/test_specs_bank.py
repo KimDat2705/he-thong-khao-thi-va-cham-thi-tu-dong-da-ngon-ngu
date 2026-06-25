@@ -199,3 +199,84 @@ def test_SPEC_BANK_003_bank_admin_api(db_session: Session, admin_auth_headers: d
     finally:
         fastapi_app.dependency_overrides.clear()
 
+
+def test_SPEC_BANK_004_multi_exam_type_coexistence(db_session: Session, admin_auth_headers: dict):
+    """
+    SPEC-BANK-004: Ngân hàng câu hỏi đa dạng loại đề thi.
+    Xác minh việc lưu trữ độc lập và cách ly giữa TOEIC và VSTEP_B1.
+    """
+    import os
+    from app.services.parser import import_b1_reading_set
+    from app.services.toeic_generator import generate_toeic_exam
+    from app.services import bank_admin
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+
+    # 1. Đường dẫn tệp B1 mẫu (CI-safe)
+    fixtures_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser"))
+    docx_path = os.path.join(fixtures_dir, "B1_exam_sample.docx")
+    key_path = os.path.join(fixtures_dir, "B1_key_sample.docx")
+
+    assert os.path.exists(docx_path)
+    assert os.path.exists(key_path)
+
+    # 2. Import bộ B1 Đọc+Viết mẫu
+    result = import_b1_reading_set(db_session, docx_path, key_path)
+    assert result["imported_questions"] == 32
+    assert result["imported_groups"] == 0
+
+    # 3. Đếm trong database: kiểm tra đúng exam_type="VSTEP_B1" và status="draft"
+    b1_questions = db_session.query(Question).filter(
+        Question.exam_id.is_(None),
+        Question.exam_type == "VSTEP_B1"
+    ).all()
+    assert len(b1_questions) == 32
+    for q in b1_questions:
+        assert q.language == "EN"
+        assert q.status == "draft"
+
+    # 4. Chạy generate_toeic_exam và xác nhận sinh đề TOEIC hoạt động bình thường
+    exam = generate_toeic_exam(db_session, title="Đề TOEIC SPEC-BANK-004")
+    assert exam.exam_type == "TOEIC"
+    
+    exam_qs = db_session.query(Question).filter(Question.exam_id == exam.id).all()
+    assert len(exam_qs) == 200
+    for q in exam_qs:
+        assert q.exam_type == "TOEIC"
+        assert q.language == "EN"
+
+    # 5. Thử duyệt một số câu B1 sang "approved"
+    for q in b1_questions[:5]:
+        q.status = "approved"
+    db_session.commit()
+
+    exam2 = generate_toeic_exam(db_session, title="Đề TOEIC SPEC-BANK-004 - 2")
+    exam2_qs = db_session.query(Question).filter(Question.exam_id == exam2.id).all()
+    assert len(exam2_qs) == 200
+    for q in exam2_qs:
+        assert q.exam_type == "TOEIC"
+
+    # 6. Kiểm tra thống kê stats chỉ phản ánh đúng số lượng câu hỏi TOEIC
+    stats = bank_admin.compute_bank_stats(db_session)
+    for p_stats in stats.blueprint_sufficiency:
+        assert p_stats.is_sufficient is True
+
+    # 7. Kiểm tra API GET /api/v1/bank/questions lọc chính xác theo exam_type
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        resp_toeic = client.get("/api/v1/bank/questions?exam_type=TOEIC", headers=admin_auth_headers)
+        assert resp_toeic.status_code == 200
+        assert resp_toeic.json()["total"] > 0
+        for item in resp_toeic.json()["items"]:
+            assert item["exam_type"] == "TOEIC"
+
+        resp_b1 = client.get("/api/v1/bank/questions?exam_type=VSTEP_B1&limit=100", headers=admin_auth_headers)
+        assert resp_b1.status_code == 200
+        assert resp_b1.json()["total"] == 32
+        for item in resp_b1.json()["items"]:
+            assert item["exam_type"] == "VSTEP_B1"
+    finally:
+        fastapi_app.dependency_overrides.clear()
+

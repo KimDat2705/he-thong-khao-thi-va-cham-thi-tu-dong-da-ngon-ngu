@@ -21,6 +21,8 @@ class QuestionRead(BaseModel):
     source_question_id: Optional[int] = None
     content_hash: Optional[str] = None
     import_batch_id: Optional[int] = None
+    exam_type: Optional[str] = None
+    language: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -36,6 +38,8 @@ class QuestionUpdate(BaseModel):
     topic: Optional[str] = None
     status: Optional[str] = None
     explanation: Optional[str] = None
+    exam_type: Optional[str] = None
+    language: Optional[str] = None
 
 class ApproveRequest(BaseModel):
     ids: List[int]

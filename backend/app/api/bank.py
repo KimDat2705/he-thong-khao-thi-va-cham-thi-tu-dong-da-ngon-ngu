@@ -18,6 +18,7 @@ def list_questions(
     difficulty: Optional[str] = None,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    exam_type: Optional[str] = Query("TOEIC"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
@@ -26,7 +27,7 @@ def list_questions(
     TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)
     """
     return bank_admin.list_bank_questions(
-        db, part=part, status=status, topic=topic, difficulty=difficulty, limit=limit, offset=offset
+        db, part=part, status=status, topic=topic, difficulty=difficulty, limit=limit, offset=offset, exam_type=exam_type
     )
 
 @router.patch("/questions/{id}", response_model=QuestionRead)

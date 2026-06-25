@@ -207,7 +207,13 @@ def process_blocks(blocks: list, filepath: str, audio_dir: str) -> list:
 
     return parsed_items
 
-def save_parsed_items(db: Session, parsed_items: list, batch_id: int) -> dict:
+def save_parsed_items(
+    db: Session,
+    parsed_items: list,
+    batch_id: int,
+    exam_type: str = "TOEIC",
+    language: str = "EN"
+) -> dict:
     """Save structured parsed items to database, checking content hash for idempotency."""
     skipped_q_count = 0
     skipped_g_count = 0
@@ -274,7 +280,9 @@ def save_parsed_items(db: Session, parsed_items: list, batch_id: int) -> dict:
                     explanation=q_data["explanation"],
                     status="draft",
                     content_hash=q_hash,
-                    import_batch_id=batch_id
+                    import_batch_id=batch_id,
+                    exam_type=exam_type,
+                    language=language
                 )
                 db.add(new_q)
                 imported_q_count += 1
@@ -309,7 +317,9 @@ def save_parsed_items(db: Session, parsed_items: list, batch_id: int) -> dict:
                 explanation=item["explanation"],
                 status="draft",
                 content_hash=q_hash,
-                import_batch_id=batch_id
+                import_batch_id=batch_id,
+                exam_type=exam_type,
+                language=language
             )
             db.add(new_q)
             db.commit()
@@ -1696,4 +1706,76 @@ def parse_b1_answer_key(filepath: str) -> dict:
                                         answers[num] = q_ans_text.strip()
                                         
     return answers
+
+
+def import_b1_reading_set(db: Session, docx_path: str, key_path: str) -> dict:
+    """
+    Parses, merges answers, validates, and imports a real-format B1 Reading and Writing set
+    into the Question Bank with status='draft', exam_type='VSTEP_B1', language='EN'.
+    """
+    # 1. Parse docx
+    docx_res = parse_b1_reading_docx(docx_path)
+    set_id_docx = docx_res["set_id"]
+    items = docx_res["items"]
+
+    # 2. Parse answer key
+    answers = parse_b1_answer_key(key_path)
+
+    # 3. Merge and validate answers
+    errors = []
+    for item in items:
+        item["set_id"] = set_id_docx
+        item.setdefault("difficulty", "medium")
+        item.setdefault("explanation", None)
+        item.setdefault("clo", None)
+        item.setdefault("topic", None)
+        item.setdefault("audio_url", None)
+        item.setdefault("image_url", None)
+
+        q_num = item["number"]
+        location_q = f"Question {q_num}"
+        if item["type"] != "writing":
+            if q_num not in answers:
+                errors.append({
+                    "location": location_q,
+                    "type": "missing_answer",
+                    "message": f"No answer found in KEY for Question {q_num}."
+                })
+            else:
+                ans = answers[q_num]
+                item["reference_answer"] = ans
+                if item["type"] == "choice" and item["options"]:
+                    if ans not in item["options"]:
+                        errors.append({
+                            "location": location_q,
+                            "type": "invalid_answer",
+                            "message": f"Invalid answer '{ans}' in KEY for Question {q_num}."
+                        })
+        else:
+            item["reference_answer"] = None
+
+    if errors:
+        raise ImportError(f"Validation failed during merging for {docx_path}", {
+            "file": docx_path,
+            "errors": errors
+        })
+
+    # 4. Create ImportBatch (Atomic database transactions)
+    file_hash = calculate_file_hash(docx_path)
+    
+    batch = ImportBatch(
+        source_file=docx_path,
+        content_hash=file_hash,
+        status="imported"
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+
+    try:
+        result = save_parsed_items(db, items, batch.id, exam_type="VSTEP_B1", language="EN")
+        return result
+    except Exception as e:
+        db.rollback()
+        raise e
 

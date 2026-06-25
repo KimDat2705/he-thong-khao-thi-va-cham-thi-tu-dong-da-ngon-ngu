@@ -78,7 +78,8 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 Question.exam_id.is_(None),
                 Question.group_id.is_(None),
                 Question.part == part,
-                Question.status == "approved"
+                Question.status == "approved",
+                Question.exam_type == "TOEIC"
             ).count()
             needed = part_spec.get("count", 0)
             if available_count < needed:
@@ -90,7 +91,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved"
-            ).count()
+            ).join(QuestionGroup.questions).filter(Question.exam_type == "TOEIC").distinct().count()
             needed = part_spec.get("groups", 0)
             if available_groups < needed:
                 raise InsufficientBankError(
@@ -101,7 +102,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved"
-            ).all()
+            ).join(QuestionGroup.questions).filter(Question.exam_type == "TOEIC").distinct().all()
             total_qs = sum(len(g.questions) for g in p_groups_in_bank)
             needed = part_spec.get("target_questions", 0)
             if total_qs < needed:
@@ -138,7 +139,9 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
             topic=orig_q.topic,
             status="approved",
             explanation=orig_q.explanation,
-            source_question_id=orig_q.id  # Link to the original question
+            source_question_id=orig_q.id,  # Link to the original question
+            exam_type=orig_q.exam_type,
+            language=orig_q.language
         )
 
     # Helper function to clone a group and its questions
@@ -248,7 +251,8 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 Question.exam_id.is_(None),
                 Question.group_id.is_(None),
                 Question.part == part,
-                Question.status == "approved"
+                Question.status == "approved",
+                Question.exam_type == "TOEIC"
             ).order_by(Question.id).all()
 
             # Group by difficulty
@@ -290,7 +294,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved"
-            ).order_by(QuestionGroup.id).all()
+            ).join(QuestionGroup.questions).filter(Question.exam_type == "TOEIC").distinct().order_by(QuestionGroup.id).all()
 
             # Group by difficulty
             diff_map = {"easy": [], "medium": [], "hard": []}
@@ -320,7 +324,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved"
-            ).order_by(QuestionGroup.id).all()
+            ).join(QuestionGroup.questions).filter(Question.exam_type == "TOEIC").distinct().order_by(QuestionGroup.id).all()
 
             # Shuffle to ensure randomness, using local_random for reproducibility
             local_random.shuffle(part_groups)

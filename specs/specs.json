@@ -802,6 +802,24 @@
         "tests/test_specs_parser.py::test_SPEC_PARSE_012_parse_b1_exam_and_answer_key"
       ],
       "notes": "Đang triển khai: Bộ parser tự động bóc tách và phân tích đề B1 Đọc+Viết."
+    },
+    {
+      "id": "SPEC-BANK-004",
+      "domain": "BANK",
+      "title": "Ngân hàng câu hỏi đa dạng loại đề thi",
+      "statement": "Hệ thống hỗ trợ ngân hàng câu hỏi phân tách độc lập theo loại đề thi (exam_type/language) trên cùng một cơ sở dữ liệu. Mọi hoạt động sinh đề và truy vấn thống kê của một loại đề thi phải được cách ly hoàn toàn khỏi các loại đề thi khác.",
+      "acceptance_criteria": [
+        "Question lưu trữ độc lập thuộc tính exam_type và language",
+        "Thuật toán sinh đề TOEIC hoạt động bình thường kể cả khi ngân hàng có chứa câu hỏi VSTEP_B1",
+        "Thống kê ngân hàng và API list lọc chính xác theo loại đề thi",
+        "Hỗ trợ import đề thi B1 Đọc+Viết và phiếu đáp án tương ứng vào ngân hàng đúng loại VSTEP_B1"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_bank.py::test_SPEC_BANK_004_multi_exam_type_coexistence"
+      ],
+      "notes": "Hỗ trợ đa loại đề thi (TOEIC & VSTEP_B1) trong cùng một DB."
     }
   ]
 }
