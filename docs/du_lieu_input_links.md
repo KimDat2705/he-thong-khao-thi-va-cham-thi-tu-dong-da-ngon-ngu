@@ -19,7 +19,18 @@
 | **Đề Nghe — audio** | [1ZCMecyx](https://drive.google.com/drive/folders/1ZCMecyx2rsv9gvdw6NfSFrH0I5w7gCSh) | **15 `.mp3` ~100MB**, đặt tên theo DẢI "2601-2604.mp3 … 2629-2630.mp3" → **audio gộp nhiều đề/một file** (KHÔNG per-câu) |
 | **Đề Nghe — đáp án** | [1IXEboDk](https://drive.google.com/drive/folders/1IXEboDkJTl9GAqJHghpVdfGLksGBbyuF) | **15 `.xlsx`** "Key LT2601..2629" (lẻ) → **đáp án Listening (RIÊNG)** |
 
-## B1 (VSTEP) — chưa fetch chi tiết
+## B1 (VSTEP) — đã fetch + map đề 2601 (25/06)
+**Bộ 2601 đã tải về `drive_input/B1_2601/` (6 file)** từ folder Đạt `1umWw1j24-HNeOpHTzF3c2J7g_v-C76F-`: `1.ĐỌC+VIẾT (đề) EB1-2601.docx`, `2.NGHE (đề) LB1-2601.docx`, `3.NGHE audio LB1-2601.mp3` (~42MB), `4.NÓI Speaking card (2601-2610).doc`, `5.ĐÁP ÁN Đọc-Viết B1 2601.docx`, `6.ĐÁP ÁN Nghe B1 2601.doc`.
+
+**Cấu trúc EB1-2601.docx (Đọc+Viết) — đã map + parser PARSE-012 verify thật:** 155 para / 3 table / **0 ảnh** (S2 là text trong table, không phải ảnh). KHÁC TOEIC: chủ yếu PARAGRAPH theo document-order, không table-heavy. Mã đề "Mã đề: EB1.2601" (trong table) → chuẩn hoá `EB12601`.
+- **PART ONE READING (30 câu/30đ):** S1 Q1-10 MCQ **4 opt inline 1 dòng**; S2 Q11-15 MCQ **3 opt (A/B/C) trong table 5x3** (biển báo/notice); S3 Q16-20 MCQ **4 opt xuống dòng** + passage; S4 Q21-30 **ĐIỀN TỪ** (gap-fill, đáp án là TỪ, không A/B/C/D).
+- **PART TWO WRITING (30đ):** Section 1 (10đ) + Section 2 (20đ) = 2 đề tự luận. Kết "--- The end ---".
+- **Đáp án (file 5):** table block "SECTION n" cột Câu|Đáp án|Thang điểm|Điểm chấm (cột phụ rỗng xen giữa) → quét theo header "Câu". Q1-20 chữ cái, Q21-30 từ. 2601: Q1-10 A,B,B,A,A,B,A,D,B,A · Q11-20 A,C,C,B,A,D,A,D,B,C · Q21-30 fact,frighten,most,weigh,Both,spend,search,left,which,must.
+- ⏳ **Chưa map**: Nghe (LB1-2601 + mp3: L1 chọn-tranh 5 + L2 điền 10), Nói (Speaking card 3 phần). Audio mp3 per-đề (~42MB/đề, KHÁC TOEIC gộp-dải).
+
+**Bộ đề B1 đầy đủ 30 đề** (EB1.2601-2630) folder `1MThYWBMH6x2vuOJZc8c8Q9OILFLg9P_s`; đang thẩm định lỗi (72 lỗi, đề sạch demo = 2601). Ma trận B1: 3 bài/100đ/135' (Đọc 4 phần 30câu 30đ + Viết 2 phần 30đ; Nghe L1 5+L2 10 = 20đ; Nói 3 phần 20đ; đạt 50/100 & mỗi bài ≥30%).
+
+### Link Drive B1 (gốc)
 - **Ma trận B1**: https://drive.google.com/drive/folders/1ZLPf-pihP3Ij50DVgZ419j_hc1ADU4b9
 - **Bộ đề B1** (Đạt gửi nhiều link; mục đầu dạng markdown-link có 2 ID):
   - https://drive.google.com/drive/folders/11I30Q23oyZ5dXcp-wNZJT77vUqKl16vI

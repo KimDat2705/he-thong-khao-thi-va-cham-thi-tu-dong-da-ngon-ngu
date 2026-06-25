@@ -1323,3 +1323,377 @@ def parse_reading_docx(filepath: str) -> dict:
         "set_id": set_id,
         "items": items
     }
+
+
+def parse_b1_reading_docx(filepath: str) -> dict:
+    """
+    Parses a B1 Reading and Writing test .docx file.
+    Returns:
+        dict: {
+            "set_id": "EB12601",
+            "items": [
+                {
+                    "number": int,
+                    "part": int (1-6),
+                    "section": int,
+                    "type": str ('choice', 'fill', 'writing'),
+                    "content": str,
+                    "options": dict
+                },
+                ...
+            ]
+        }
+    """
+    import os
+    import re
+    import docx
+    from docx.oxml.table import CT_Tbl
+    from docx.oxml.text.paragraph import CT_P
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    doc = docx.Document(filepath)
+
+    # 1. Extract set_id
+    set_id = None
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                m = re.search(r'(?i)EB1\.?\s*(\d+)', cell.text)
+                if m:
+                    set_id = f"EB1{m.group(1)}"
+                    break
+            if set_id:
+                break
+        if set_id:
+            break
+
+    if not set_id:
+        for p in doc.paragraphs:
+            m = re.search(r'(?i)EB1\.?\s*(\d+)', p.text)
+            if m:
+                set_id = f"EB1{m.group(1)}"
+                break
+
+    if not set_id:
+        filename = os.path.basename(filepath)
+        m = re.search(r'(?i)EB1\.?\s*(\d+)', filename)
+        if m:
+            set_id = f"EB1{m.group(1)}"
+        else:
+            set_id = "EB19999"
+
+    # 2. Traverse body elements
+    body_elements = list(doc.element.body)
+
+    current_part = None  # "R" or "W"
+    current_section = None  # 1-4 for Reading, 1-2 for Writing
+    items = []
+
+    s3_passage_paragraphs = []
+    s4_passage_paragraphs = []
+    w1_paragraphs = []
+    w2_paragraphs = []
+
+    visited_indices = set()
+
+    def extract_inline_options_4(text):
+        m = re.match(r'^\s*A[\.\)]\s*(.*?)\s+B[\.\)]\s*(.*?)\s+C[\.\)]\s*(.*?)\s+D[\.\)]\s*(.*)$', text)
+        if m:
+            return {
+                "A": m.group(1).strip(),
+                "B": m.group(2).strip(),
+                "C": m.group(3).strip(),
+                "D": m.group(4).strip()
+            }
+        pos_a = text.find("A.")
+        pos_b = text.find("B.")
+        pos_c = text.find("C.")
+        pos_d = text.find("D.")
+        if pos_a != -1 and pos_b != -1 and pos_c != -1 and pos_d != -1:
+            return {
+                "A": text[pos_a+2:pos_b].strip(),
+                "B": text[pos_b+2:pos_c].strip(),
+                "C": text[pos_c+2:pos_d].strip(),
+                "D": text[pos_d+2:].strip()
+            }
+        return {}
+
+    i = 0
+    while i < len(body_elements):
+        if i in visited_indices:
+            i += 1
+            continue
+            
+        child = body_elements[i]
+        if isinstance(child, CT_P):
+            p = Paragraph(child, doc)
+            text = p.text.strip()
+            
+            # Check part/section transitions
+            if re.search(r'(?i)PART\s*ONE|READING', text):
+                current_part = "R"
+                i += 1
+                continue
+            elif re.search(r'(?i)PART\s*TWO|WRITING', text):
+                current_part = "W"
+                i += 1
+                continue
+                
+            sec_m = re.search(r'(?i)Section\s+(\d+)', text)
+            if sec_m:
+                sec_num = int(sec_m.group(1))
+                if current_part == "R":
+                    current_section = sec_num
+                elif current_part == "W":
+                    current_section = sec_num
+                i += 1
+                continue
+                
+            # Parse based on current section
+            if current_part == "R":
+                if current_section == 1:
+                    # S1 Q1-10
+                    q_m = re.match(r'^\s*(\d+)\.\s*(.*)', text, re.DOTALL)
+                    if q_m:
+                        q_num = int(q_m.group(1))
+                        q_content = q_m.group(2).strip()
+                        options = {}
+                        j = i + 1
+                        while j < len(body_elements):
+                            next_child = body_elements[j]
+                            if isinstance(next_child, CT_P):
+                                next_p = Paragraph(next_child, doc)
+                                next_text = next_p.text.strip()
+                                if next_text:
+                                    options = extract_inline_options_4(next_text)
+                                    visited_indices.add(j)
+                                    break
+                            j += 1
+                        items.append({
+                            "number": q_num,
+                            "part": 1,
+                            "section": 1,
+                            "type": "choice",
+                            "content": q_content,
+                            "options": options
+                        })
+                        
+                elif current_section == 3:
+                    # S3 Q16-20
+                    q_m = re.match(r'^\s*(\d+)\.\s*(.*)', text, re.DOTALL)
+                    if q_m:
+                        q_num = int(q_m.group(1))
+                        q_content = q_m.group(2).strip()
+                        options = {}
+                        j = i + 1
+                        opt_count = 0
+                        while j < len(body_elements) and opt_count < 4:
+                            next_child = body_elements[j]
+                            if isinstance(next_child, CT_P):
+                                next_p = Paragraph(next_child, doc)
+                                next_text = next_p.text.strip()
+                                if next_text:
+                                    opt_m = re.match(r'^\s*([A-D])[\.\)]\s*(.*)', next_text)
+                                    if opt_m:
+                                        options[opt_m.group(1)] = opt_m.group(2).strip()
+                                        visited_indices.add(j)
+                                        opt_count += 1
+                                    else:
+                                        break
+                                else:
+                                    j += 1
+                                    continue
+                            else:
+                                break
+                            j += 1
+                            
+                        items.append({
+                            "number": q_num,
+                            "part": 3,
+                            "section": 3,
+                            "type": "choice",
+                            "content": q_content,
+                            "options": options
+                        })
+                    else:
+                        if text and not text.startswith("Read the text"):
+                            s3_passage_paragraphs.append(text)
+                            
+                elif current_section == 4:
+                    # S4 Q21-30
+                    if text and not text.startswith("Read the text") and not text.startswith("THE GORILLA"):
+                        s4_passage_paragraphs.append(text)
+                        
+            elif current_part == "W":
+                if current_section == 1:
+                    # W1 (rewriting)
+                    if text and not text.startswith("Finish each of the following sentences") and not text.startswith("Example") and not text.startswith("Answer"):
+                        w1_paragraphs.append(text)
+                elif current_section == 2:
+                    # W2 (essay/letter)
+                    if text and not text.startswith("Now write a letter"):
+                        w2_paragraphs.append(text)
+                        
+        elif isinstance(child, CT_Tbl):
+            t = Table(child, doc)
+            if current_part == "R" and current_section == 2:
+                # S2 Q11-15 table
+                for row in t.rows:
+                    cells = row.cells
+                    if len(cells) >= 3:
+                        cell0_text = cells[0].text.strip()
+                        num_match = re.match(r'^\s*(\d+)\.?\s*$', cell0_text)
+                        if num_match:
+                            q_num = int(num_match.group(1))
+                            if 11 <= q_num <= 15:
+                                content = cells[1].text.strip()
+                                options_text = cells[2].text.strip()
+                                options = {}
+                                pos_a = options_text.find("A.")
+                                pos_b = options_text.find("B.")
+                                pos_c = options_text.find("C.")
+                                if pos_a != -1 and pos_b != -1 and pos_c != -1:
+                                    options = {
+                                        "A": options_text[pos_a+2:pos_b].strip(),
+                                        "B": options_text[pos_b+2:pos_c].strip(),
+                                        "C": options_text[pos_c+2:].strip()
+                                    }
+                                else:
+                                    for line in options_text.split("\n"):
+                                        line = line.strip()
+                                        if line:
+                                            m_opt = re.match(r'^\s*([A-C])\.\s*(.*)', line)
+                                            if m_opt:
+                                                options[m_opt.group(1)] = m_opt.group(2).strip()
+                                items.append({
+                                    "number": q_num,
+                                    "part": 2,
+                                    "section": 2,
+                                    "type": "choice",
+                                    "content": content,
+                                    "options": options
+                                })
+                                
+        i += 1
+
+    # Post-process S4 (fill blanks)
+    s4_text = "\n".join(s4_passage_paragraphs).replace("\n", " ")
+    s4_text = re.sub(r'\s+', ' ', s4_text)
+    sentences = [s.strip() for s in re.split(r'(?<!\.)\.(?!\.)(?=\s+[A-Z]|\s*\(\d+\)|\s*$)', s4_text) if s.strip()]
+
+    for q_num in range(21, 31):
+        blank_str = f"({q_num})"
+        content = ""
+        for s in sentences:
+            if blank_str in s:
+                content = s + "."
+                break
+        if not content:
+            content = s4_text
+            
+        items.append({
+            "number": q_num,
+            "part": 4,
+            "section": 4,
+            "type": "fill",
+            "content": content,
+            "options": {}
+        })
+
+    # Add W1 and W2 items
+    items.append({
+        "number": 31,
+        "part": 5,
+        "section": 1,
+        "type": "writing",
+        "content": "\n".join(w1_paragraphs),
+        "options": {}
+    })
+
+    items.append({
+        "number": 32,
+        "part": 6,
+        "section": 2,
+        "type": "writing",
+        "content": "\n".join(w2_paragraphs),
+        "options": {}
+    })
+
+    # Sort items by question number
+    items.sort(key=lambda x: x["number"])
+
+    return {
+        "set_id": set_id,
+        "items": items
+    }
+
+
+def parse_b1_answer_key(filepath: str) -> dict:
+    """
+    Parses a B1 Reading and Writing answer key .docx file.
+    Returns:
+        dict: {
+            1: "A",
+            ...
+            21: "fact",
+            ...
+        }
+    """
+    import os
+    import re
+    import docx
+    from docx.oxml.table import CT_Tbl
+    from docx.oxml.text.paragraph import CT_P
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    doc = docx.Document(filepath)
+
+    in_writing = False
+    answers = {}
+
+    for child in doc.element.body:
+        if isinstance(child, CT_P):
+            p = Paragraph(child, doc)
+            text = p.text.strip()
+            if re.search(r'(?i)PART\s*2|WRITING', text):
+                in_writing = True
+        elif isinstance(child, CT_Tbl) and not in_writing:
+            t = Table(child, doc)
+            
+            question_cols = []
+            header_row_idx = None
+            
+            for r_idx, row in enumerate(t.rows):
+                row_texts = [c.text.strip() for c in row.cells]
+                if "Câu" in row_texts and "Đáp án" in row_texts:
+                    header_row_idx = r_idx
+                    for c_idx, val in enumerate(row_texts):
+                        if val == "Câu":
+                            question_cols.append(c_idx)
+                    break
+                    
+            if header_row_idx is not None:
+                for r_idx in range(header_row_idx + 1, len(t.rows)):
+                    row = t.rows[r_idx]
+                    for c_idx in question_cols:
+                        if c_idx + 1 < len(row.cells):
+                            q_num_text = row.cells[c_idx].text.strip()
+                            q_ans_text = row.cells[c_idx + 1].text.strip()
+                            if re.match(r'^\d+$', q_num_text):
+                                num = int(q_num_text)
+                                if 1 <= num <= 30:
+                                    if 1 <= num <= 20:
+                                        answers[num] = q_ans_text.strip().upper()
+                                    else:
+                                        answers[num] = q_ans_text.strip()
+                                        
+    return answers
+

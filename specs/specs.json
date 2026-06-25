@@ -783,6 +783,25 @@
         "tests/test_specs_stats.py::test_SPEC_STATS_001_exam_analytics"
       ],
       "notes": "Thống kê kết quả thi và phân tích phân bố lựa chọn."
+    },
+    {
+      "id": "SPEC-PARSE-012",
+      "domain": "PARSE",
+      "title": "Parse đề thi B1 và đáp án tự luận/trắc nghiệm",
+      "statement": "Bộ phân tích cú pháp hỗ trợ nạp đề thi Đọc+Viết B1 từ định dạng Word và trích xuất đúng 30 câu đọc (Q1-30 với MCQ/Fill), 2 đề viết (Q31-32 với Writing), chuẩn hóa set_id và bóc tách đáp án Q1-30 từ phiếu chấm.",
+      "acceptance_criteria": [
+        "Trích xuất và chuẩn hóa set_id của đề thi B1 (ví dụ: 'EB1.2601' -> 'EB12601')",
+        "Parse đúng 30 câu hỏi đọc (Q1-30) với đúng type (choice cho S1-S3, fill cho S4) và options tương ứng",
+        "Parse đúng 2 đề tự luận viết (Q31-32) với type 'writing'",
+        "Trích xuất chính xác 30 đáp án (Q1-30) từ tệp phiếu chấm, chuẩn hóa đáp án A/B/C/D viết hoa cho Q1-20, giữ nguyên chữ thường cho điền từ Q21-30",
+        "Không ghi đè hoặc gây ảnh hưởng đến dữ liệu câu hỏi của các định dạng đề thi khác"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_012_parse_b1_exam_and_answer_key"
+      ],
+      "notes": "Đang triển khai: Bộ parser tự động bóc tách và phân tích đề B1 Đọc+Viết."
     }
   ]
 }

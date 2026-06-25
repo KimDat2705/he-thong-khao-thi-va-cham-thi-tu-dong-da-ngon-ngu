@@ -546,6 +546,112 @@ def test_SPEC_PARSE_011_listening_audio_linking(db_session, tmp_path):
     assert all(g.audio_url == "9990 - 9999.mp3" for g in groups)
 
 
+def test_SPEC_PARSE_012_parse_b1_exam_and_answer_key():
+    """SPEC-PARSE-012: Kiểm tra phân tích đề B1 Đọc+Viết và tệp đáp án.
+    """
+    from app.services.parser import parse_b1_reading_docx, parse_b1_answer_key
+    import os
+
+    fixtures_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser"))
+    docx_path = os.path.join(fixtures_dir, "B1_exam_sample.docx")
+    key_path = os.path.join(fixtures_dir, "B1_key_sample.docx")
+
+    assert os.path.exists(docx_path), f"File {docx_path} không tồn tại"
+    assert os.path.exists(key_path), f"File {key_path} không tồn tại"
+
+    # 1. Parse B1 Exam
+    exam_data = parse_b1_reading_docx(docx_path)
+    assert exam_data["set_id"] == "EB19999"
+    
+    items = exam_data["items"]
+    assert len(items) == 32  # 30 Reading (Q1-30) + 2 Writing (Q31-32)
+
+    # Check S1 (Q1-10)
+    for idx in range(10):
+        item = items[idx]
+        assert item["number"] == idx + 1
+        assert item["part"] == 1
+        assert item["section"] == 1
+        assert item["type"] == "choice"
+        assert len(item["options"]) == 4
+        assert set(item["options"].keys()) == {"A", "B", "C", "D"}
+        assert f"Question content {idx + 1}" in item["content"]
+
+    # Check S2 (Q11-15)
+    for idx in range(10, 15):
+        item = items[idx]
+        assert item["number"] == idx + 1
+        assert item["part"] == 2
+        assert item["section"] == 2
+        assert item["type"] == "choice"
+        assert len(item["options"]) == 3
+        assert set(item["options"].keys()) == {"A", "B", "C"}
+        assert f"Signboard text for question {idx + 1}" in item["content"]
+
+    # Check S3 (Q16-20)
+    for idx in range(15, 20):
+        item = items[idx]
+        assert item["number"] == idx + 1
+        assert item["part"] == 3
+        assert item["section"] == 3
+        assert item["type"] == "choice"
+        assert len(item["options"]) == 4
+        assert set(item["options"].keys()) == {"A", "B", "C", "D"}
+        assert f"Question dental {idx + 1}" in item["content"]
+
+    # Check S4 (Q21-30)
+    for idx in range(20, 30):
+        item = items[idx]
+        q_num = idx + 1
+        assert item["number"] == q_num
+        assert item["part"] == 4
+        assert item["section"] == 4
+        assert item["type"] == "fill"
+        assert len(item["options"]) == 0
+        assert f"({q_num})" in item["content"]
+
+    # Check Writing Section 1 (Q31)
+    w1 = items[30]
+    assert w1["number"] == 31
+    assert w1["part"] == 5
+    assert w1["section"] == 1
+    assert w1["type"] == "writing"
+    assert "How is your surname spelt?" in w1["content"]
+
+    # Check Writing Section 2 (Q32)
+    w2 = items[31]
+    assert w2["number"] == 32
+    assert w2["part"] == 6
+    assert w2["section"] == 2
+    assert w2["type"] == "writing"
+    assert "You are Hoa Tran. Write a letter" in w2["content"]
+
+    # 2. Parse B1 Answer Key
+    answers = parse_b1_answer_key(key_path)
+    assert len(answers) == 30
+    assert sorted(answers.keys()) == list(range(1, 31))
+
+    # Q1-20 should be choice uppercase answers
+    sec1_ans = {1: "A", 2: "B", 3: "B", 4: "A", 5: "A", 6: "B", 7: "A", 8: "D", 9: "B", 10: "A"}
+    sec2_ans = {11: "A", 12: "C", 13: "C", 14: "B", 15: "A"}
+    sec3_ans = {16: "D", 17: "A", 18: "D", 19: "B", 20: "C"}
+    for q_num in range(1, 11):
+        assert answers[q_num] == sec1_ans[q_num]
+    for q_num in range(11, 16):
+        assert answers[q_num] == sec2_ans[q_num]
+    for q_num in range(16, 21):
+        assert answers[q_num] == sec3_ans[q_num]
+
+    # Q21-30 should be the correct text answers
+    sec4_ans = {
+        21: "fact", 22: "frighten", 23: "most", 24: "weigh", 25: "Both",
+        26: "spend", 27: "search", 28: "left", 29: "which", 30: "must"
+    }
+    for q_num in range(21, 31):
+        assert answers[q_num] == sec4_ans[q_num]
+
+
+
 
 
 
