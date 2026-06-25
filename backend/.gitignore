@@ -120,3 +120,8 @@ tests/fixtures/parser/
 
 # Extracted partner question images (demo, not committed)
 static/
+
+# Local seed/run artifacts (demo data copied/generated at runtime — never commit)
+.bootstrap_data/
+audio_data/
+*.db.bak
