@@ -1779,3 +1779,334 @@ def import_b1_reading_set(db: Session, docx_path: str, key_path: str) -> dict:
         db.rollback()
         raise e
 
+
+def parse_b1_listening_docx(filepath: str) -> dict:
+    """
+    Parses a B1 Listening test .docx file.
+    Returns:
+        dict: {
+            "set_id": "LB12601",
+            "items": [...]
+        }
+    """
+    import os
+    import re
+    import docx
+
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    doc = docx.Document(filepath)
+
+    # 1. Extract set_id
+    set_id = None
+
+    def find_set_id(text):
+        if not text:
+            return None
+        text_clean = text.strip()
+        m = re.search(r'(?i)LB1[-.\s]*(\d+)', text_clean)
+        if m:
+            return f"LB1{m.group(1)}"
+        m = re.search(r'(?i)Mã\s*đề(?:\s*thi)?\s*[:.-]?\s*(?:LB1[-.\s]*)?(\d+)', text_clean)
+        if m:
+            return f"LB1{m.group(1)}"
+        return None
+    
+    # Try header/footer first
+    for section in doc.sections:
+        for f in (section.footer, section.first_page_footer, section.even_page_footer,
+                  section.header, section.first_page_header, section.even_page_header):
+            if f and f.paragraphs:
+                for p in f.paragraphs:
+                    set_id = find_set_id(p.text)
+                    if set_id:
+                        break
+            if set_id:
+                break
+        if set_id:
+            break
+
+    # Try paragraphs
+    if not set_id:
+        for p in doc.paragraphs:
+            set_id = find_set_id(p.text)
+            if set_id:
+                break
+
+    # Try tables
+    if not set_id:
+        for t in doc.tables:
+            for row in t.rows:
+                for cell in row.cells:
+                    set_id = find_set_id(cell.text)
+                    if set_id:
+                        break
+                if set_id:
+                    break
+            if set_id:
+                break
+
+    # Try filename fallback
+    if not set_id:
+        filename = os.path.basename(filepath)
+        set_id = find_set_id(filename)
+        if not set_id:
+            m = re.search(r'\d{4}', filename)
+            if m:
+                set_id = f"LB1{m.group(0)}"
+            else:
+                set_id = "LB19999"
+
+    items = []
+
+    # Helper to find all image shape indices in doc.inline_shapes for a cell
+    def get_cell_image_indices(cell):
+        indices = []
+        drawings = cell._tc.xpath('.//w:drawing')
+        for d in drawings:
+            blips = d.xpath('.//a:blip/@r:embed') or d.xpath('.//a:blip/@r:link')
+            if blips:
+                rId = blips[0]
+                for idx, shape in enumerate(doc.inline_shapes):
+                    shape_rId = shape._inline.xpath('.//a:blip/@r:embed') or shape._inline.xpath('.//a:blip/@r:link')
+                    if shape_rId and shape_rId[0] == rId:
+                        indices.append(idx)
+                        break
+        return indices
+
+    # Table 0: Q1-5 (Choice questions)
+    image_report = []
+    if len(doc.tables) > 0:
+        t0 = doc.tables[0]
+        for i in range(5):
+            if 2 * i + 1 < len(t0.rows):
+                text_cell = t0.rows[2*i].cells[0]
+                img_cell = t0.rows[2*i+1].cells[0]
+
+                text = text_cell.text.strip()
+                content = re.sub(r'^\d+\.\s*', '', text)
+
+                img_indices = get_cell_image_indices(img_cell)
+                image_report.append(f"Q{i+1}: {len(img_indices)} images")
+
+                img_url = ",".join(map(str, img_indices)) if img_indices else None
+
+                items.append({
+                    "number": i + 1,
+                    "part": 1,
+                    "section": 1,
+                    "type": "choice",
+                    "content": content,
+                    "options": {"A": "", "B": "", "C": ""},
+                    "reference_answer": None,
+                    "image_url": img_url,
+                    "audio_url": None,
+                    "difficulty": "medium",
+                    "clo": None,
+                    "topic": None,
+                    "explanation": None
+                })
+    if image_report:
+        print(f"[REPORT] B1 Listening Section 1 image count report: {'; '.join(image_report)}")
+
+    # Table 1: Q6-11 (Fill questions)
+    if len(doc.tables) > 1:
+        t1 = doc.tables[1]
+        cell_text = t1.rows[0].cells[0].text
+        for line in cell_text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            m = re.search(r'\((\d+)\)', line)
+            if m:
+                q_num = int(m.group(1))
+                items.append({
+                    "number": q_num,
+                    "part": 2,
+                    "section": 2,
+                    "type": "fill",
+                    "content": line,
+                    "options": {},
+                    "reference_answer": None,
+                    "image_url": None,
+                    "audio_url": None,
+                    "difficulty": "medium",
+                    "clo": None,
+                    "topic": None,
+                    "explanation": None
+                })
+
+    # Table 2: Q12-15 (Fill questions)
+    if len(doc.tables) > 2:
+        t2 = doc.tables[2]
+        cell_text = t2.rows[0].cells[0].text
+        for line in cell_text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            m = re.search(r'\((\d+)\)', line)
+            if m:
+                q_num = int(m.group(1))
+                items.append({
+                    "number": q_num,
+                    "part": 2,
+                    "section": 2,
+                    "type": "fill",
+                    "content": line,
+                    "options": {},
+                    "reference_answer": None,
+                    "image_url": None,
+                    "audio_url": None,
+                    "difficulty": "medium",
+                    "clo": None,
+                    "topic": None,
+                    "explanation": None
+                })
+
+    items.sort(key=lambda x: x["number"])
+    return {
+        "set_id": set_id,
+        "items": items
+    }
+
+
+def parse_b1_listening_key(filepath: str) -> dict:
+    """
+    Parses a B1 Listening Answer Key file (doc/docx).
+    Returns:
+        dict: {number: answer}
+    """
+    import os
+    import re
+    import docx
+
+    docx_path = convert_doc_to_docx(filepath)
+    if not os.path.exists(docx_path):
+        raise FileNotFoundError(f"Converted file not found: {docx_path}")
+
+    doc = docx.Document(docx_path)
+    answers = {}
+
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for line in cell.text.split('\n'):
+                    line = line.strip()
+                    m = re.match(r'^(\d+)\.\s*(.*)$', line)
+                    if m:
+                        num = int(m.group(1))
+                        ans = m.group(2).strip()
+                        if 1 <= num <= 5:
+                            answers[num] = ans.upper()
+                        else:
+                            answers[num] = ans
+    return answers
+
+
+def parse_b1_speaking_card(filepath: str, set_id: str) -> list:
+    """
+    Parses a B1 Speaking Card file (doc/docx) and extracts the 3 parts for the given set_id.
+    Returns:
+        list of dicts
+    """
+    import os
+    import re
+    import docx
+
+    clean_id = re.sub(r'(?i)^[LE]B1[-.]?', '', set_id)
+    m_target = re.search(r'\d+', clean_id)
+    if not m_target:
+        m_target = re.search(r'\d+', set_id)
+    if not m_target:
+        raise ValueError(f"Could not extract digits from set_id: {set_id}")
+    target_digits = m_target.group(0)
+
+    docx_path = convert_doc_to_docx(filepath)
+    if not os.path.exists(docx_path):
+        raise FileNotFoundError(f"Converted file not found: {docx_path}")
+
+    doc = docx.Document(docx_path)
+
+    card_paragraphs = []
+    found_card = False
+
+    for p in doc.paragraphs:
+        text = p.text.strip()
+        if not text:
+            continue
+
+        m_card = re.search(r'(?i)Speaking\s*card\s*B1\s*(\d+)', text)
+        if m_card:
+            card_digits = m_card.group(1)
+            if card_digits == target_digits:
+                found_card = True
+                continue
+            else:
+                found_card = False
+
+        if found_card:
+            if text.startswith('---') or re.search(r'(?i)Speaking\s*card\s*B1', text):
+                found_card = False
+            else:
+                card_paragraphs.append(text)
+
+    # Search within tables if not found in paragraphs
+    if not card_paragraphs:
+        for t in doc.tables:
+            for row in t.rows:
+                for cell in row.cells:
+                    lines = [line.strip() for line in cell.text.split('\n') if line.strip()]
+                    for idx, line in enumerate(lines):
+                        m_card = re.search(r'(?i)Speaking\s*card\s*B1\s*(\d+)', line)
+                        if m_card and m_card.group(1) == target_digits:
+                            for k in range(idx + 1, len(lines)):
+                                next_line = lines[k]
+                                if next_line.startswith('---') or re.search(r'(?i)Speaking\s*card\s*B1', next_line):
+                                    break
+                                card_paragraphs.append(next_line)
+                            break
+                    if card_paragraphs:
+                        break
+                if card_paragraphs:
+                    break
+            if card_paragraphs:
+                break
+
+    part1_content = ""
+    part2_content = ""
+    part3_content = ""
+
+    for p_text in card_paragraphs:
+        if re.match(r'(?i)^Part\s*1', p_text):
+            part1_content = p_text
+        elif re.match(r'(?i)^Part\s*2', p_text):
+            part2_content = p_text
+        elif re.match(r'(?i)^Part\s*3', p_text):
+            part3_content = p_text
+
+    if not part1_content and len(card_paragraphs) >= 3:
+        part1_content = card_paragraphs[0]
+        part2_content = card_paragraphs[1]
+        part3_content = card_paragraphs[2]
+
+    prompts = [part1_content, part2_content, part3_content]
+    items = []
+    for idx, prompt in enumerate(prompts):
+        items.append({
+            "number": idx + 1,
+            "part": idx + 1,
+            "section": idx + 1,
+            "type": "speaking",
+            "content": prompt or f"Part {idx + 1} prompt",
+            "options": {},
+            "reference_answer": None,
+            "image_url": None,
+            "audio_url": None,
+            "difficulty": "medium",
+            "clo": None,
+            "topic": None,
+            "explanation": None
+        })
+    return items
+

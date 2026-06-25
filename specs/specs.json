@@ -820,6 +820,24 @@
         "tests/test_specs_bank.py::test_SPEC_BANK_004_multi_exam_type_coexistence"
       ],
       "notes": "Hỗ trợ đa loại đề thi (TOEIC & VSTEP_B1) trong cùng một DB."
+    },
+    {
+      "id": "SPEC-PARSE-013",
+      "domain": "PARSE",
+      "title": "Parse đề thi Nghe và Nói B1 kèm đáp án",
+      "statement": "Hệ thống hỗ trợ parse đề thi Nghe (MCQ ảnh + điền từ) và Nói B1 (Speaking card gộp nhiều đề lọc theo set_id) từ định dạng Word, đồng thời bóc tách đáp án Nghe tương ứng từ phiếu chấm.",
+      "acceptance_criteria": [
+        "Trích xuất và chuẩn hóa set_id của đề thi B1 Listening từ footer/body/filename",
+        "Parse đúng 15 câu hỏi Nghe: Q1-5 dạng choice (MCQ ảnh) và Q6-15 dạng fill (điền từ/số)",
+        "Parse đúng Speaking card B1 theo set_id truyền vào, trích xuất chính xác 3 phần Nói (Part 1, Part 2, Part 3)",
+        "Trích xuất chính xác 15 đáp án Nghe từ phiếu đáp án (Q1-5 dạng chữ viết hoa, Q6-15 giữ nguyên chữ)"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_parser.py::test_SPEC_PARSE_013_parse_b1_listening_and_speaking"
+      ],
+      "notes": "Hỗ trợ parse đề Nghe B1, Nói B1 và đáp án từ tệp Word."
     }
   ]
 }

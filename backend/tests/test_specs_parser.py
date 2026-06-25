@@ -651,6 +651,87 @@ def test_SPEC_PARSE_012_parse_b1_exam_and_answer_key():
         assert answers[q_num] == sec4_ans[q_num]
 
 
+def test_SPEC_PARSE_013_parse_b1_listening_and_speaking():
+    """SPEC-PARSE-013: Kiểm tra parse đề Nghe B1, đáp án Nghe B1, và Speaking card.
+    """
+    from app.services.parser import parse_b1_listening_docx, parse_b1_listening_key, parse_b1_speaking_card
+    import os
+
+    fixtures_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser"))
+    listening_path = os.path.join(fixtures_dir, "B1_listening_sample.docx")
+    key_path = os.path.join(fixtures_dir, "B1_listening_key_sample.docx")
+    speaking_path = os.path.join(fixtures_dir, "B1_speaking_sample.docx")
+
+    assert os.path.exists(listening_path), f"File {listening_path} không tồn tại"
+    assert os.path.exists(key_path), f"File {key_path} không tồn tại"
+    assert os.path.exists(speaking_path), f"File {speaking_path} không tồn tại"
+
+    # 1. Parse B1 Listening Exam
+    listening_data = parse_b1_listening_docx(listening_path)
+    assert listening_data["set_id"] == "LB12601"
+    
+    items = listening_data["items"]
+    assert len(items) == 15  # 5 Choice + 10 Fill
+
+    # Check Choice Q1-5
+    for idx in range(5):
+        item = items[idx]
+        assert item["number"] == idx + 1
+        assert item["part"] == 1
+        assert item["section"] == 1
+        assert item["type"] == "choice"
+        assert item["options"] == {"A": "", "B": "", "C": ""}
+        assert item["image_url"] is not None
+        assert "Which dish did Mark cook in the competition?" in item["content"]
+
+    # Check Fill Q6-15
+    for idx in range(5, 15):
+        item = items[idx]
+        q_num = idx + 1
+        assert item["number"] == q_num
+        assert item["part"] == 2
+        assert item["section"] == 2
+        assert item["type"] == "fill"
+        assert item["options"] == {}
+        assert f"({q_num})" in item["content"]
+
+    # 2. Parse B1 Listening Key
+    answers = parse_b1_listening_key(key_path)
+    assert len(answers) == 15
+    assert sorted(answers.keys()) == list(range(1, 16))
+    
+    # Q1-5 should be choice uppercase answers
+    expected_ans = {
+        1: "C", 2: "B", 3: "A", 4: "B", 5: "C",
+        6: "Nature", 7: "wildlife", 8: "forest", 9: "12/twelve", 10: "wood",
+        11: "waysbury", 12: "Brokley", 13: "blue", 14: "receptionist", 15: "3/ three"
+    }
+    for q_num in range(1, 16):
+        assert answers[q_num] == expected_ans[q_num]
+
+    # 3. Parse Speaking Card
+    speaking_items = parse_b1_speaking_card(speaking_path, "LB12601")
+    assert len(speaking_items) == 3
+    
+    # Part 1
+    assert speaking_items[0]["number"] == 1
+    assert speaking_items[0]["part"] == 1
+    assert speaking_items[0]["type"] == "speaking"
+    assert "Introducing yourself" in speaking_items[0]["content"]
+
+    # Part 2
+    assert speaking_items[1]["number"] == 2
+    assert speaking_items[1]["part"] == 2
+    assert speaking_items[1]["type"] == "speaking"
+    assert "favourite season" in speaking_items[1]["content"]
+
+    # Part 3
+    assert speaking_items[2]["number"] == 3
+    assert speaking_items[2]["part"] == 3
+    assert speaking_items[2]["type"] == "speaking"
+    assert "Interaction" in speaking_items[2]["content"]
+
+
 
 
 

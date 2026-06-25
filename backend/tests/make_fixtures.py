@@ -657,6 +657,87 @@ def create_b1_answer_key_docx(filepath):
     doc.save(filepath)
 
 
+def create_b1_listening_docx(filepath):
+    import zlib
+    import struct
+    def _png_1px():
+        def _chunk(tag, data):
+            c = tag + data
+            return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
+        sig = b"\x89PNG\r\n\x1a\n"
+        ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+        idat = zlib.compress(b"\x00\xff\x00\x00")
+        return sig + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", idat) + _chunk(b"IEND", b"")
+    png_data = _png_1px()
+    
+    doc = docx.Document()
+    
+    # Add set_id in footer
+    section = doc.sections[0]
+    footer = section.footer
+    footer.paragraphs[0].text = "Page 2 of              Mã đề thi LB1.2601"
+    
+    # Table 0: Q1-5
+    t0 = doc.add_table(rows=10, cols=1)
+    for i in range(5):
+        t0.rows[2*i].cells[0].text = f"{i+1}. Which dish did Mark cook in the competition?"
+        # Add image in even row cell
+        cell = t0.rows[2*i+1].cells[0]
+        cell.paragraphs[0].add_run().add_picture(io.BytesIO(png_data))
+        
+    # Table 1: Q6-11
+    t1 = doc.add_table(rows=1, cols=1)
+    t1.rows[0].cells[0].text = (
+        "Name of Ben's organisation: (6) ………………\n"
+        "Aim of course: Discovering (7) …………………..\n"
+        "Closest course location for this group: (8) …………………….\n"
+        "Length of course: (9) …………………. weeks\n"
+        "• Cut up (10) ………………………\n"
+        "• Make a (11) ………………………"
+    )
+    
+    # Table 2: Q12-15
+    t2 = doc.add_table(rows=1, cols=1)
+    t2.rows[0].cells[0].text = (
+        "Songs from musicals: (12) Susan ..............................\n"
+        "Colour of clothes: (13) ..............................\n"
+        "Map of building: available from the (14) ..............................\n"
+        "Car park: costs £ (15) .............................. per day"
+    )
+    doc.save(filepath)
+
+
+def create_b1_listening_key_docx(filepath):
+    doc = docx.Document()
+    t = doc.add_table(rows=1, cols=1)
+    t.rows[0].cells[0].text = (
+        "1. C\n2. B\n3. A\n4. B\n5. C\n"
+        "6. Nature\n7. wildlife\n8. forest\n9. 12/twelve\n10. wood\n"
+        "11. waysbury\n12. Brokley\n13. blue\n14. receptionist\n15. 3/ three"
+    )
+    doc.save(filepath)
+
+
+def create_b1_speaking_docx(filepath):
+    doc = docx.Document()
+    lines = [
+        "----------------------------------------",
+        "Speaking card B1 2601",
+        "Part 1: Introducing yourself (2 minutes)",
+        "Part 2: Topic - Talk about your favourite season. (3 minutes)",
+        "Part 3: Interaction between Teachers and Candidate (2 minutes)",
+        "----------------------------------------",
+        "Speaking card B1 2602",
+        "Part 1: Introducing yourself (2 minutes)",
+        "Part 2: Topic - Talk about your favourite room. (3 minutes)",
+        "Part 3: Interaction between Teachers and Candidate (2 minutes)",
+        "----------------------------------------"
+    ]
+    for line in lines:
+        doc.add_paragraph(line)
+    doc.save(filepath)
+
+
 def main():
     # Make sure we are writing to the correct absolute directory
     dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures", "parser"))
@@ -672,6 +753,9 @@ def main():
     create_real_reading_answer_key_xlsx(os.path.join(dir_path, "Key_RT9999.xlsx"))
     create_b1_reading_docx(os.path.join(dir_path, "B1_exam_sample.docx"))
     create_b1_answer_key_docx(os.path.join(dir_path, "B1_key_sample.docx"))
+    create_b1_listening_docx(os.path.join(dir_path, "B1_listening_sample.docx"))
+    create_b1_listening_key_docx(os.path.join(dir_path, "B1_listening_key_sample.docx"))
+    create_b1_speaking_docx(os.path.join(dir_path, "B1_speaking_sample.docx"))
     
     # Create mock audio files
     mock_audios = [
