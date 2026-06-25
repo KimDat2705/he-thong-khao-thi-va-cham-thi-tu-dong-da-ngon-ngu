@@ -117,19 +117,22 @@ def main() -> None:
         print("Bootstrap: TOEIC already seeded — skipping TOEIC download/seeding.")
 
     if not b1_seeded:
-        print("Bootstrap: downloading VSTEP B1 folder from Drive ...")
-        b1_dir = os.path.join(DATA_DIR, "B1_2601")
-        os.makedirs(b1_dir, exist_ok=True)
-        import gdown
-        print(f"  downloading B1 folder to {b1_dir} ...")
-        gdown.download_folder(id="1umWw1j24-HNeOpHTzF3c2J7g_v-C76F-", output=b1_dir, quiet=True)
+        try:
+            print("Bootstrap: downloading VSTEP B1 folder from Drive ...")
+            b1_dir = os.path.join(DATA_DIR, "B1_2601")
+            os.makedirs(b1_dir, exist_ok=True)
+            import gdown
+            print(f"  downloading B1 folder to {b1_dir} ...")
+            gdown.download_folder(id="1umWw1j24-HNeOpHTzF3c2J7g_v-C76F-", output=b1_dir, quiet=True)
 
-        os.environ["B1_INPUT_DIR"] = b1_dir
-        os.environ["AUDIO_DIR"] = AUDIO_DIR
+            os.environ["B1_INPUT_DIR"] = b1_dir
+            os.environ["AUDIO_DIR"] = AUDIO_DIR
 
-        print("Bootstrap: seeding VSTEP B1 real exam ...")
-        import seed_b1_real_exam
-        seed_b1_real_exam.main()
+            print("Bootstrap: seeding VSTEP B1 real exam ...")
+            import seed_b1_real_exam
+            seed_b1_real_exam.main()
+        except Exception as e:
+            print(f"Bootstrap WARNING: B1 seed failed -> {type(e).__name__}: {e}; site still runs TOEIC")
     else:
         print("Bootstrap: VSTEP B1 already seeded — skipping B1 download/seeding.")
     print("Bootstrap: done.")
