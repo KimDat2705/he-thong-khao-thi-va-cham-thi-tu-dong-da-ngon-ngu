@@ -1,6 +1,8 @@
 import json
 import logging
+import os
 import random
+import wave
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -93,6 +95,27 @@ class R2QuestionAI(BaseModel):
 
 class R2BatchAI(BaseModel):
     questions: List[R2QuestionAI]
+
+
+class L2QuestionAI(BaseModel):
+    blank_number: int
+    content: str
+    reference_answer: str
+    difficulty: str
+    clo: str
+    explanation: Optional[str] = None
+
+
+class L2GroupAI(BaseModel):
+    script_text: str
+    note_template: str
+    topic: str
+    difficulty: str
+    questions: List[L2QuestionAI]
+
+
+class L2BatchAI(BaseModel):
+    groups: List[L2GroupAI]
 
 
 class WritingSpeakingQuestionAI(BaseModel):
@@ -728,6 +751,245 @@ class B1QuestionGenerator:
 
         return saved_count
 
+    def _generate_tts_wav(self, text: str, output_path: str):
+        """Call Gemini TTS API to generate linear 16-bit PCM and save as a WAV file."""
+        if not self.client:
+            raise RuntimeError("Gemini client is not initialized.")
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash-preview-tts",
+                contents=text,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                voice_name="Puck"
+                            )
+                        )
+                    )
+                )
+            )
+            audio_data = None
+            for candidate in response.candidates:
+                if not candidate.content or not candidate.content.parts:
+                    continue
+                for part in candidate.content.parts:
+                    if part.inline_data and part.inline_data.mime_type.startswith("audio/"):
+                        audio_data = part.inline_data.data
+                        break
+            if audio_data is None:
+                raise ValueError("No audio part found in Gemini TTS response.")
+
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            with wave.open(output_path, "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(24000)
+                wav_file.writeframes(audio_data)
+
+        except Exception as e:
+            logger.error(f"Gemini TTS generation failed: {e}")
+            raise e
+
+    def generate_l2_groups(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+        """Generate L2 (Part 8 Note Completion - 10 blanks) groups and save to the bank."""
+        if topic and topic not in B1_TOPICS:
+            raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
+
+        import hashlib
+        import wave
+        import os
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        static_dir = os.path.join(base_dir, "static", "audio_gen")
+
+        if not self.client:
+            rnd = random.Random(seed)
+            data = self._mock_l2_data(rnd, count, topic)
+        else:
+            system_instruction = (
+                "You are an expert English language examiner. Generate a batch of VSTEP B1 Listening Part 2 gap-fill note completion question groups.\n"
+                "Each group must contain:\n"
+                "1. A script_text (the actual dialogue/monologue script to be read aloud, 200-300 words).\n"
+                "2. A note_template (the summary notes containing exactly 10 blank labels: (1), (2), ..., (10) in order).\n"
+                "3. A topic from the 14 valid B1 topics.\n"
+                "4. Exactly 10 child questions, one for each blank number 1-10.\n"
+                "Each child question must specify: blank_number, content (the short context sentence containing the blank), "
+                "reference_answer (the correct word or short phrase from the script), CLO='Thông hiểu'.\n"
+                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                "Return JSON matching the schema:\n"
+                "{\n"
+                "  \"groups\": [\n"
+                "    {\n"
+                "      \"script_text\": \"string\",\n"
+                "      \"note_template\": \"string\",\n"
+                "      \"topic\": \"string\",\n"
+                "      \"difficulty\": \"string\",\n"
+                "      \"questions\": [\n"
+                "        {\n"
+                "          \"blank_number\": 1,\n"
+                "          \"content\": \"string\",\n"
+                "          \"reference_answer\": \"string\",\n"
+                "          \"difficulty\": \"string\",\n"
+                "          \"clo\": \"string\",\n"
+                "          \"explanation\": \"string\"\n"
+                "        }\n"
+                "      ]\n"
+                "    }\n"
+                "  ]\n"
+                "}"
+            )
+            topic_hint = f"Topic to focus: {topic}" if topic else f"Select randomly from valid B1 topics: {', '.join(B1_TOPICS)}"
+            user_prompt = f"Generate {count} listening note-completion groups. {topic_hint}"
+
+            try:
+                raw_json = self._call_gemini(system_instruction, user_prompt)
+                data = json.loads(raw_json)
+            except Exception as e:
+                logger.error(f"Failed to generate L2 groups via Gemini: {e}. Falling back to Mock.")
+                rnd = random.Random(seed)
+                data = self._mock_l2_data(rnd, count, topic)
+
+        saved_count = 0
+        groups_list = data.get("groups", [])
+        for g_raw in groups_list:
+            audio_path = None
+            try:
+                g_validated = L2GroupAI(**g_raw)
+
+                if g_validated.topic not in B1_TOPICS:
+                    logger.warning(f"Invalid topic in group: {g_validated.topic}. Skipping.")
+                    continue
+                if len(g_validated.questions) != 10:
+                    logger.warning(f"L2 group must contain exactly 10 questions (got {len(g_validated.questions)}). Skipping.")
+                    continue
+
+                valid_questions = True
+                blank_numbers = [q.blank_number for q in g_validated.questions]
+                if sorted(blank_numbers) != list(range(1, 11)):
+                    logger.warning("L2 blank numbers must be exactly 1 to 10. Skipping.")
+                    continue
+
+                for q in g_validated.questions:
+                    if not q.reference_answer or not q.reference_answer.strip():
+                        valid_questions = False
+                        logger.warning("L2 child question reference answer cannot be empty. Skipping.")
+                        break
+                    blank_placeholder = f"({q.blank_number})"
+                    if blank_placeholder not in g_validated.note_template:
+                        valid_questions = False
+                        logger.warning(f"Blank placeholder '{blank_placeholder}' not found in note template. Skipping.")
+                        break
+                    if q.clo != "Thông hiểu":
+                        valid_questions = False
+                        logger.warning(f"Invalid CLO for L2: {q.clo}. Skipping.")
+                        break
+
+                if not valid_questions:
+                    continue
+
+                g_data_dict = {
+                    "set_id": "",
+                    "part": 8,
+                    "passage_text": g_validated.note_template,
+                    "audio_url": f"/static/audio_gen/l2_{hashlib.sha256(g_validated.script_text.encode('utf-8')).hexdigest()[:16]}.wav",
+                    "questions": [{"content": q.content} for q in g_validated.questions]
+                }
+                g_hash = calculate_group_hash(g_data_dict)
+
+                existing_g = db.query(QuestionGroup).filter(
+                    QuestionGroup.exam_id.is_(None),
+                    QuestionGroup.content_hash == g_hash
+                ).first()
+
+                if existing_g:
+                    logger.info("QuestionGroup already exists (duplicate content_hash). Skipping.")
+                    continue
+
+                audio_filename = f"l2_{g_hash}.wav"
+                audio_path = os.path.join(static_dir, audio_filename)
+                audio_url = f"/static/audio_gen/{audio_filename}"
+
+                if not self.client:
+                    os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+                    with wave.open(audio_path, "wb") as wav_file:
+                        wav_file.setnchannels(1)
+                        wav_file.setsampwidth(2)
+                        wav_file.setframerate(24000)
+                        wav_file.writeframes(b"\x00" * 48000)
+                else:
+                    self._generate_tts_wav(g_validated.script_text, audio_path)
+
+                if not os.path.exists(audio_path):
+                    raise FileNotFoundError(f"Audio file failed to generate at {audio_path}")
+
+                diff_val = g_validated.difficulty.lower()
+                g_difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+
+                new_g = QuestionGroup(
+                    exam_id=None,
+                    part=8,
+                    topic=g_validated.topic,
+                    passage_text=g_validated.note_template,
+                    audio_url=audio_url,
+                    image_url=None,
+                    difficulty=g_difficulty,
+                    status="draft",
+                    content_hash=g_hash
+                )
+                db.add(new_g)
+                db.commit()
+                db.refresh(new_g)
+
+                for q_validated in g_validated.questions:
+                    q_data_dict = {
+                        "set_id": "",
+                        "number": str(q_validated.blank_number),
+                        "part": 8,
+                        "type": "fill",
+                        "content": q_validated.content,
+                        "options": {},
+                        "reference_answer": q_validated.reference_answer
+                    }
+                    q_hash = calculate_question_hash(q_data_dict)
+
+                    q_diff_val = q_validated.difficulty.lower()
+                    q_difficulty = q_diff_val if q_diff_val in ["easy", "medium", "hard"] else "medium"
+
+                    new_q = Question(
+                        exam_id=None,
+                        group_id=new_g.id,
+                        part=8,
+                        type="fill",
+                        content=q_validated.content,
+                        options={},
+                        reference_answer=q_validated.reference_answer,
+                        difficulty=q_difficulty,
+                        clo=q_validated.clo,
+                        topic=g_validated.topic,
+                        explanation=q_validated.explanation,
+                        status="draft",
+                        content_hash=q_hash,
+                        exam_type="VSTEP_B1",
+                        language="EN"
+                    )
+                    db.add(new_q)
+
+                db.commit()
+                saved_count += 1
+            except Exception as val_err:
+                logger.warning(f"L2 Group failed validation or generation: {val_err}. Skipping.")
+                db.rollback()
+                if audio_path and os.path.exists(audio_path):
+                    try:
+                        os.remove(audio_path)
+                    except Exception as e:
+                        logger.error(f"Failed to remove audio file {audio_path}: {e}")
+
+        return saved_count
+
     # --- Deterministic Mock Data Generators ---
 
     def generate_writing_questions(self, db: Session, count: int, part: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
@@ -1143,3 +1405,38 @@ class B1QuestionGenerator:
                 "explanation": f"Mock explanation for Speaking Part {part} topic {t}."
             })
         return {"questions": questions}
+
+    def _mock_l2_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+        groups = []
+        for _ in range(count):
+            t = topic or rnd.choice(B1_TOPICS)
+            diff = rnd.choice(["easy", "medium", "hard"])
+            
+            script_parts = []
+            note_parts = [f"Notes on {t}:"]
+            questions = []
+            
+            for idx in range(1, 11):
+                correct_answer = f"val{idx}_{rnd.randint(100, 999)}"
+                script_parts.append(f"For item {idx}, the correct information is {correct_answer}.")
+                note_parts.append(f"- Point {idx}: ({idx})")
+                questions.append({
+                    "blank_number": idx,
+                    "content": f"The lecture notes mention that point {idx} is ({idx}).",
+                    "reference_answer": correct_answer,
+                    "difficulty": diff,
+                    "clo": "Thông hiểu",
+                    "explanation": f"The script explicitly says: '{correct_answer}'."
+                })
+            
+            script_text = " ".join(script_parts)
+            note_template = "\n".join(note_parts)
+            
+            groups.append({
+                "script_text": script_text,
+                "note_template": note_template,
+                "topic": t,
+                "difficulty": diff,
+                "questions": questions
+            })
+        return {"groups": groups}

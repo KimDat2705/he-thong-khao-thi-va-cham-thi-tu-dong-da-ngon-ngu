@@ -4,3 +4,6 @@
 # OS junk
 Thumbs.db
 .DS_Store
+
+# Generated AI Audio
+/backend/static/audio_gen/*

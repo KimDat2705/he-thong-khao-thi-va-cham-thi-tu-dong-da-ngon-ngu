@@ -403,3 +403,121 @@ def test_SPEC_ENRICH_003_ai_r2_generation_and_validation(db_session: Session, mo
     assert db_session.query(Question).filter(Question.content == "NOTICE: This notice has a reference answer that is D instead of A-C.").count() == 0
 
 
+def test_SPEC_ENRICH_004_ai_l2_generation_and_validation(db_session: Session, monkeypatch):
+    """
+    SPEC-ENRICH-004: AI-based VSTEP B1 Listening Part 2 Ingestion and Validation.
+    Asserts structure, validation, draft status, negative validation, and idempotency in Mock mode.
+    """
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
+
+    generator = B1QuestionGenerator()
+
+    # 1. Happy path: generate 1 group
+    l2_saved = generator.generate_l2_groups(db=db_session, count=1, seed=123)
+    assert l2_saved == 1
+
+    # Query and assert
+    l2_groups = db_session.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None),
+        QuestionGroup.part == 8,
+        QuestionGroup.passage_text.like("Notes on%")
+    ).all()
+    assert len(l2_groups) == 1
+    g = l2_groups[0]
+    assert g.status == "draft"
+    assert g.topic in B1_TOPICS
+    assert g.difficulty in ["easy", "medium", "hard"]
+    assert g.audio_url.startswith("/static/audio_gen/")
+    assert g.audio_url.endswith(".wav")
+
+    # Verify audio file exists on disk
+    import os
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    audio_path = os.path.join(backend_dir, g.audio_url.lstrip("/"))
+    assert os.path.exists(audio_path), f"Audio file should exist at {audio_path}"
+
+    # Verify child questions
+    child_qs = db_session.query(Question).filter(
+        Question.group_id == g.id
+    ).all()
+    assert len(child_qs) == 10
+    for q in child_qs:
+        assert q.part == 8
+        assert q.type == "fill"
+        assert q.clo == "Thông hiểu"
+        assert q.options == {} or q.options is None
+        assert q.status == "draft"
+        assert q.reference_answer is not None
+        assert len(q.content.strip()) >= 20
+
+    # 2. Idempotency: same seed does not insert duplicates
+    l2_dup_saved = generator.generate_l2_groups(db=db_session, count=1, seed=123)
+    assert l2_dup_saved == 0, "Idempotency check should skip duplicate content hashes"
+
+    # 3. Negative validation cases: rejects group with incorrect questions count, empty answers, or wrong CLO
+    crafted_l2 = {"groups": [
+        { # VALID
+            "script_text": "This is a valid listening lecture script for testing that contains enough words.",
+            "note_template": "Notes on topic:\n" + "\n".join(f"- Point {i}: ({i})" for i in range(1, 11)),
+            "topic": B1_TOPICS[0], "difficulty": "easy",
+            "questions": [
+                {
+                    "blank_number": i, "content": f"Context description for blank number ({i}) which is long enough.",
+                    "reference_answer": f"val{i}", "difficulty": "easy", "clo": "Thông hiểu"
+                } for i in range(1, 11)
+            ]
+        },
+        { # INVALID: only 9 questions instead of 10
+            "script_text": "This script has only nine child questions which is malformed.",
+            "note_template": "Notes on topic:\n" + "\n".join(f"- Point {i}: ({i})" for i in range(1, 11)),
+            "topic": B1_TOPICS[0], "difficulty": "easy",
+            "questions": [
+                {
+                    "blank_number": i, "content": f"Context description for blank number ({i}) which is long enough.",
+                    "reference_answer": f"val{i}", "difficulty": "easy", "clo": "Thông hiểu"
+                } for i in range(1, 10)
+            ]
+        },
+        { # INVALID: one child question has empty reference answer
+            "script_text": "This script has one child question with an empty answer.",
+            "note_template": "Notes on topic:\n" + "\n".join(f"- Point {i}: ({i})" for i in range(1, 11)),
+            "topic": B1_TOPICS[0], "difficulty": "easy",
+            "questions": [
+                {
+                    "blank_number": i, "content": f"Context description for blank number ({i}) which is long enough.",
+                    "reference_answer": "" if i == 5 else f"val{i}", "difficulty": "easy", "clo": "Thông hiểu"
+                } for i in range(1, 11)
+            ]
+        },
+        { # INVALID: wrong CLO for child questions
+            "script_text": "This script has wrong CLO.",
+            "note_template": "Notes on topic:\n" + "\n".join(f"- Point {i}: ({i})" for i in range(1, 11)),
+            "topic": B1_TOPICS[0], "difficulty": "easy",
+            "questions": [
+                {
+                    "blank_number": i, "content": f"Context description for blank number ({i}) which is long enough.",
+                    "reference_answer": f"val{i}", "difficulty": "easy", "clo": "Vận dụng tổng hợp"
+                } for i in range(1, 11)
+            ]
+        }
+    ]}
+    monkeypatch.setattr(generator, "_mock_l2_data", lambda rnd, count, topic=None: crafted_l2)
+    # Using a new seed to make sure we don't hit idempotency check from step 1
+    l2_neg_saved = generator.generate_l2_groups(db=db_session, count=4, seed=999)
+    assert l2_neg_saved == 1, "Only 1 valid group should be saved, 3 malformed skipped"
+
+    # Verify the one valid group exists
+    valid_neg_group = db_session.query(QuestionGroup).filter(
+        QuestionGroup.passage_text.like("Notes on topic%"),
+        QuestionGroup.exam_id.is_(None)
+    ).first()
+    assert valid_neg_group is not None
+
+    # The invalid groups must not exist in the bank
+    assert db_session.query(QuestionGroup).filter(
+        QuestionGroup.passage_text == "Notes on topic:\n" + "\n".join(f"- Point {i}: ({i})" for i in range(1, 11)),
+        QuestionGroup.exam_id.is_(None)
+    ).count() == 1
+
+
+
