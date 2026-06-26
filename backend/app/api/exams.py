@@ -36,6 +36,7 @@ def generate_exam(
             title=payload.title,
             seed=payload.seed,
             duration_minutes=payload.duration_minutes,
+            exam_type=payload.exam_type or "TOEIC",
         )
     except InsufficientBankError as e:
         raise HTTPException(status_code=409, detail=f"Ngân hàng câu hỏi chưa đủ để sinh đề: {e}")

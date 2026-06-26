@@ -6,8 +6,10 @@ from app.models.question import Question
 from app.models.question_group import QuestionGroup
 from app.services.toeic_generator import (
     generate_toeic_exam,
+    generate_exam,
     generate_batch,
     TOEIC_BLUEPRINT,
+    VSTEP_B1_BLUEPRINT,
     InsufficientBankError,
 )
 
@@ -23,9 +25,13 @@ __all__ = [
 ]
 
 
-def _part_type(part: int) -> str:
-    """Look up the structural type of a part from the TOEIC blueprint."""
-    spec = TOEIC_BLUEPRINT.get("parts", {}).get(str(part), {})
+def _part_type(part: int, exam_type: str = "TOEIC") -> str:
+    """Look up the structural type of a part from the corresponding blueprint."""
+    if exam_type == "VSTEP_B1":
+        blueprint = VSTEP_B1_BLUEPRINT
+    else:
+        blueprint = TOEIC_BLUEPRINT
+    spec = blueprint.get("parts", {}).get(str(part), {})
     return spec.get("type", "standalone")
 
 
@@ -34,15 +40,22 @@ def generate_demo_exam(
     title: Optional[str] = None,
     seed: Optional[int] = None,
     duration_minutes: int = 120,
+    exam_type: str = "TOEIC",
 ) -> Exam:
     """
-    Generate a full TOEIC exam from the approved question bank.
+    Generate a full exam (TOEIC or VSTEP B1) from the approved question bank.
     Raises InsufficientBankError if the bank does not have enough approved items.
     """
-    final_title = title or "TOEIC Demo Exam"
-    return generate_toeic_exam(
-        db, title=final_title, duration_minutes=duration_minutes, seed=seed
-    )
+    if exam_type == "VSTEP_B1":
+        final_title = title or "VSTEP B1 Demo Exam"
+        return generate_exam(
+            db, structure=VSTEP_B1_BLUEPRINT, title=final_title, duration_minutes=duration_minutes, seed=seed
+        )
+    else:
+        final_title = title or "TOEIC Demo Exam"
+        return generate_toeic_exam(
+            db, title=final_title, duration_minutes=duration_minutes, seed=seed
+        )
 
 
 def list_exams(db: Session, include_inactive: bool = False) -> List[dict]:
@@ -157,7 +170,7 @@ def get_exam_detail(
             })
         parts_out.append({
             "part": part,
-            "part_type": _part_type(part),
+            "part_type": _part_type(part, exam.exam_type),
             "question_count": q_count,
             "audio_url": part_audio,
             "standalone_questions": standalone,
@@ -219,6 +232,8 @@ def generate_batch_exams(
     if not structure:
         if exam_type == "TOEIC":
             structure = TOEIC_BLUEPRINT
+        elif exam_type == "VSTEP_B1":
+            structure = VSTEP_B1_BLUEPRINT
         else:
             raise ValueError(f"Unsupported exam type: {exam_type}")
 

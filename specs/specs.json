@@ -419,6 +419,24 @@
       "notes": "Đang đạt: refactor thành công thuật toán sinh đề lõi và wrapper TOEIC."
     },
     {
+      "id": "SPEC-GEN-008",
+      "domain": "GEN",
+      "title": "Sinh đề VSTEP B1 đa dạng từ ngân hàng câu hỏi",
+      "statement": "Hệ thống hỗ trợ sinh đề thi VSTEP B1 hoàn chỉnh với đúng 50 câu hỏi phân bổ qua 11 phần (Đọc 30 câu, Nghe 15 câu, Viết 2 câu, Nói 3 câu), bảo đảm clone đầy đủ thuộc tính tệp âm thanh (audio_url), hình ảnh (image_url) và không ảnh hưởng đến thuật toán sinh đề thi TOEIC chuẩn.",
+      "acceptance_criteria": [
+        "Đề sinh ra có tổng số câu hỏi bằng đúng 50",
+        "Số lượng câu hỏi từng phần khớp chính xác blueprint VSTEP B1 (Đọc: R1=10, R2=5, R3=5, R4=10; Viết: W1=1, W2=1; Nghe: L1=5, L2=10; Nói: S1=1, S2=1, S3=1)",
+        "Các thuộc tính liên quan đến phương tiện truyền thông (audio_url, image_url) được sao chép nguyên vẹn từ ngân hàng",
+        "Quá trình sinh đề VSTEP B1 không làm ảnh hưởng đến tính đúng đắn của việc sinh đề TOEIC (không hồi quy)"
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_exam.py::test_SPEC_GEN_008_exam_generation"
+      ],
+      "notes": "Hỗ trợ sinh đề VSTEP B1 đa dạng từ ngân hàng câu hỏi."
+    },
+    {
       "id": "SPEC-GRADE-001",
       "domain": "GRADE",
       "title": "Bảng quy đổi điểm TOEIC chuẩn",

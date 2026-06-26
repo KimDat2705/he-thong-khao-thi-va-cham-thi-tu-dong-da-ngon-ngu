@@ -4,10 +4,11 @@ from typing import Optional, Any, List
 
 
 class ExamGenerateRequest(BaseModel):
-    """Payload to generate a new TOEIC exam from the approved bank."""
+    """Payload to generate a new exam from the approved bank."""
     title: Optional[str] = None
     seed: Optional[int] = None
     duration_minutes: int = 120
+    exam_type: Optional[str] = "TOEIC"
 
 
 class ExamSummary(BaseModel):

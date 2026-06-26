@@ -55,6 +55,61 @@ TOEIC_BLUEPRINT = {
     "balance_answers": True
 }
 
+VSTEP_B1_BLUEPRINT = {
+    "exam_type": "VSTEP_B1",
+    "language": "EN",
+    "parts": {
+        "1": {
+            "type": "standalone",
+            "count": 10
+        },
+        "2": {
+            "type": "standalone",
+            "count": 5
+        },
+        "3": {
+            "type": "grouped",
+            "groups": 1,
+            "q_per_group": 5
+        },
+        "4": {
+            "type": "grouped",
+            "groups": 1,
+            "q_per_group": 10
+        },
+        "5": {
+            "type": "standalone",
+            "count": 1
+        },
+        "6": {
+            "type": "standalone",
+            "count": 1
+        },
+        "7": {
+            "type": "standalone",
+            "count": 5
+        },
+        "8": {
+            "type": "grouped",
+            "groups": 1,
+            "q_per_group": 10
+        },
+        "9": {
+            "type": "standalone",
+            "count": 1
+        },
+        "10": {
+            "type": "standalone",
+            "count": 1
+        },
+        "11": {
+            "type": "standalone",
+            "count": 1
+        }
+    },
+    "balance_answers": False
+}
+
 def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, seed: int = None) -> Exam:
     """
     Wrapper for generating a TOEIC exam using the standard TOEIC blueprint.
@@ -67,6 +122,8 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
     """
     local_random = random.Random(seed)
     parts_config = structure.get("parts", {})
+    exam_type = structure.get("exam_type", "TOEIC")
+    bank_exam_type = "VSTEP_B1" if exam_type == "VSTEP_B1" else "TOEIC"
 
     # --- Pre-check bank sufficiency (Fail-Fast) ---
     for part_str, part_spec in parts_config.items():
@@ -79,7 +136,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 Question.group_id.is_(None),
                 Question.part == part,
                 Question.status == "approved",
-                Question.exam_type == "TOEIC"
+                Question.exam_type == bank_exam_type
             ).count()
             needed = part_spec.get("count", 0)
             if available_count < needed:
@@ -91,7 +148,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved"
-            ).join(QuestionGroup.questions).filter(Question.exam_type == "TOEIC").distinct().count()
+            ).join(QuestionGroup.questions).filter(Question.exam_type == bank_exam_type).distinct().count()
             needed = part_spec.get("groups", 0)
             if available_groups < needed:
                 raise InsufficientBankError(
@@ -102,7 +159,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved"
-            ).join(QuestionGroup.questions).filter(Question.exam_type == "TOEIC").distinct().all()
+            ).join(QuestionGroup.questions).filter(Question.exam_type == bank_exam_type).distinct().all()
             total_qs = sum(len(g.questions) for g in p_groups_in_bank)
             needed = part_spec.get("target_questions", 0)
             if total_qs < needed:
@@ -252,7 +309,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 Question.group_id.is_(None),
                 Question.part == part,
                 Question.status == "approved",
-                Question.exam_type == "TOEIC"
+                Question.exam_type == bank_exam_type
             ).order_by(Question.id).all()
 
             # Group by difficulty
@@ -294,7 +351,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved"
-            ).join(QuestionGroup.questions).filter(Question.exam_type == "TOEIC").distinct().order_by(QuestionGroup.id).all()
+            ).join(QuestionGroup.questions).filter(Question.exam_type == bank_exam_type).distinct().order_by(QuestionGroup.id).all()
 
             # Group by difficulty
             diff_map = {"easy": [], "medium": [], "hard": []}
@@ -324,7 +381,7 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved"
-            ).join(QuestionGroup.questions).filter(Question.exam_type == "TOEIC").distinct().order_by(QuestionGroup.id).all()
+            ).join(QuestionGroup.questions).filter(Question.exam_type == bank_exam_type).distinct().order_by(QuestionGroup.id).all()
 
             # Shuffle to ensure randomness, using local_random for reproducibility
             local_random.shuffle(part_groups)

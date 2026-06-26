@@ -210,3 +210,227 @@ def test_SPEC_EXAM_002_exam_lifecycle(db_session: Session, admin_auth_headers: d
     finally:
         fastapi_app.dependency_overrides.clear()
 
+
+def test_SPEC_GEN_008_exam_generation(db_session: Session, admin_auth_headers: dict):
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.models.question import Question
+    from app.models.question_group import QuestionGroup
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+
+    try:
+        # Seed VSTEP B1 Question Bank
+        # Part 1 (R1): 10 questions
+        for i in range(12):
+            db_session.add(Question(
+                exam_id=None, group_id=None, part=1, type="choice",
+                content=f"R1 Question {i}", reference_answer="A",
+                difficulty="medium", status="approved", exam_type="VSTEP_B1", language="EN",
+                options={"A": "Ans A", "B": "Ans B", "C": "Ans C", "D": "Ans D"}
+            ))
+
+        # Part 2 (R2): 5 questions
+        for i in range(7):
+            db_session.add(Question(
+                exam_id=None, group_id=None, part=2, type="choice",
+                content=f"R2 Question {i}", reference_answer="B",
+                difficulty="easy", status="approved", exam_type="VSTEP_B1", language="EN",
+                options={"A": "Ans A", "B": "Ans B", "C": "Ans C"}
+            ))
+
+        # Part 3 (R3): 1 group of 5 questions
+        g3 = QuestionGroup(
+            exam_id=None, part=3, topic="Travel", difficulty="medium", status="approved"
+        )
+        db_session.add(g3)
+        db_session.commit()
+        db_session.refresh(g3)
+        for i in range(5):
+            db_session.add(Question(
+                exam_id=None, group_id=g3.id, part=3, type="choice",
+                content=f"R3 Question {i}", reference_answer="C",
+                difficulty="medium", status="approved", exam_type="VSTEP_B1", language="EN",
+                options={"A": "A", "B": "B", "C": "C", "D": "D"}
+            ))
+
+        # Part 4 (R4): 1 group of 10 questions
+        g4 = QuestionGroup(
+            exam_id=None, part=4, topic="Meetings", difficulty="hard", status="approved"
+        )
+        db_session.add(g4)
+        db_session.commit()
+        db_session.refresh(g4)
+        for i in range(10):
+            db_session.add(Question(
+                exam_id=None, group_id=g4.id, part=4, type="choice",
+                content=f"R4 Question {i}", reference_answer="D",
+                difficulty="hard", status="approved", exam_type="VSTEP_B1", language="EN",
+                options={"A": "A", "B": "B", "C": "C", "D": "D"}
+            ))
+
+        # Part 5 (W1): 1 writing question
+        db_session.add(Question(
+            exam_id=None, group_id=None, part=5, type="writing",
+            content="Rewrite the sentence: I haven't seen her for years.",
+            difficulty="medium", status="approved", exam_type="VSTEP_B1", language="EN"
+        ))
+
+        # Part 6 (W2): 1 writing question
+        db_session.add(Question(
+            exam_id=None, group_id=None, part=6, type="writing",
+            content="Write a letter to your friend.",
+            difficulty="hard", status="approved", exam_type="VSTEP_B1", language="EN"
+        ))
+
+        # Part 7 (L1): 5 listening choice questions
+        for i in range(6):
+            db_session.add(Question(
+                exam_id=None, group_id=None, part=7, type="choice",
+                content=f"L1 Question {i}", reference_answer="A",
+                audio_url=f"/static/audio_gen/l1_{i}.wav",
+                image_url=f"/static/img/l1_{i}_A.png",
+                difficulty="easy", status="approved", exam_type="VSTEP_B1", language="EN",
+                options={"A": "A", "B": "B", "C": "C"}
+            ))
+
+        # Part 8 (L2): 1 group with 10 questions
+        g8 = QuestionGroup(
+            exam_id=None, part=8, topic="Logistics", difficulty="medium", status="approved",
+            audio_url="/static/audio_gen/l2_group.wav"
+        )
+        db_session.add(g8)
+        db_session.commit()
+        db_session.refresh(g8)
+        for i in range(10):
+            db_session.add(Question(
+                exam_id=None, group_id=g8.id, part=8, type="fill",
+                content=f"L2 Blank {i+1}", reference_answer="correct",
+                difficulty="medium", status="approved", exam_type="VSTEP_B1", language="EN"
+            ))
+
+        # Part 9 (S1): 1 speaking question
+        db_session.add(Question(
+            exam_id=None, group_id=None, part=9, type="speaking",
+            content="Introduce yourself.",
+            difficulty="easy", status="approved", exam_type="VSTEP_B1", language="EN"
+        ))
+
+        # Part 10 (S2): 1 speaking question
+        db_session.add(Question(
+            exam_id=None, group_id=None, part=10, type="speaking",
+            content="Describe a picture.",
+            difficulty="medium", status="approved", exam_type="VSTEP_B1", language="EN"
+        ))
+
+        # Part 11 (S3): 1 speaking question
+        db_session.add(Question(
+            exam_id=None, group_id=None, part=11, type="speaking",
+            content="Give your opinion on a topic.",
+            difficulty="hard", status="approved", exam_type="VSTEP_B1", language="EN"
+        ))
+
+        db_session.commit()
+
+        # 2. Call the generator API to generate VSTEP B1 exam
+        resp = client.post(
+            "/api/v1/exams/generate",
+            json={"title": "VSTEP B1 Test", "seed": 123, "exam_type": "VSTEP_B1"},
+            headers=admin_auth_headers
+        )
+        assert resp.status_code == 200, resp.text
+        summary = resp.json()
+        assert summary["title"] == "VSTEP B1 Test"
+        assert summary["exam_type"] == "VSTEP_B1"
+        assert summary["question_count"] == 50, f"Expected 50 questions, got {summary['question_count']}"
+
+        # 3. Retrieve detail and verify parts structure & cloning of assets
+        exam_id = summary["id"]
+        resp = client.get(f"/api/v1/exams/{exam_id}?include_answers=true", headers=admin_auth_headers)
+        assert resp.status_code == 200
+        detail = resp.json()
+        assert detail["total_questions"] == 50
+
+        # Check parts 1 to 11
+        parts = {p["part"]: p for p in detail["parts"]}
+        assert set(parts.keys()) == set(range(1, 12))
+
+        # Part 1: standalone
+        assert parts[1]["part_type"] == "standalone"
+        assert parts[1]["question_count"] == 10
+
+        # Part 2: standalone
+        assert parts[2]["part_type"] == "standalone"
+        assert parts[2]["question_count"] == 5
+
+        # Part 3: grouped
+        assert parts[3]["part_type"] == "grouped"
+        assert parts[3]["question_count"] == 5
+        assert len(parts[3]["groups"]) == 1
+
+        # Part 4: grouped
+        assert parts[4]["part_type"] == "grouped"
+        assert parts[4]["question_count"] == 10
+        assert len(parts[4]["groups"]) == 1
+
+        # Part 5: W1
+        assert parts[5]["part_type"] == "standalone"
+        assert parts[5]["question_count"] == 1
+        assert parts[5]["standalone_questions"][0]["type"] == "writing"
+
+        # Part 6: W2
+        assert parts[6]["part_type"] == "standalone"
+        assert parts[6]["question_count"] == 1
+        assert parts[6]["standalone_questions"][0]["type"] == "writing"
+
+        # Part 7: L1 with audio & image assets
+        assert parts[7]["part_type"] == "standalone"
+        assert parts[7]["question_count"] == 5
+        for q in parts[7]["standalone_questions"]:
+            assert q["type"] == "choice"
+            assert q["audio_url"] is not None
+            assert q["image_url"] is not None
+
+        # Part 8: L2 grouped fill
+        assert parts[8]["part_type"] == "grouped"
+        assert parts[8]["question_count"] == 10
+        assert len(parts[8]["groups"]) == 1
+        assert parts[8]["groups"][0]["audio_url"] is not None
+        for q in parts[8]["groups"][0]["questions"]:
+            assert q["type"] == "fill"
+
+        # Parts 9, 10, 11: Speaking S1, S2, S3
+        for p in (9, 10, 11):
+            assert parts[p]["part_type"] == "standalone"
+            assert parts[p]["question_count"] == 1
+            assert parts[p]["standalone_questions"][0]["type"] == "speaking"
+
+        # 4. Non-regression: Generate TOEIC exam and verify it selects only TOEIC questions (which has 200 questions seeded in conftest)
+        resp_toeic = client.post(
+            "/api/v1/exams/generate",
+            json={"title": "TOEIC Non-Regression", "seed": 456, "exam_type": "TOEIC"},
+            headers=admin_auth_headers
+        )
+        assert resp_toeic.status_code == 200, resp_toeic.text
+        summary_toeic = resp_toeic.json()
+        assert summary_toeic["exam_type"] == "TOEIC"
+        assert summary_toeic["question_count"] == 200
+
+        # Retrieve detail of TOEIC exam and verify no VSTEP questions are present
+        resp_toeic_detail = client.get(f"/api/v1/exams/{summary_toeic['id']}", headers=admin_auth_headers)
+        assert resp_toeic_detail.status_code == 200
+        toeic_detail = resp_toeic_detail.json()
+        assert toeic_detail["total_questions"] == 200
+        for p in toeic_detail["parts"]:
+            for q in p["standalone_questions"]:
+                assert q["type"] not in ("writing", "speaking")
+            for g in p["groups"]:
+                for q in g["questions"]:
+                    assert q["type"] not in ("writing", "speaking")
+
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
