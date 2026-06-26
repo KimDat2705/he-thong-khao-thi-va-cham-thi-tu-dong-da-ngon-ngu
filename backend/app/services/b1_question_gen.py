@@ -132,6 +132,23 @@ class WritingSpeakingBatchAI(BaseModel):
     questions: List[WritingSpeakingQuestionAI]
 
 
+class L1QuestionAI(BaseModel):
+    script_text: str
+    question_text: str
+    description_a: str
+    description_b: str
+    description_c: str
+    reference_answer: str
+    difficulty: str
+    clo: str
+    topic: str
+    explanation: Optional[str] = None
+
+
+class L1BatchAI(BaseModel):
+    questions: List[L1QuestionAI]
+
+
 class B1QuestionGenerator:
     def __init__(self):
         # Initialize Google GenAI client if API key is present
@@ -793,6 +810,223 @@ class B1QuestionGenerator:
             logger.error(f"Gemini TTS generation failed: {e}")
             raise e
 
+    def _generate_image(self, prompt: str, output_path: str):
+        """Call Gemini Image API to generate PNG image and save to output_path."""
+        if not self.client:
+            raise RuntimeError("Gemini client is not initialized.")
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash-image",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_modalities=["IMAGE"]
+                )
+            )
+            image_data = None
+            for candidate in response.candidates:
+                if not candidate.content or not candidate.content.parts:
+                    continue
+                for part in candidate.content.parts:
+                    if part.inline_data and part.inline_data.mime_type.startswith("image/"):
+                        image_data = part.inline_data.data
+                        break
+            if image_data is None:
+                raise ValueError("No image part found in Gemini Image response.")
+
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, "wb") as f:
+                f.write(image_data)
+
+        except Exception as e:
+            logger.error(f"Gemini Image generation failed: {e}")
+            raise e
+
+    def generate_l1_questions(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+        """Generate L1 (Part 7 Listening Picture Matching - 3 choices) questions and save to the bank."""
+        if topic and topic not in B1_TOPICS:
+            raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
+
+        import wave
+        import os
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        static_dir_audio = os.path.join(base_dir, "static", "audio_gen")
+        static_dir_img = os.path.join(base_dir, "static", "img")
+
+        if not self.client:
+            rnd = random.Random(seed)
+            data = self._mock_l1_data(rnd, count, topic)
+        else:
+            system_instruction = (
+                "You are an expert English language examiner. Generate a batch of VSTEP B1 Listening Part 1 standalone multiple-choice questions with 3 picture choices.\n"
+                "Each question must contain:\n"
+                "1. A script_text (the actual dialogue/monologue script to be read aloud, 50-100 words).\n"
+                "2. A question_text (the short query about the dialogue, e.g., 'What will the weather be like tomorrow?').\n"
+                "3. Three image descriptions: description_a, description_b, description_c. Each description should describe a simple, clear visual scene corresponding to options A, B, and C.\n"
+                "   Write these prompts formatted for a line drawing generator. E.g., 'A simple black and white line drawing of a book on a table, white background, sketch style'.\n"
+                "4. A reference_answer (must be exactly 'A', 'B', or 'C').\n"
+                "5. The CLO must be 'Thông hiểu' or 'Nhận diện'.\n"
+                "6. The difficulty must be exactly one of: easy, medium, hard.\n"
+                "7. The topic must be chosen from the 14 valid B1 topics.\n"
+                "Return JSON matching the schema:\n"
+                "{\n"
+                "  \"questions\": [\n"
+                "    {\n"
+                "      \"script_text\": \"string\",\n"
+                "      \"question_text\": \"string\",\n"
+                "      \"description_a\": \"string\",\n"
+                "      \"description_b\": \"string\",\n"
+                "      \"description_c\": \"string\",\n"
+                "      \"reference_answer\": \"string\",\n"
+                "      \"difficulty\": \"string\",\n"
+                "      \"clo\": \"string\",\n"
+                "      \"topic\": \"string\",\n"
+                "      \"explanation\": \"string\"\n"
+                "    }\n"
+                "  ]\n"
+                "}"
+            )
+            topic_hint = f"Topic to focus: {topic}" if topic else f"Select randomly from valid B1 topics: {', '.join(B1_TOPICS)}"
+            user_prompt = f"Generate {count} questions. {topic_hint}"
+
+            try:
+                raw_json = self._call_gemini(system_instruction, user_prompt)
+                data = json.loads(raw_json)
+            except Exception as e:
+                logger.error(f"Failed to generate L1 questions via Gemini: {e}. Falling back to Mock.")
+                rnd = random.Random(seed)
+                data = self._mock_l1_data(rnd, count, topic)
+
+        saved_count = 0
+        questions_list = data.get("questions", [])
+        for q_raw in questions_list:
+            # Deterministic paths upfront for cleanup
+            audio_path = None
+            img_path_a = None
+            img_path_b = None
+            img_path_c = None
+            try:
+                q_validated = L1QuestionAI(**q_raw)
+
+                # Validation checks
+                if q_validated.topic not in B1_TOPICS:
+                    logger.warning(f"Invalid topic in generated question: {q_validated.topic}. Skipping.")
+                    continue
+                if q_validated.clo not in ["Nhận diện", "Thông hiểu"]:
+                    logger.warning(f"Invalid CLO for L1: {q_validated.clo}. Skipping.")
+                    continue
+                if q_validated.reference_answer not in {"A", "B", "C"}:
+                    logger.warning(f"Invalid reference_answer: {q_validated.reference_answer}. Skipping.")
+                    continue
+
+                # Idempotency checks
+                q_data_dict = {
+                    "set_id": "",
+                    "number": "",
+                    "part": 7,
+                    "type": "choice",
+                    "content": q_validated.question_text,
+                    "options": {},
+                    "reference_answer": q_validated.reference_answer
+                }
+                q_hash = calculate_question_hash(q_data_dict)
+
+                existing = db.query(Question).filter(
+                    Question.exam_id.is_(None),
+                    Question.content_hash == q_hash
+                ).first()
+
+                if existing:
+                    logger.info("Question already exists in bank (duplicate content_hash). Skipping.")
+                    continue
+
+                # Prepare asset paths
+                audio_filename = f"l1_{q_hash}.wav"
+                audio_path = os.path.join(static_dir_audio, audio_filename)
+                audio_url = f"/static/audio_gen/{audio_filename}"
+
+                img_a_filename = f"l1_{q_hash}_A.png"
+                img_b_filename = f"l1_{q_hash}_B.png"
+                img_c_filename = f"l1_{q_hash}_C.png"
+
+                img_path_a = os.path.join(static_dir_img, img_a_filename)
+                img_path_b = os.path.join(static_dir_img, img_b_filename)
+                img_path_c = os.path.join(static_dir_img, img_c_filename)
+
+                img_url_a = f"/static/img/{img_a_filename}"
+                img_url_b = f"/static/img/{img_b_filename}"
+                img_url_c = f"/static/img/{img_c_filename}"
+                image_url = f"{img_url_a},{img_url_b},{img_url_c}"
+
+                # Generate Audio (TTS)
+                if not self.client:
+                    os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+                    with wave.open(audio_path, "wb") as wav_file:
+                        wav_file.setnchannels(1)
+                        wav_file.setsampwidth(2)
+                        wav_file.setframerate(24000)
+                        wav_file.writeframes(b"\x00" * 48000)
+                else:
+                    self._generate_tts_wav(q_validated.script_text, audio_path)
+
+                if not os.path.exists(audio_path):
+                    raise FileNotFoundError(f"Audio file failed to generate at {audio_path}")
+
+                # Generate Images
+                if not self.client:
+                    os.makedirs(os.path.dirname(img_path_a), exist_ok=True)
+                    MINIMAL_PNG_BYTES = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82'
+                    for img_p in [img_path_a, img_path_b, img_path_c]:
+                        with open(img_p, "wb") as img_file:
+                            img_file.write(MINIMAL_PNG_BYTES)
+                else:
+                    self._generate_image(q_validated.description_a, img_path_a)
+                    self._generate_image(q_validated.description_b, img_path_b)
+                    self._generate_image(q_validated.description_c, img_path_c)
+
+                # Check all files exist
+                for fp in [audio_path, img_path_a, img_path_b, img_path_c]:
+                    if not os.path.exists(fp):
+                        raise FileNotFoundError(f"Asset file not found at {fp}")
+
+                # Clean/Map difficulty
+                diff_val = q_validated.difficulty.lower()
+                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+
+                new_q = Question(
+                    exam_id=None,
+                    group_id=None,
+                    part=7,
+                    type="choice",
+                    content=q_validated.question_text,
+                    options={},
+                    reference_answer=q_validated.reference_answer,
+                    difficulty=difficulty,
+                    clo=q_validated.clo,
+                    topic=q_validated.topic,
+                    explanation=q_validated.explanation,
+                    status="draft",
+                    content_hash=q_hash,
+                    exam_type="VSTEP_B1",
+                    language="EN",
+                    image_url=image_url,
+                    audio_url=audio_url
+                )
+                db.add(new_q)
+                db.commit()
+                saved_count += 1
+            except Exception as val_err:
+                logger.warning(f"L1 question failed validation or generation: {val_err}. Skipping.")
+                db.rollback()
+                for fp in [audio_path, img_path_a, img_path_b, img_path_c]:
+                    if fp and os.path.exists(fp):
+                        try:
+                            os.remove(fp)
+                        except Exception as rm_err:
+                            logger.error(f"Failed to remove file {fp}: {rm_err}")
+
+        return saved_count
+
     def generate_l2_groups(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate L2 (Part 8 Note Completion - 10 blanks) groups and save to the bank."""
         if topic and topic not in B1_TOPICS:
@@ -1440,3 +1674,24 @@ class B1QuestionGenerator:
                 "questions": questions
             })
         return {"groups": groups}
+
+    def _mock_l1_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+        questions = []
+        for _ in range(count):
+            t = topic or rnd.choice(B1_TOPICS)
+            diff = rnd.choice(["easy", "medium", "hard"])
+            clo = rnd.choice(["Nhận diện", "Thông hiểu"])
+            ref = rnd.choice(["A", "B", "C"])
+            questions.append({
+                "script_text": f"This is a mock listening script about {t}. The correct answer is option {ref}.",
+                "question_text": f"Which picture shows the correct item related to {t}?",
+                "description_a": f"A simple black and white line drawing representing option A for {t}.",
+                "description_b": f"A simple black and white line drawing representing option B for {t}.",
+                "description_c": f"A simple black and white line drawing representing option C for {t}.",
+                "reference_answer": ref,
+                "difficulty": diff,
+                "clo": clo,
+                "topic": t,
+                "explanation": f"The script mentions that option {ref} is correct."
+            })
+        return {"questions": questions}

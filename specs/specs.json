@@ -933,6 +933,24 @@
         "tests/test_specs_enrich.py::test_SPEC_ENRICH_004_ai_l2_generation_and_validation"
       ],
       "notes": "Làm giàu ngân hàng câu hỏi Nghe Phần 2 bằng Gemini AI và TTS."
+    },
+    {
+      "id": "SPEC-ENRICH-005",
+      "domain": "ENRICH",
+      "title": "AI-based VSTEP B1 Listening Part 1 Ingestion and Validation",
+      "statement": "Hệ thống hỗ trợ tự động dùng AI (Gemini) sinh đề Nghe Phần 1 (L1: chọn tranh) kèm file âm thanh TTS và 3 hình ảnh minh họa để làm giàu ngân hàng câu hỏi nháp (draft), đảm bảo cấu trúc ma trận (part=7, type=choice, clo=Thông hiểu, 1 đáp án đúng A/B/C) và chống trùng lặp.",
+      "acceptance_criteria": [
+        "L1: Question có audio_url hợp lệ trỏ tới file WAV trên disk và image_url hợp lệ chứa 3 đường dẫn ảnh PNG phân tách bởi dấu phẩy, part=7.",
+        "Question có type='choice', clo='Thông hiểu' hoặc 'Nhận diện', reference_answer ∈ {A, B, C}.",
+        "Negative cases: Loại bỏ câu hỏi nếu thiếu hoặc sai số lượng ảnh (khác 3 ảnh), thiếu file audio, reference_answer không thuộc {A, B, C}, sai clo/type, hoặc sinh audio/ảnh thất bại.",
+        "Idempotent: chạy lại cùng seed không sinh trùng."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_enrich.py::test_SPEC_ENRICH_005_ai_l1_generation_and_validation"
+      ],
+      "notes": "Làm giàu ngân hàng câu hỏi Nghe Phần 1 bằng Gemini AI, TTS và Image Generation."
     }
   ]
 }

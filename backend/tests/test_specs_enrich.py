@@ -520,4 +520,106 @@ def test_SPEC_ENRICH_004_ai_l2_generation_and_validation(db_session: Session, mo
     ).count() == 1
 
 
+def test_SPEC_ENRICH_005_ai_l1_generation_and_validation(db_session: Session, monkeypatch):
+    """
+    SPEC-ENRICH-005: AI-based VSTEP B1 Listening Part 1 Ingestion and Validation.
+    Asserts structure, validation, draft status, assets existence, negative validation, and idempotency in Mock mode.
+    """
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
+
+    generator = B1QuestionGenerator()
+
+    # 1. Happy path: generate 2 questions
+    l1_saved = generator.generate_l1_questions(db=db_session, count=2, seed=123)
+    assert l1_saved == 2
+
+    # Query and assert
+    l1_qs = db_session.query(Question).filter(
+        Question.exam_id.is_(None),
+        Question.part == 7,
+        Question.type == "choice",
+        Question.content.like("Which picture shows the correct item related to%")
+    ).all()
+    assert len(l1_qs) == 2
+
+    import os
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    for q in l1_qs:
+        assert q.status == "draft"
+        assert q.difficulty in ["easy", "medium", "hard"]
+        assert q.clo in ["Thông hiểu", "Nhận diện"]
+        assert q.topic in B1_TOPICS
+        assert q.options == {} or q.options is None
+        assert q.reference_answer in {"A", "B", "C"}
+        assert len(q.content.strip()) >= 20
+
+        # Check audio file
+        assert q.audio_url.startswith("/static/audio_gen/")
+        assert q.audio_url.endswith(".wav")
+        audio_path = os.path.join(backend_dir, q.audio_url.lstrip("/"))
+        assert os.path.exists(audio_path), f"Audio file should exist at {audio_path}"
+
+        # Check 3 image files
+        img_urls = q.image_url.split(",")
+        assert len(img_urls) == 3, f"image_url must contain exactly 3 URLs, got: {img_urls}"
+        for url in img_urls:
+            assert url.startswith("/static/img/")
+            assert url.endswith(".png")
+            img_path = os.path.join(backend_dir, url.lstrip("/"))
+            assert os.path.exists(img_path), f"Image file should exist at {img_path}"
+
+    # 2. Idempotency: same seed does not insert duplicates
+    l1_dup_saved = generator.generate_l1_questions(db=db_session, count=2, seed=123)
+    assert l1_dup_saved == 0, "Idempotency check should skip duplicate content hashes"
+
+    # 3. Negative validation cases: rejects bad type, clo, ref, missing assets, or too short content
+    crafted_l1 = {"questions": [
+        { # VALID
+            "script_text": "This is a valid script that is long enough to read.",
+            "question_text": "Which is the valid question text?",
+            "description_a": "Drawing of a cat.",
+            "description_b": "Drawing of a dog.",
+            "description_c": "Drawing of a bird.",
+            "reference_answer": "A", "difficulty": "easy", "clo": "Thông hiểu", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: reference answer outside A-C
+            "script_text": "Script with wrong reference.",
+            "question_text": "Question with wrong reference?",
+            "description_a": "Cat", "description_b": "Dog", "description_c": "Bird",
+            "reference_answer": "D", "difficulty": "easy", "clo": "Thông hiểu", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: wrong CLO for Listening Part 1
+            "script_text": "Script with wrong CLO.",
+            "question_text": "Question with wrong CLO?",
+            "description_a": "Cat", "description_b": "Dog", "description_c": "Bird",
+            "reference_answer": "A", "difficulty": "easy", "clo": "Vận dụng tổng hợp", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: topic not in B1 topics
+            "script_text": "Script with wrong topic.",
+            "question_text": "Question with wrong topic?",
+            "description_a": "Cat", "description_b": "Dog", "description_c": "Bird",
+            "reference_answer": "A", "difficulty": "easy", "clo": "Thông hiểu", "topic": "Invalid Topic"
+        }
+    ]}
+    
+    monkeypatch.setattr(generator, "_mock_l1_data", lambda rnd, count, topic=None: crafted_l1)
+    # Using a new seed to make sure we don't hit idempotency check from step 1
+    l1_neg_saved = generator.generate_l1_questions(db=db_session, count=4, seed=999)
+    assert l1_neg_saved == 1, "Only 1 valid question should be saved, 3 malformed skipped"
+
+    # Verify the one valid question is in the db and the invalid ones are not
+    valid_neg_q = db_session.query(Question).filter(
+        Question.content == "Which is the valid question text?",
+        Question.exam_id.is_(None)
+    ).first()
+    assert valid_neg_q is not None
+    assert valid_neg_q.part == 7
+
+    assert db_session.query(Question).filter(Question.content == "Question with wrong reference?").count() == 0
+    assert db_session.query(Question).filter(Question.content == "Question with wrong CLO?").count() == 0
+    assert db_session.query(Question).filter(Question.content == "Question with wrong topic?").count() == 0
+
+
+
 

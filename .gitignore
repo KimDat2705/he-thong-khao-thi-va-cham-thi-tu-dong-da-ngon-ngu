@@ -7,3 +7,6 @@ Thumbs.db
 
 # Generated AI Audio
 /backend/static/audio_gen/*
+
+# Generated AI Images
+/backend/static/img/l1_*
