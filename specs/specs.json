@@ -856,6 +856,26 @@
         "tests/test_specs_parser.py::test_SPEC_PARSE_013_parse_b1_listening_and_speaking"
       ],
       "notes": "Hỗ trợ parse đề Nghe B1, Nói B1 và đáp án từ tệp Word."
+    },
+    {
+      "id": "SPEC-ENRICH-001",
+      "domain": "ENRICH",
+      "title": "AI-based VSTEP B1 Reading Question Ingestion and Validation",
+      "statement": "Hệ thống hỗ trợ tự động dùng AI (Gemini) sinh câu hỏi Đọc VSTEP B1 để làm giàu ngân hàng câu hỏi nháp (draft), đảm bảo tuân thủ cấu trúc ma trận (R1, R3, R4), tự động kiểm định định dạng và chống trùng lặp.",
+      "acceptance_criteria": [
+        "R1: standalone choice 4 đáp án (A-D), clo thuộc Nhận diện/Thông hiểu.",
+        "R3: 1 QuestionGroup (passage 200-300 từ) + 5 câu con choice 4 đáp án, clo Thông hiểu.",
+        "R4: 1 QuestionGroup (passage 150-250 từ, 10 chỗ trống + hộp 15 từ) + 10 câu con điền từ (fill), clo Vận dụng có kiểm soát.",
+        "Trạng thái lưu trữ của câu và nhóm luôn là 'draft', exam_type='VSTEP_B1', language='EN'.",
+        "Đảm bảo tính idempotent khi chạy lại cùng seed (content_hash không tạo bản ghi trùng lặp)."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_enrich.py::test_SPEC_ENRICH_001_ai_question_generation_and_validation",
+        "tests/test_specs_enrich.py::test_SPEC_ENRICH_001_validation_gate_rejects_invalid"
+      ],
+      "notes": "Làm giàu ngân hàng câu hỏi bằng Gemini AI (R1, R3, R4)."
     }
   ]
 }
