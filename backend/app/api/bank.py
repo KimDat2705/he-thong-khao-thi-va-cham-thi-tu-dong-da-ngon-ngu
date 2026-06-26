@@ -23,9 +23,7 @@ def list_questions(
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
-    Retrieve list of questions in the bank.
-    TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)
-    """
+    Retrieve list of questions in the bank.    """
     return bank_admin.list_bank_questions(
         db, part=part, status=status, topic=topic, difficulty=difficulty, limit=limit, offset=offset, exam_type=exam_type
     )
@@ -39,9 +37,7 @@ def update_question(
 ):
     """
     Update details of a bank question.
-    Only allows modifying bank items (exam_id IS NULL).
-    TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)
-    """
+    Only allows modifying bank items (exam_id IS NULL).    """
     updated = bank_admin.update_bank_question(db, id, patch)
     if updated is None:
         raise HTTPException(status_code=404, detail="Question not found in the bank")
@@ -55,9 +51,7 @@ def approve_questions(
 ):
     """
     Approve draft questions in the bank.
-    Propagates the approval status to their parent groups.
-    TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)
-    """
+    Propagates the approval status to their parent groups.    """
     updated_count = bank_admin.approve_questions(db, payload.ids)
     return ApproveResult(updated=updated_count)
 
@@ -67,8 +61,6 @@ def get_stats(
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
-    Get bank statistics and TOEIC blueprint sufficiency mapping.
-    TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)
-    """
+    Get bank statistics and TOEIC blueprint sufficiency mapping.    """
     return bank_admin.compute_bank_stats(db)
 

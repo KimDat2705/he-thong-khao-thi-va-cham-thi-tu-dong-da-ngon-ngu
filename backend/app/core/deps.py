@@ -58,7 +58,6 @@ def get_current_user_optional(
 
 def require_role(*allowed_roles: str) -> Callable:
     def dependency(current_user: User = Depends(get_current_user)) -> User:
-        # TODO: Full user/role permission check goes here when gating is introduced in follow-up.
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

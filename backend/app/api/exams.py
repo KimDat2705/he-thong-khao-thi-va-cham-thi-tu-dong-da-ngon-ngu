@@ -27,9 +27,7 @@ def generate_exam(
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
-    Generate a full TOEIC exam from the approved question bank.
-    TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)
-    """
+    Generate a full TOEIC exam from the approved question bank.    """
     try:
         exam = exam_admin.generate_demo_exam(
             db,
@@ -111,9 +109,7 @@ def generate_exam_batch(
 ):
     """
     Generate a batch of TOEIC or custom exams from the approved question bank.
-    Includes pairwise overlap check report to verify diversity.
-    TODO: Add Authentication & Role-based Authorization check here (Milestone 3+)
-    """
+    Includes pairwise overlap check report to verify diversity.    """
     try:
         result = exam_admin.generate_batch_exams(
             db,
