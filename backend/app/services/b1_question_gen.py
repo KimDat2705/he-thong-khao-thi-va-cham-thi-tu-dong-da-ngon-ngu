@@ -81,6 +81,20 @@ class R4BatchAI(BaseModel):
     groups: List[R4GroupAI]
 
 
+class R2QuestionAI(BaseModel):
+    content: str
+    options: Dict[str, str]
+    reference_answer: str
+    difficulty: str
+    clo: str
+    topic: str
+    explanation: Optional[str] = None
+
+
+class R2BatchAI(BaseModel):
+    questions: List[R2QuestionAI]
+
+
 class WritingSpeakingQuestionAI(BaseModel):
     part: int
     type: str
@@ -219,6 +233,125 @@ class B1QuestionGenerator:
                     exam_id=None,
                     group_id=None,
                     part=1,
+                    type="choice",
+                    content=q_validated.content,
+                    options=q_validated.options,
+                    reference_answer=q_validated.reference_answer,
+                    difficulty=difficulty,
+                    clo=q_validated.clo,
+                    topic=q_validated.topic,
+                    explanation=q_validated.explanation,
+                    status="draft",
+                    content_hash=q_hash,
+                    exam_type="VSTEP_B1",
+                    language="EN"
+                )
+                db.add(new_q)
+                db.commit()
+                saved_count += 1
+            except Exception as val_err:
+                logger.warning(f"Item failed validation: {val_err}. Skipping.")
+                db.rollback()
+
+        return saved_count
+
+    def generate_r2_questions(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+        """Generate R2 (Part 2 Standalone Choice - 3 options) questions and save to the bank."""
+        if topic and topic not in B1_TOPICS:
+            raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
+
+        if not self.client:
+            # Mock mode
+            rnd = random.Random(seed)
+            data = self._mock_r2_data(rnd, count, topic)
+        else:
+            system_instruction = (
+                "You are an expert English language examiner. Generate a batch of VSTEP B1 Reading Part 2 standalone multiple-choice questions based on short notices, signs, or labels.\n"
+                "Each question must contain a short text (notice, message, label) and a question asking for its meaning.\n"
+                "Options must contain exactly 3 options (A, B, C) and reference_answer must be A, B, or C.\n"
+                "The CLO must be 'Thông hiểu'.\n"
+                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                "The topic must be chosen from the 14 valid B1 topics.\n"
+                "Return JSON matching the schema:\n"
+                "{\n"
+                "  \"questions\": [\n"
+                "    {\n"
+                "      \"content\": \"string\",\n"
+                "      \"options\": {\"A\": \"string\", \"B\": \"string\", \"C\": \"string\"},\n"
+                "      \"reference_answer\": \"string\",\n"
+                "      \"difficulty\": \"string\",\n"
+                "      \"clo\": \"string\",\n"
+                "      \"topic\": \"string\",\n"
+                "      \"explanation\": \"string\"\n"
+                "    }\n"
+                "  ]\n"
+                "}"
+            )
+            topic_hint = f"Topic to focus: {topic}" if topic else f"Select randomly from valid B1 topics: {', '.join(B1_TOPICS)}"
+            user_prompt = f"Generate {count} questions. {topic_hint}"
+            
+            try:
+                raw_json = self._call_gemini(system_instruction, user_prompt)
+                data = json.loads(raw_json)
+            except Exception as e:
+                logger.error(f"Failed to generate R2 questions via Gemini: {e}. Falling back to Mock.")
+                rnd = random.Random(seed)
+                data = self._mock_r2_data(rnd, count, topic)
+
+        # Validate and Ingest
+        saved_count = 0
+        questions_list = data.get("questions", [])
+        for q_raw in questions_list:
+            try:
+                # Schema Validation
+                q_validated = R2QuestionAI(**q_raw)
+                
+                # Semantic / Business Rule Validations
+                if q_validated.topic not in B1_TOPICS:
+                    logger.warning(f"Invalid topic in generated question: {q_validated.topic}. Skipping.")
+                    continue
+                if q_validated.clo != "Thông hiểu":
+                    logger.warning(f"Invalid CLO for R2: {q_validated.clo}. Skipping.")
+                    continue
+                if set(q_validated.options.keys()) != {"A", "B", "C"}:
+                    logger.warning("R2 question must have exactly A-C options. Skipping.")
+                    continue
+                if q_validated.reference_answer not in {"A", "B", "C"}:
+                    logger.warning(f"Invalid reference_answer: {q_validated.reference_answer}. Skipping.")
+                    continue
+                if not q_validated.content or len(q_validated.content.strip()) < 20:
+                    logger.warning("Content too short or empty. Skipping.")
+                    continue
+
+                # Clean/Map difficulty
+                diff_val = q_validated.difficulty.lower()
+                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+
+                # Idempotency checks
+                q_data_dict = {
+                    "set_id": "",
+                    "number": "",
+                    "part": 2,
+                    "type": "choice",
+                    "content": q_validated.content,
+                    "options": q_validated.options,
+                    "reference_answer": q_validated.reference_answer
+                }
+                q_hash = calculate_question_hash(q_data_dict)
+
+                existing = db.query(Question).filter(
+                    Question.exam_id.is_(None),
+                    Question.content_hash == q_hash
+                ).first()
+
+                if existing:
+                    logger.info("Question already exists in bank (duplicate content_hash). Skipping.")
+                    continue
+
+                new_q = Question(
+                    exam_id=None,
+                    group_id=None,
+                    part=2,
                     type="choice",
                     content=q_validated.content,
                     options=q_validated.options,
@@ -873,6 +1006,27 @@ class B1QuestionGenerator:
                 "clo": clo,
                 "topic": t,
                 "explanation": f"The correct preposition with destination here is 'at' or 'to', select mock answer {ref}."
+            })
+        return {"questions": questions}
+
+    def _mock_r2_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+        questions = []
+        for _ in range(count):
+            t = topic or rnd.choice(B1_TOPICS)
+            diff = rnd.choice(["easy", "medium", "hard"])
+            ref = rnd.choice(["A", "B", "C"])
+            questions.append({
+                "content": f"NOTICE: The presentation on {t} has been moved from Room 102 to Room 204. It will start at 10 AM instead of 9:30 AM.\nWhat change has been made?",
+                "options": {
+                    "A": "The location of the presentation.",
+                    "B": "The speaker of the presentation.",
+                    "C": "The price of the presentation."
+                },
+                "reference_answer": ref,
+                "difficulty": diff,
+                "clo": "Thông hiểu",
+                "topic": t,
+                "explanation": f"The notice specifies that the room changed from Room 102 to Room 204. Mock answer is {ref}."
             })
         return {"questions": questions}
 

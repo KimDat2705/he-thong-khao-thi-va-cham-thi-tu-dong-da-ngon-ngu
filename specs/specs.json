@@ -897,6 +897,24 @@
         "tests/test_specs_enrich.py::test_SPEC_ENRICH_002_ai_writing_speaking_generation_and_validation"
       ],
       "notes": "Làm giàu ngân hàng câu hỏi viết và nói bằng Gemini AI."
+    },
+    {
+      "id": "SPEC-ENRICH-003",
+      "domain": "ENRICH",
+      "title": "AI-based VSTEP B1 Reading Part 2 Ingestion and Validation",
+      "statement": "Hệ thống hỗ trợ tự động dùng AI (Gemini) sinh đề Đọc Phần 2 (R2: thông báo ngắn, 3 đáp án A/B/C) để làm giàu ngân hàng câu hỏi nháp (draft), đảm bảo tuân thủ cấu trúc ma trận (part=2, type=choice, clo=Thông hiểu) và chống trùng lặp.",
+      "acceptance_criteria": [
+        "R2: standalone choice, part=2, clo Thông hiểu.",
+        "Mỗi câu có đúng 3 lựa chọn (A, B, C) và reference_answer thuộc {A, B, C}.",
+        "Negative cases: Loại bỏ đề có sai số lượng đáp án (4 đáp án), sai clo hoặc sai type.",
+        "Idempotent: chạy lại cùng seed không sinh trùng."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_enrich.py::test_SPEC_ENRICH_003_ai_r2_generation_and_validation"
+      ],
+      "notes": "Làm giàu ngân hàng câu hỏi Đọc Phần 2 bằng Gemini AI."
     }
   ]
 }

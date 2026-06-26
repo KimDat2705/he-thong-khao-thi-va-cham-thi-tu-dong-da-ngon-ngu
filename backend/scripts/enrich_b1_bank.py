@@ -35,9 +35,9 @@ def parse_args():
     parser.add_argument(
         "--part",
         type=str,
-        choices=["1", "3", "4", "5", "6", "9", "10", "11", "all"],
+        choices=["1", "2", "3", "4", "5", "6", "9", "10", "11", "all"],
         default="all",
-        help="VSTEP B1 part to generate: 1 (R1), 3 (R3), 4 (R4), 5 (W1), 6 (W2), 9 (S1), 10 (S2), 11 (S3), or all."
+        help="VSTEP B1 part to generate: 1 (R1), 2 (R2), 3 (R3), 4 (R4), 5 (W1), 6 (W2), 9 (S1), 10 (S2), 11 (S3), or all."
     )
     parser.add_argument(
         "--topic",
@@ -74,6 +74,15 @@ def main():
                 db=db, count=args.count, topic=args.topic, seed=args.seed
             )
             print(f"-> Successfully saved {r1_count} R1 questions to database.")
+
+        # Reading Part 2 (R2 choice notice standalone)
+        if args.part in ("2", "all"):
+            print("Generating Reading Part 2 (R2 choice notice standalone)...")
+            r2_seed = args.seed + 500 if args.seed is not None else None
+            r2_count = generator.generate_r2_questions(
+                db=db, count=args.count, topic=args.topic, seed=r2_seed
+            )
+            print(f"-> Successfully saved {r2_count} R2 questions to database.")
 
         # Reading Part 3 (R3 choice groups)
         if args.part in ("3", "all"):

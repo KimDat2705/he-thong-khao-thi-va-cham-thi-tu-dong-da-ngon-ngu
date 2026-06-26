@@ -322,3 +322,84 @@ def test_SPEC_ENRICH_002_ai_writing_speaking_generation_and_validation(db_sessio
     assert db_session.query(Question).filter(Question.content == "This is a prompt with a wrong clo for part 5.").count() == 0
     assert db_session.query(Question).filter(Question.content == "This is a prompt with a wrong part for part 5 call.").count() == 0
 
+
+def test_SPEC_ENRICH_003_ai_r2_generation_and_validation(db_session: Session, monkeypatch):
+    """
+    SPEC-ENRICH-003: AI-based VSTEP B1 Reading Part 2 Ingestion and Validation.
+    Asserts structure, validation, draft status, negative validation, and idempotency in Mock mode.
+    """
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
+
+    generator = B1QuestionGenerator()
+
+    # 1. Happy path: generate 3 questions
+    r2_saved = generator.generate_r2_questions(db=db_session, count=3, seed=123)
+    assert r2_saved == 3
+
+    # Query and assert
+    r2_qs = db_session.query(Question).filter(
+        Question.exam_id.is_(None),
+        Question.part == 2,
+        Question.type == "choice",
+        Question.content.like("NOTICE: The presentation on%")
+    ).all()
+    assert len(r2_qs) == 3
+    for q in r2_qs:
+        assert q.clo == "Thông hiểu"
+        assert set(q.options.keys()) == {"A", "B", "C"}
+        assert q.reference_answer in {"A", "B", "C"}
+        assert q.status == "draft"
+        assert q.difficulty in ["easy", "medium", "hard"]
+        assert q.topic in B1_TOPICS
+        assert len(q.content.strip()) >= 20
+
+    # 2. Idempotency: same seed does not insert duplicates
+    r2_dup_saved = generator.generate_r2_questions(db=db_session, count=3, seed=123)
+    assert r2_dup_saved == 0, "Idempotency check should skip duplicate content hashes"
+
+    # 3. Negative validation cases: rejects bad type, clo, ref, options count, or too short content
+    crafted_r2 = {"questions": [
+        { # VALID
+            "content": "NOTICE: This is a valid notice content for testing that is long enough.",
+            "options": {"A": "Correct", "B": "Wrong 1", "C": "Wrong 2"},
+            "reference_answer": "A", "difficulty": "easy", "clo": "Thông hiểu", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: content too short
+            "content": "Too short.",
+            "options": {"A": "Correct", "B": "Wrong 1", "C": "Wrong 2"},
+            "reference_answer": "A", "difficulty": "easy", "clo": "Thông hiểu", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: 4 options instead of 3
+            "content": "NOTICE: This notice has four options instead of three options.",
+            "options": {"A": "Correct", "B": "Wrong 1", "C": "Wrong 2", "D": "Wrong 3"},
+            "reference_answer": "A", "difficulty": "easy", "clo": "Thông hiểu", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: wrong CLO
+            "content": "NOTICE: This notice has an invalid CLO for Part 2.",
+            "options": {"A": "Correct", "B": "Wrong 1", "C": "Wrong 2"},
+            "reference_answer": "A", "difficulty": "easy", "clo": "Vận dụng tổng hợp", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: reference answer outside A-C
+            "content": "NOTICE: This notice has a reference answer that is D instead of A-C.",
+            "options": {"A": "Correct", "B": "Wrong 1", "C": "Wrong 2"},
+            "reference_answer": "D", "difficulty": "easy", "clo": "Thông hiểu", "topic": B1_TOPICS[0]
+        }
+    ]}
+    monkeypatch.setattr(generator, "_mock_r2_data", lambda rnd, count, topic=None: crafted_r2)
+    # Using a new seed to make sure we don't hit idempotency check from step 1
+    r2_neg_saved = generator.generate_r2_questions(db=db_session, count=5, seed=999)
+    assert r2_neg_saved == 1, "Only 1 valid question should be saved, 4 malformed skipped"
+
+    # Verify the one valid question is in the db and the invalid ones are not
+    valid_neg_q = db_session.query(Question).filter(
+        Question.content == "NOTICE: This is a valid notice content for testing that is long enough."
+    ).first()
+    assert valid_neg_q is not None
+    assert valid_neg_q.part == 2
+
+    assert db_session.query(Question).filter(Question.content == "Too short.").count() == 0
+    assert db_session.query(Question).filter(Question.content == "NOTICE: This notice has four options instead of three options.").count() == 0
+    assert db_session.query(Question).filter(Question.content == "NOTICE: This notice has an invalid CLO for Part 2.").count() == 0
+    assert db_session.query(Question).filter(Question.content == "NOTICE: This notice has a reference answer that is D instead of A-C.").count() == 0
+
+
