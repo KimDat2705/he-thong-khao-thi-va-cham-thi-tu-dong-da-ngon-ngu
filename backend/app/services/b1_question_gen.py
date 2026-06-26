@@ -81,6 +81,20 @@ class R4BatchAI(BaseModel):
     groups: List[R4GroupAI]
 
 
+class WritingSpeakingQuestionAI(BaseModel):
+    part: int
+    type: str
+    content: str
+    difficulty: str
+    clo: str
+    topic: str
+    explanation: Optional[str] = None
+
+
+class WritingSpeakingBatchAI(BaseModel):
+    questions: List[WritingSpeakingQuestionAI]
+
+
 class B1QuestionGenerator:
     def __init__(self):
         # Initialize Google GenAI client if API key is present
@@ -583,6 +597,262 @@ class B1QuestionGenerator:
 
     # --- Deterministic Mock Data Generators ---
 
+    def generate_writing_questions(self, db: Session, count: int, part: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+        """Generate Writing questions (Part 5 (W1) or Part 6 (W2)) and save to the bank."""
+        if part not in (5, 6):
+            raise ValueError(f"Invalid Writing part '{part}'. Must be 5 or 6.")
+        if topic and topic not in B1_TOPICS:
+            raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
+
+        expected_clo = "Vận dụng có kiểm soát" if part == 5 else "Vận dụng tổng hợp"
+
+        if not self.client:
+            # Mock mode
+            rnd = random.Random(seed)
+            data = self._mock_writing_data(rnd, count, part, topic)
+        else:
+            system_instruction = (
+                "You are an expert English language examiner. Generate a batch of VSTEP B1 Writing questions.\n"
+                f"For part {part}:\n"
+                + (
+                    "Part 5 (Writing Task 1): 'Rewrite the sentence' prompts. The CLO must be 'Vận dụng có kiểm soát'.\n"
+                    if part == 5 else
+                    "Part 6 (Writing Task 2): 'Write an email/letter (~100-120 words)' prompts. The CLO must be 'Vận dụng tổng hợp'.\n"
+                ) +
+                "The type must be 'writing'.\n"
+                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                "The topic must be chosen from the 14 valid B1 topics.\n"
+                "Return JSON matching the schema:\n"
+                "{\n"
+                "  \"questions\": [\n"
+                "    {\n"
+                "      \"part\": int,\n"
+                "      \"type\": \"string\",\n"
+                "      \"content\": \"string\",\n"
+                "      \"difficulty\": \"string\",\n"
+                "      \"clo\": \"string\",\n"
+                "      \"topic\": \"string\",\n"
+                "      \"explanation\": \"string\"\n"
+                "    }\n"
+                "  ]\n"
+                "}"
+            )
+            topic_hint = f"Topic to focus: {topic}" if topic else f"Select randomly from valid B1 topics: {', '.join(B1_TOPICS)}"
+            user_prompt = f"Generate {count} questions for part {part}. {topic_hint}"
+
+            try:
+                raw_json = self._call_gemini(system_instruction, user_prompt)
+                data = json.loads(raw_json)
+            except Exception as e:
+                logger.error(f"Failed to generate Writing questions via Gemini: {e}. Falling back to Mock.")
+                rnd = random.Random(seed)
+                data = self._mock_writing_data(rnd, count, part, topic)
+
+        # Validate and Ingest
+        saved_count = 0
+        questions_list = data.get("questions", [])
+        for q_raw in questions_list:
+            try:
+                # Schema Validation
+                q_validated = WritingSpeakingQuestionAI(**q_raw)
+
+                # Semantic / Business Rule Validations
+                if q_validated.part != part:
+                    logger.warning(f"Generated part {q_validated.part} does not match requested part {part}. Skipping.")
+                    continue
+                if q_validated.type != "writing":
+                    logger.warning(f"Invalid type in generated question: {q_validated.type}. Skipping.")
+                    continue
+                if q_validated.topic not in B1_TOPICS:
+                    logger.warning(f"Invalid topic in generated question: {q_validated.topic}. Skipping.")
+                    continue
+                if q_validated.clo != expected_clo:
+                    logger.warning(f"Invalid CLO for part {part}: {q_validated.clo}. Skipping.")
+                    continue
+                if not q_validated.content or len(q_validated.content.strip()) < 20:
+                    logger.warning("Content too short or empty. Skipping.")
+                    continue
+
+                # Clean/Map difficulty
+                diff_val = q_validated.difficulty.lower()
+                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+
+                # Idempotency checks
+                q_data_dict = {
+                    "set_id": "",
+                    "number": "",
+                    "part": part,
+                    "type": "writing",
+                    "content": q_validated.content,
+                    "options": {},
+                    "reference_answer": ""
+                }
+                q_hash = calculate_question_hash(q_data_dict)
+
+                existing = db.query(Question).filter(
+                    Question.exam_id.is_(None),
+                    Question.content_hash == q_hash
+                ).first()
+
+                if existing:
+                    logger.info("Question already exists in bank (duplicate content_hash). Skipping.")
+                    continue
+
+                new_q = Question(
+                    exam_id=None,
+                    group_id=None,
+                    part=part,
+                    type="writing",
+                    content=q_validated.content,
+                    options={},
+                    reference_answer=None,
+                    difficulty=difficulty,
+                    clo=q_validated.clo,
+                    topic=q_validated.topic,
+                    explanation=q_validated.explanation,
+                    status="draft",
+                    content_hash=q_hash,
+                    exam_type="VSTEP_B1",
+                    language="EN"
+                )
+                db.add(new_q)
+                db.commit()
+                saved_count += 1
+            except Exception as val_err:
+                logger.warning(f"Item failed validation: {val_err}. Skipping.")
+                db.rollback()
+
+        return saved_count
+
+    def generate_speaking_questions(self, db: Session, count: int, part: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+        """Generate Speaking questions (Part 9 (S1), Part 10 (S2), Part 11 (S3)) and save to the bank."""
+        if part not in (9, 10, 11):
+            raise ValueError(f"Invalid Speaking part '{part}'. Must be 9, 10, or 11.")
+        if topic and topic not in B1_TOPICS:
+            raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
+
+        expected_clo = "Vận dụng tổng hợp" if part == 11 else "Vận dụng có kiểm soát"
+
+        if not self.client:
+            # Mock mode
+            rnd = random.Random(seed)
+            data = self._mock_speaking_data(rnd, count, part, topic)
+        else:
+            system_instruction = (
+                "You are an expert English language examiner. Generate a batch of VSTEP B1 Speaking questions.\n"
+                f"For part {part}:\n"
+                + (
+                    "Part 9 (Speaking Part 1 - Social Interaction): Answer three independent questions about a topic. The CLO must be 'Vận dụng có kiểm soát'.\n"
+                    if part == 9 else
+                    "Part 10 (Speaking Part 2 - Solution Discussion): Situation discussion (given a situation with 3 options, discuss and justify choice). The CLO must be 'Vận dụng có kiểm soát'.\n"
+                    if part == 10 else
+                    "Part 11 (Speaking Part 3 - Topic Development): Topic development based on a mind map/points and follow-up questions. The CLO must be 'Vận dụng tổng hợp'.\n"
+                ) +
+                "The type must be 'speaking'.\n"
+                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                "The topic must be chosen from the 14 valid B1 topics.\n"
+                "Return JSON matching the schema:\n"
+                "{\n"
+                "  \"questions\": [\n"
+                "    {\n"
+                "      \"part\": int,\n"
+                "      \"type\": \"string\",\n"
+                "      \"content\": \"string\",\n"
+                "      \"difficulty\": \"string\",\n"
+                "      \"clo\": \"string\",\n"
+                "      \"topic\": \"string\",\n"
+                "      \"explanation\": \"string\"\n"
+                "    }\n"
+                "  ]\n"
+                "}"
+            )
+            topic_hint = f"Topic to focus: {topic}" if topic else f"Select randomly from valid B1 topics: {', '.join(B1_TOPICS)}"
+            user_prompt = f"Generate {count} questions for part {part}. {topic_hint}"
+
+            try:
+                raw_json = self._call_gemini(system_instruction, user_prompt)
+                data = json.loads(raw_json)
+            except Exception as e:
+                logger.error(f"Failed to generate Speaking questions via Gemini: {e}. Falling back to Mock.")
+                rnd = random.Random(seed)
+                data = self._mock_speaking_data(rnd, count, part, topic)
+
+        # Validate and Ingest
+        saved_count = 0
+        questions_list = data.get("questions", [])
+        for q_raw in questions_list:
+            try:
+                # Schema Validation
+                q_validated = WritingSpeakingQuestionAI(**q_raw)
+
+                # Semantic / Business Rule Validations
+                if q_validated.part != part:
+                    logger.warning(f"Generated part {q_validated.part} does not match requested part {part}. Skipping.")
+                    continue
+                if q_validated.type != "speaking":
+                    logger.warning(f"Invalid type in generated question: {q_validated.type}. Skipping.")
+                    continue
+                if q_validated.topic not in B1_TOPICS:
+                    logger.warning(f"Invalid topic in generated question: {q_validated.topic}. Skipping.")
+                    continue
+                if q_validated.clo != expected_clo:
+                    logger.warning(f"Invalid CLO for part {part}: {q_validated.clo}. Skipping.")
+                    continue
+                if not q_validated.content or len(q_validated.content.strip()) < 20:
+                    logger.warning("Content too short or empty. Skipping.")
+                    continue
+
+                # Clean/Map difficulty
+                diff_val = q_validated.difficulty.lower()
+                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+
+                # Idempotency checks
+                q_data_dict = {
+                    "set_id": "",
+                    "number": "",
+                    "part": part,
+                    "type": "speaking",
+                    "content": q_validated.content,
+                    "options": {},
+                    "reference_answer": ""
+                }
+                q_hash = calculate_question_hash(q_data_dict)
+
+                existing = db.query(Question).filter(
+                    Question.exam_id.is_(None),
+                    Question.content_hash == q_hash
+                ).first()
+
+                if existing:
+                    logger.info("Question already exists in bank (duplicate content_hash). Skipping.")
+                    continue
+
+                new_q = Question(
+                    exam_id=None,
+                    group_id=None,
+                    part=part,
+                    type="speaking",
+                    content=q_validated.content,
+                    options={},
+                    reference_answer=None,
+                    difficulty=difficulty,
+                    clo=q_validated.clo,
+                    topic=q_validated.topic,
+                    explanation=q_validated.explanation,
+                    status="draft",
+                    content_hash=q_hash,
+                    exam_type="VSTEP_B1",
+                    language="EN"
+                )
+                db.add(new_q)
+                db.commit()
+                saved_count += 1
+            except Exception as val_err:
+                logger.warning(f"Item failed validation: {val_err}. Skipping.")
+                db.rollback()
+
+        return saved_count
+
     def _mock_r1_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
         questions = []
         for _ in range(count):
@@ -670,3 +940,52 @@ class B1QuestionGenerator:
                 "questions": questions
             })
         return {"groups": groups}
+
+    def _mock_writing_data(self, rnd: random.Random, count: int, part: int, topic: Optional[str] = None) -> dict:
+        questions = []
+        for _ in range(count):
+            t = topic or rnd.choice(B1_TOPICS)
+            diff = rnd.choice(["easy", "medium", "hard"])
+            if part == 5:
+                content = f"Rewrite the following sentence about {t} using the given word:\n'It is important to study {t} every day.'\n-> You must..."
+                clo = "Vận dụng có kiểm soát"
+            else:
+                content = f"Write an email (~100-120 words) to your friend talking about your experience with {t}.\nYou should mention:\n- What you did\n- Why you liked it\n- Your future plans about {t}."
+                clo = "Vận dụng tổng hợp"
+
+            questions.append({
+                "part": part,
+                "type": "writing",
+                "content": content,
+                "difficulty": diff,
+                "clo": clo,
+                "topic": t,
+                "explanation": f"Mock explanation for Writing Part {part} topic {t}."
+            })
+        return {"questions": questions}
+
+    def _mock_speaking_data(self, rnd: random.Random, count: int, part: int, topic: Optional[str] = None) -> dict:
+        questions = []
+        for _ in range(count):
+            t = topic or rnd.choice(B1_TOPICS)
+            diff = rnd.choice(["easy", "medium", "hard"])
+            if part == 9:
+                content = f"Answer three questions about {t}:\n1. Do you like {t}?\n2. How often do you learn about {t}?\n3. Who do you share {t} with?"
+                clo = "Vận dụng có kiểm soát"
+            elif part == 10:
+                content = f"Situation: You want to choose a topic related to {t} for a presentation. Three options: Option A, Option B, Option C. Discuss which option is the best."
+                clo = "Vận dụng có kiểm soát"
+            else:
+                content = f"Topic Development: 'Discuss the role of {t} in modern society.'\nPoints:\n- Job opportunities\n- Personal development\n- Global communication\nFollow-up question: What are the main challenges related to {t}?"
+                clo = "Vận dụng tổng hợp"
+
+            questions.append({
+                "part": part,
+                "type": "speaking",
+                "content": content,
+                "difficulty": diff,
+                "clo": clo,
+                "topic": t,
+                "explanation": f"Mock explanation for Speaking Part {part} topic {t}."
+            })
+        return {"questions": questions}

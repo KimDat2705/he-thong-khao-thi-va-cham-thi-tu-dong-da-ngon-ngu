@@ -204,3 +204,121 @@ def test_SPEC_ENRICH_001_validation_gate_rejects_invalid(db_session: Session, mo
     assert db_session.query(Question).filter(Question.reference_answer == "Z").count() == 0, "bad-reference item must be rejected"
     assert db_session.query(Question).filter(Question.content == "He ______ a car.").count() == 0, "3-option item must be rejected"
     assert db_session.query(Question).filter(Question.clo == "Vận dụng tổng hợp", Question.part == 1).count() == 0, "bad-CLO item must be rejected"
+
+
+def test_SPEC_ENRICH_002_ai_writing_speaking_generation_and_validation(db_session: Session, monkeypatch):
+    """
+    SPEC-ENRICH-002: AI-based VSTEP B1 Writing and Speaking Prompt Ingestion and Validation.
+    Asserts structure, validation, draft status, negative validation, and idempotency in Mock mode.
+    """
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
+
+    generator = B1QuestionGenerator()
+
+    # 1. Verify W1 (Part 5) and W2 (Part 6) Structure
+    w1_saved = generator.generate_writing_questions(db=db_session, count=2, part=5, seed=123)
+    w2_saved = generator.generate_writing_questions(db=db_session, count=2, part=6, seed=123)
+    assert w1_saved == 2
+    assert w2_saved == 2
+
+    # Query and assert on W1
+    w1_qs = db_session.query(Question).filter(
+        Question.exam_id.is_(None),
+        Question.part == 5,
+        Question.type == "writing"
+    ).all()
+    assert len(w1_qs) == 2
+    for q in w1_qs:
+        assert q.clo == "Vận dụng có kiểm soát"
+        assert q.options == {} or q.options is None
+        assert q.reference_answer is None
+        assert q.status == "draft"
+        assert q.difficulty in ["easy", "medium", "hard"]
+        assert q.topic in B1_TOPICS
+        assert len(q.content.strip()) >= 20
+
+    # Query and assert on W2
+    w2_qs = db_session.query(Question).filter(
+        Question.exam_id.is_(None),
+        Question.part == 6,
+        Question.type == "writing"
+    ).all()
+    assert len(w2_qs) == 2
+    for q in w2_qs:
+        assert q.clo == "Vận dụng tổng hợp"
+        assert q.options == {} or q.options is None
+        assert q.reference_answer is None
+        assert q.status == "draft"
+        assert len(q.content.strip()) >= 20
+
+    # 2. Verify S1 (Part 9), S2 (Part 10), S3 (Part 11) Structure
+    s1_saved = generator.generate_speaking_questions(db=db_session, count=1, part=9, seed=123)
+    s2_saved = generator.generate_speaking_questions(db=db_session, count=1, part=10, seed=123)
+    s3_saved = generator.generate_speaking_questions(db=db_session, count=1, part=11, seed=123)
+    assert s1_saved == 1
+    assert s2_saved == 1
+    assert s3_saved == 1
+
+    # Query and assert Speaking
+    speaking_qs = db_session.query(Question).filter(
+        Question.exam_id.is_(None),
+        Question.part.in_([9, 10, 11]),
+        Question.type == "speaking"
+    ).all()
+    assert len(speaking_qs) == 3
+    for q in speaking_qs:
+        assert q.status == "draft"
+        assert q.options == {} or q.options is None
+        assert q.reference_answer is None
+        if q.part in [9, 10]:
+            assert q.clo == "Vận dụng có kiểm soát"
+        elif q.part == 11:
+            assert q.clo == "Vận dụng tổng hợp"
+
+    # 3. Idempotency (same seed does not insert duplicates)
+    w1_dup_saved = generator.generate_writing_questions(db=db_session, count=2, part=5, seed=123)
+    assert w1_dup_saved == 0, "Idempotency check should skip duplicate content hashes for writing"
+    
+    s1_dup_saved = generator.generate_speaking_questions(db=db_session, count=1, part=9, seed=123)
+    assert s1_dup_saved == 0, "Idempotency check should skip duplicate content hashes for speaking"
+
+    # 4. Negative Validation Cases: Rejects items with bad type, clo, topic or too short content
+    crafted_writing = {"questions": [
+        { # VALID
+            "part": 5, "type": "writing", "content": "This is a valid sentence rewriting prompt that is long enough.",
+            "difficulty": "easy", "clo": "Vận dụng có kiểm soát", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: content too short
+            "part": 5, "type": "writing", "content": "Too short.",
+            "difficulty": "easy", "clo": "Vận dụng có kiểm soát", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: wrong type
+            "part": 5, "type": "choice", "content": "This has a choice type instead of writing type which is wrong.",
+            "difficulty": "easy", "clo": "Vận dụng có kiểm soát", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: wrong clo
+            "part": 5, "type": "writing", "content": "This is a prompt with a wrong clo for part 5.",
+            "difficulty": "easy", "clo": "Vận dụng tổng hợp", "topic": B1_TOPICS[0]
+        },
+        { # INVALID: wrong part
+            "part": 6, "type": "writing", "content": "This is a prompt with a wrong part for part 5 call.",
+            "difficulty": "easy", "clo": "Vận dụng có kiểm soát", "topic": B1_TOPICS[0]
+        }
+    ]}
+    monkeypatch.setattr(generator, "_mock_writing_data", lambda rnd, count, part, topic=None: crafted_writing)
+    # Using a new seed to make sure we don't hit idempotency check from step 1
+    w1_neg_saved = generator.generate_writing_questions(db=db_session, count=5, part=5, seed=999)
+    assert w1_neg_saved == 1, "Only 1 valid question should be saved, 4 malformed skipped"
+
+    # Verify the one valid writing question is in the db and the invalid ones are not
+    valid_neg_q = db_session.query(Question).filter(
+        Question.content == "This is a valid sentence rewriting prompt that is long enough."
+    ).first()
+    assert valid_neg_q is not None
+    assert valid_neg_q.part == 5
+
+    assert db_session.query(Question).filter(Question.content == "Too short.").count() == 0
+    assert db_session.query(Question).filter(Question.content == "This has a choice type instead of writing type which is wrong.").count() == 0
+    assert db_session.query(Question).filter(Question.content == "This is a prompt with a wrong clo for part 5.").count() == 0
+    assert db_session.query(Question).filter(Question.content == "This is a prompt with a wrong part for part 5 call.").count() == 0
+

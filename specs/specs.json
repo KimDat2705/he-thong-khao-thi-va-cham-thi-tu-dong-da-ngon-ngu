@@ -876,6 +876,27 @@
         "tests/test_specs_enrich.py::test_SPEC_ENRICH_001_validation_gate_rejects_invalid"
       ],
       "notes": "Làm giàu ngân hàng câu hỏi bằng Gemini AI (R1, R3, R4)."
+    },
+    {
+      "id": "SPEC-ENRICH-002",
+      "domain": "ENRICH",
+      "title": "AI-based VSTEP B1 Writing and Speaking Prompt Ingestion and Validation",
+      "statement": "Hệ thống hỗ trợ tự động dùng AI (Gemini) sinh đề viết (W1/W2) và đề nói (S1/S2/S3) để làm giàu ngân hàng câu hỏi nháp (draft), đảm bảo tuân thủ cấu trúc ma trận (part, type, clo) và chống trùng lặp.",
+      "acceptance_criteria": [
+        "W1: standalone writing, part=5, clo Vận dụng có kiểm soát.",
+        "W2: standalone writing, part=6, clo Vận dụng tổng hợp.",
+        "S1, S2: standalone speaking, part=9, 10, clo Vận dụng có kiểm soát.",
+        "S3: standalone speaking, part=11, clo Vận dụng tổng hợp.",
+        "Đề bài viết/nói không có options hay reference_answer.",
+        "Negative cases: Loại bỏ đề có nội dung quá ngắn, sai clo hoặc sai type.",
+        "Idempotent: chạy lại cùng seed không sinh trùng."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_enrich.py::test_SPEC_ENRICH_002_ai_writing_speaking_generation_and_validation"
+      ],
+      "notes": "Làm giàu ngân hàng câu hỏi viết và nói bằng Gemini AI."
     }
   ]
 }
