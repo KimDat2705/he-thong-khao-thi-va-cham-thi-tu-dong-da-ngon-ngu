@@ -325,6 +325,56 @@ def test_SPEC_GEN_007_data_driven_generation(db_session: Session):
     assert report["is_valid"], f"Data-driven validation failed: {report['errors']}"
 
 
+def test_generate_exam_robust_against_orphan_clones():
+    """Hardening: nếu DB còn ORPHAN clone (Question/QuestionGroup có exam_id trỏ một exam
+    đã bị xoá, và id đó bị SQLite TÁI DÙNG cho exam mới), post-check validator KHÔNG được
+    đếm nhầm orphan thành câu của đề mới (gây gấp đôi số câu -> ExamValidationError).
+    generate_exam phải dọn sạch mọi hàng trỏ exam_id của chính nó TRƯỚC khi clone.
+
+    Tái hiện deterministic: engine in-memory rỗng -> đề đầu tiên luôn nhận id=1; chèn sẵn
+    orphan có exam_id=1 -> collision chắc chắn. Không có guard thì generate_exam raise.
+    """
+    from app.services.toeic_generator import generate_exam
+
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    Sess = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = Sess()
+    try:
+        structure = {
+            "exam_type": "TINY",
+            "language": "EN",
+            "parts": {"1": {"type": "standalone", "count": 2}},
+            "balance_answers": False,
+        }
+        opts = {"A": "a", "B": "b", "C": "c", "D": "d"}
+        # Bank: 3 câu approved standalone part 1 (bank_exam_type=TOEIC vì exam_type != VSTEP_B1)
+        for i in range(3):
+            db.add(Question(
+                exam_id=None, group_id=None, part=1, type="choice",
+                content=f"bank q{i}", options=opts, reference_answer="A",
+                difficulty="medium", status="approved", exam_type="TOEIC",
+            ))
+        # ORPHAN clones có exam_id=1 (id mà đề đầu tiên sẽ nhận) — KHÔNG tồn tại exam id=1
+        for i in range(2):
+            db.add(Question(
+                exam_id=1, group_id=None, part=1, type="choice",
+                content=f"orphan {i}", options=opts, reference_answer="A",
+                difficulty="medium", status="approved", exam_type="TOEIC",
+            ))
+        db.commit()
+
+        # Không guard: validator đếm part 1 = 2 orphan + 2 clone = 4 != 2 -> raise.
+        # Có guard: orphan (exam_id=1) bị dọn trước clone -> đúng 2 câu, hợp lệ.
+        exam = generate_exam(db, structure, title="orphan-collision", seed=42)
+        assert exam.id == 1
+        n = db.query(Question).filter(Question.exam_id == exam.id).count()
+        assert n == 2, f"đề phải có đúng 2 câu (không gấp đôi từ orphan), got {n}"
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
+
+
 def test_SPEC_VALIDATE_001_post_check_cleanup(db_session: Session, monkeypatch):
     """SPEC-VALIDATE-001: Nếu validate_exam trả về invalid, hàm generate_exam phải:
     1. Xoá tất cả Question, QuestionGroup, Exam đã tạo (theo thứ tự tránh FK constraint).

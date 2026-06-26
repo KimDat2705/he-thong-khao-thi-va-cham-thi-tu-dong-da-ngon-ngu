@@ -179,6 +179,15 @@ def generate_exam(db: Session, structure: dict, title: str, duration_minutes: in
     db.commit()
     db.refresh(new_exam)
 
+    # Defensive hygiene: a freshly-allocated exam id can collide with ORPHAN clones —
+    # questions/groups whose exam row was deleted without cascading, leaving exam_id set
+    # to an id that SQLite later reuses. Such orphans would be miscounted by the post-check
+    # validator as belonging to THIS exam (silent doubling -> ExamValidationError). Clear any
+    # stale rows claiming this exam id before cloning. No-op on a clean database.
+    db.query(Question).filter(Question.exam_id == new_exam.id).delete(synchronize_session=False)
+    db.query(QuestionGroup).filter(QuestionGroup.exam_id == new_exam.id).delete(synchronize_session=False)
+    db.commit()
+
     # Helper function to clone a question
     def clone_question(orig_q: Question, target_group_id: int = None) -> Question:
         return Question(
