@@ -30,6 +30,25 @@
 
 **Bộ đề B1 đầy đủ 30 đề** (EB1.2601-2630) folder `1MThYWBMH6x2vuOJZc8c8Q9OILFLg9P_s`; đang thẩm định lỗi (72 lỗi, đề sạch demo = 2601). Ma trận B1: 3 bài/100đ/135' (Đọc 4 phần 30câu 30đ + Viết 2 phần 30đ; Nghe L1 5+L2 10 = 20đ; Nói 3 phần 20đ; đạt 50/100 & mỗi bài ≥30%).
 
+### 🧭 MA TRẬN B1 CHI TIẾT = BLUEPRINT VSTEP_B1 (đọc từ `Ma tran de thi TA B1 Khung chau Au.docx`, fetch 26/06) — NGUỒN SỰ THẬT cho việc-2
+
+**4 MỨC XỬ LÝ NGÔN NGỮ** (= cột `clo`; cô gọi "4 mức nhận thức", KHÔNG phải Dễ/TB/Khá/Khó):
+1. **Nhận diện** — nhận biết/chọn yếu tố ngôn ngữ trong ngữ cảnh rõ ràng; xác định thông tin trực tiếp.
+2. **Thông hiểu** — hiểu ý chính, chi tiết, mục đích giao tiếp, quan hệ nghĩa.
+3. **Vận dụng có kiểm soát** — sử dụng/biến đổi ngôn ngữ theo yêu cầu, có giới hạn + gợi ý.
+4. **Vận dụng tổng hợp** — tạo lập sản phẩm ngôn ngữ hoàn chỉnh; tổ chức ý, tương tác, bảo vệ quan điểm.
+
+**CẤU TRÚC ĐỀ (11 phần):**
+- **Đọc (Bài 1, 30đ)**: R1 = 10 câu MCQ **4 đáp án** A-D (ngữ pháp/từ vựng/ngữ nghĩa, độc lập) · R2 = 5 câu MCQ **3 đáp án** A-C (biển báo/quảng cáo/thông báo ngắn, **cần ẢNH**) · R3 = 5 câu MCQ 4 đáp án (đoạn 200-300 từ) · R4 = 10 chỗ trống **cloze** (đoạn 150-250 từ, chọn trong **hộp 15 từ**).
+- **Viết (Bài 1, 30đ)**: W1 = 5 câu viết lại theo gợi ý (10đ) · W2 = 1 bài thư 100-120 từ (20đ).
+- **Nghe (Bài 2, 20đ)**: L1 = 5 câu **chọn-tranh** (nghe 2 lần, **cần AUDIO+ẢNH**) · L2 = 10 câu **điền** thông tin (**cần AUDIO**).
+- **Nói (Bài 3, 20đ)**: S1 giới thiệu+hỏi đáp (5đ) · S2 trình bày chủ đề bốc thăm (10đ) · S3 hội thoại mở rộng (5đ). Bốc 1/10 chủ đề; chuẩn bị 5-7' không tính giờ.
+- **Đạt**: ≥50/100 **và** mỗi bài ≥30% (Đọc-Viết ≥18/60, Nghe ≥6/20, Nói ≥6/20).
+
+**14 CHỦ ĐỀ** (4 lĩnh vực: cá nhân/công cộng/nghề nghiệp/giáo dục): Bản thân · Nhà cửa-gia đình-môi trường · Cuộc sống hằng ngày · Vui chơi-giải trí · Đi lại-du lịch · Mối quan hệ · Sức khỏe · Giáo dục · Mua bán · Thực phẩm-đồ uống · Các dịch vụ · Địa điểm-địa danh · Ngôn ngữ · Thời tiết.
+
+**BẢN ĐỒ PHẦN→MỨC (việc-2, đã chốt cô Lý 24/06)**: R1=Nhận diện+Thông hiểu · R2/L1=Thông hiểu · R3/R4/L2=Thông hiểu+Vận dụng · W1/S1=Vận dụng · W2/S3=Vận dụng tổng hợp. Đơn vị sinh = **CÂU CHA (QuestionGroup, ngữ liệu) ~20/phần đều**; câu con (Question) theo cấu trúc. Kho đệm ~100/phần, dùng cạn sinh-bù.
+
 ### Link Drive B1 (gốc)
 - **Ma trận B1**: https://drive.google.com/drive/folders/1ZLPf-pihP3Ij50DVgZ419j_hc1ADU4b9
 - **Bộ đề B1** (Đạt gửi nhiều link; mục đầu dạng markdown-link có 2 ID):
