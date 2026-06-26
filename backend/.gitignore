@@ -125,3 +125,4 @@ static/
 .bootstrap_data/
 audio_data/
 *.db.bak
+scripts/b1_bank_export.json
