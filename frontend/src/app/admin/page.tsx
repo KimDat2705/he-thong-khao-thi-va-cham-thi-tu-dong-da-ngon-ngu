@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [editingExamId, setEditingExamId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDuration, setEditDuration] = useState("");
+  const [examType, setExamType] = useState<string>("TOEIC");
 
 
   async function refresh() {
@@ -84,8 +85,9 @@ export default function AdminPage() {
     setGenerating(true);
     setError(null);
     try {
-      const title = `TOEIC Demo ${new Date().toLocaleString("vi-VN")}`;
-      await generateExam(title);
+      const typeLabel = examType === "VSTEP_B1" ? "VSTEP B1" : "TOEIC";
+      const title = `${typeLabel} Demo ${new Date().toLocaleString("vi-VN")}`;
+      await generateExam(title, examType);
       await refresh();
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -184,7 +186,7 @@ export default function AdminPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Quản trị đề thi TOEIC</h1>
+        <h1 className="text-2xl font-bold">Quản trị đề thi</h1>
         <button
           onClick={onLogout}
           className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
@@ -214,13 +216,24 @@ export default function AdminPage() {
       <section className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Tồn kho ngân hàng (approved vs blueprint)</h2>
-          <button
-            onClick={onGenerate}
-            disabled={generating}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {generating ? "Đang sinh đề…" : "Sinh đề TOEIC mới"}
-          </button>
+          <div className="flex items-center gap-2">
+            <select
+              value={examType}
+              onChange={(e) => setExamType(e.target.value)}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 focus:border-blue-500 focus:outline-none"
+              disabled={generating}
+            >
+              <option value="TOEIC">TOEIC</option>
+              <option value="VSTEP_B1">VSTEP B1</option>
+            </select>
+            <button
+              onClick={onGenerate}
+              disabled={generating}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {generating ? "Đang sinh đề…" : `Sinh đề ${examType === "VSTEP_B1" ? "VSTEP B1" : "TOEIC"} mới`}
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -261,7 +274,7 @@ export default function AdminPage() {
         <h2 className="text-lg font-semibold">Đề đã sinh ({exams.length})</h2>
         {exams.length === 0 ? (
           <p className="mt-3 text-sm text-gray-500">
-            Chưa có đề nào. Bấm “Sinh đề TOEIC mới” để tạo.
+            Chưa có đề nào. Chọn loại đề và bấm sinh đề mới để tạo.
           </p>
         ) : (
           <ul className="mt-3 divide-y rounded-md border">

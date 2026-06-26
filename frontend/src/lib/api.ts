@@ -181,7 +181,14 @@ export async function updateExam(
   );
 }
 
-export async function generateExam(title: string, seed?: number): Promise<ExamSummary> {
+export async function generateExam(title: string, examType?: string, seed?: number): Promise<ExamSummary> {
+  const body: Record<string, any> = { title };
+  if (examType !== undefined) {
+    body.exam_type = examType;
+  }
+  if (seed !== undefined) {
+    body.seed = seed;
+  }
   return jsonOrThrow(
     await fetch(`${API_BASE}/api/v1/exams/generate`, {
       method: "POST",
@@ -189,7 +196,7 @@ export async function generateExam(title: string, seed?: number): Promise<ExamSu
         "Content-Type": "application/json",
         ...authHeaders(),
       },
-      body: JSON.stringify({ title, seed }),
+      body: JSON.stringify(body),
     }),
   );
 }
