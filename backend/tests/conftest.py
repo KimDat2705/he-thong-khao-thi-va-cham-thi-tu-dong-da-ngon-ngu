@@ -20,6 +20,17 @@ from app.models.grade import Grade
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
+
+@pytest.fixture(scope="session", autouse=True)
+def _generate_test_fixtures():
+    """Sinh fixture parser (.docx/.mp3, đều gitignored) MỘT LẦN trước mọi test, để các file
+    test tiêu thụ chúng (vd test_specs_bank dùng B1_exam_sample.docx) KHÔNG phụ thuộc thứ tự
+    chạy alphabet so với test_specs_parser. Vá lỗi CI: bank chạy trước parser (alphabet) ->
+    file chưa sinh -> AssertionError (local có file cũ từ lần chạy trước nên không lộ)."""
+    from tests.make_fixtures import main as generate_fixtures
+    generate_fixtures()
+
+
 @pytest.fixture(scope="function")
 def db_session():
     # Setup database
