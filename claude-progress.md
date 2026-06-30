@@ -816,3 +816,17 @@
   - **Frontend**: Dọn dẹp landing page (`page.tsx`), admin page (`admin/page.tsx`), bank page (`admin/bank/page.tsx`) loại bỏ selector TOEIC và đồng bộ sang VSTEP B1. Tích hợp **QuestionDetailModal** trên trang duyệt ngân hàng để hiển thị đầy đủ ngữ cảnh bài đọc, các options lựa chọn (đánh dấu đáp án đúng), player nghe audio, ảnh minh họa tranh và giải thích chi tiết của AI. Bật sự kiện click mở Modal khi click vào ID hoặc Content câu hỏi trong bảng.
   - **Test Suite**: Xóa bỏ hoàn toàn `test_toeic_generator.py` và `test_toeic_grader.py`. Refactor lại `conftest.py` chèn đầy đủ mock questions VSTEP B1 (Part 1-11) kèm audio/image assets. Sửa đổi toàn bộ 7 file test spec chuyển sang VSTEP B1, sử dụng eager Celery worker và cập nhật assertions khớp với luồng chấm điểm VSTEP B1 bất đồng bộ thực tế.
 - **Nghiệm thu (Claude, độc lập)**: pytest **76/76 passed** (xanh rì 100%); Next.js frontend `npm run build` biên dịch thành công 100% không lỗi.
+
+
+### Session 48 -- 2026-06-30 (Claude + Anti - Tích hợp Bộ chọn Độ khó AI Sinh & Upgrade Gemini 3.5 Flash)
+- **Việc HOÀN THÀNH** (commit trên `Dat`, +`SPEC-BANK-006`, +`SPEC-BANK-007`):
+  - **Cấu hình Model**: Nâng cấp model mặc định trong `config.py` và tệp `.env` thành `gemini-3.5-flash` (mới nhất và thông minh nhất của Google Gemini).
+  - **Bộ chọn Độ khó trên UI**: Tích hợp trường chọn Độ khó (Ngẫu nhiên, Dễ, Trung bình, Khó) vào Panel "AI Sinh Câu Hỏi" trên giao diện Admin (`frontend/src/app/admin/bank/page.tsx`).
+  - **Backend API & Generator**: 
+    - Cấu hình API endpoint `/api/v1/bank/enrich` chấp nhận tham số `difficulty`.
+    - Cập nhật logic `B1QuestionGenerator` để bổ sung dynamic prompt cho Gemini 3.5 Flash theo độ khó tương ứng, ánh xạ độ khó và lưu trữ chính xác vào cơ sở dữ liệu.
+    - Cập nhật chữ ký các hàm mock helper (`_mock_r1_data`,...) tương thích ngược với toàn bộ mock test cũ.
+  - **Harness Specs**:
+    - Đăng ký Spec **`SPEC-BANK-006`** (planned) cho hướng đi bất đồng bộ sử dụng Celery/Redis chống timeout khi sinh số lượng lớn (> 5 câu).
+    - Đăng ký Spec **`SPEC-BANK-007`** (planned) cho hướng đi Lai ghép Hybrid (Seed & Paraphrase) giải quyết triệt để vấn đề bản quyền và bảo chứng sư phạm.
+- **Nghiệm thu (Claude, độc lập)**: pytest **76/76 passed** (xanh rờn 100%); Next.js frontend `npm run build` thành công 100%.

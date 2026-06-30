@@ -156,3 +156,16 @@
 2. Quy trình giữ nguyên: plan → Claude review → `DUYỆT <mã>` → code nhánh riêng → **Claude nghiệm thu XONG mới push** → merge. KHÔNG đụng `backend/app/models/`, phân hệ Chấm, `claude-progress.md`/`session-handoff.md`. ⚠️ Phiên PARSE-007 Anti lại (a) push trước khi Claude nghiệm thu, (b) tự sửa 2 file nhật ký của Claude — nhắc giữ đúng ranh giới lần sau.
 3. Hạ tầng (khi rảnh): postgres service vào `ci.yml`; "Require status checks" cho `main`; hardening PARSE-002.
 4. Chờ sếp xác nhận quy đổi độ khó câu→nhóm.
+
+
+## Session Handoff -- 2026-06-30 (Session 48)
+
+### Trạng thái hiện tại
+1.  **AI Question Enrichment**: Đã hoàn tất nâng cấp bộ chọn Độ khó (Easy, Medium, Hard) từ giao diện Admin xuống backend và Gemini 3.5 Flash.
+2.  **Model AI**: Chuyển đổi thành công sang `gemini-3.5-flash` làm mặc định và cấu hình qua `.env`.
+3.  **Specs Harness**: Bổ sung `SPEC-BANK-006` (Celery Async planned) và `SPEC-BANK-007` (Hybrid Seed planned) vào `specs/specs.json` để vẽ ra lộ trình phát triển dài hạn.
+4.  **Chất lượng code**: 76/76 pytest pass hoàn hảo, build frontend TypeScript 100% thành công.
+
+### Mục tiêu tiếp theo
+- Triển khai luồng chấm thi tự động chi tiết hơn cho Writing và Speaking bằng Celery worker ngầm.
+- Phối hợp kiểm thử thực tế đầu-cuối trực tiếp trên giao diện Admin và Candidate.
