@@ -4,9 +4,9 @@ export default function Home() {
   return (
     <main className="mx-auto flex max-w-2xl flex-1 flex-col items-start justify-center px-6 py-16">
       <h1 className="text-3xl font-bold">Hệ thống Khảo thí và Chấm thi Đa ngôn ngữ</h1>
-      <p className="mt-1 text-sm font-medium text-blue-600">Phân hệ Tạo đề TOEIC (bản demo)</p>
+      <p className="mt-1 text-sm font-medium text-blue-600">Phân hệ Tạo đề & Chấm thi VSTEP B1 (AI-Powered)</p>
       <p className="mt-2 text-gray-500">
-        Nạp đề thật → ngân hàng câu hỏi → sinh đề TOEIC 200 câu → xem đề (ảnh, audio, ẩn đáp án).
+        Sinh ngân hàng câu hỏi bằng AI → Giáo viên phê duyệt → Tổ hợp đề thi B1 50 câu đa dạng → Giám thị AI Proctoring → Tự động chấm điểm tự luận Writing & Speaking bằng AI.
       </p>
       <div className="mt-6 flex flex-wrap gap-3">
         <Link

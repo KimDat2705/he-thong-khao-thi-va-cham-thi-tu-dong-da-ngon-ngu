@@ -26,7 +26,7 @@ export default function BankAdminPage() {
   const [authChecked, setAuthChecked] = useState(false);
 
   // Filter states
-  const [examType, setExamType] = useState<string>("TOEIC");
+  const [examType, setExamType] = useState<string>("VSTEP_B1");
   const [status, setStatus] = useState<string>("draft");
   const [part, setPart] = useState<number | "">("");
   const [difficulty, setDifficulty] = useState<string>("");
@@ -353,23 +353,7 @@ export default function BankAdminPage() {
       {/* Filters Form */}
       <div className="mt-6 rounded-lg border bg-gray-50 p-4">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Bộ lọc tìm kiếm</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase">Loại đề thi</label>
-            <select
-              value={examType}
-              onChange={(e) => {
-                setExamType(e.target.value);
-                setPart("");
-                setPage(1);
-                setSelectedIds([]);
-              }}
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="TOEIC">TOEIC</option>
-              <option value="VSTEP_B1">VSTEP B1</option>
-            </select>
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
 
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase">Trạng thái</label>

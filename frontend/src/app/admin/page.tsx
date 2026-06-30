@@ -30,7 +30,7 @@ export default function AdminPage() {
   const [editingExamId, setEditingExamId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDuration, setEditDuration] = useState("");
-  const [examType, setExamType] = useState<string>("TOEIC");
+  const [examType, setExamType] = useState<string>("VSTEP_B1");
 
 
   async function refresh() {
@@ -217,21 +217,12 @@ export default function AdminPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Tồn kho ngân hàng (approved vs blueprint)</h2>
           <div className="flex items-center gap-2">
-            <select
-              value={examType}
-              onChange={(e) => setExamType(e.target.value)}
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 focus:border-blue-500 focus:outline-none"
-              disabled={generating}
-            >
-              <option value="TOEIC">TOEIC</option>
-              <option value="VSTEP_B1">VSTEP B1</option>
-            </select>
             <button
               onClick={onGenerate}
               disabled={generating}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {generating ? "Đang sinh đề…" : `Sinh đề ${examType === "VSTEP_B1" ? "VSTEP B1" : "TOEIC"} mới`}
+              {generating ? "Đang sinh đề…" : "Sinh đề VSTEP B1 mới"}
             </button>
           </div>
         </div>
