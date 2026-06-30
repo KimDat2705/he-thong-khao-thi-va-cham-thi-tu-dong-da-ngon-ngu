@@ -980,6 +980,22 @@
         "tests/test_specs_bank.py::test_SPEC_BANK_005_question_enrichment_api"
       ],
       "notes": "Đã triển khai endpoint và form sinh câu hỏi trên giao diện Admin."
+    },
+    {
+      "id": "SPEC-BANK-006",
+      "domain": "BANK",
+      "title": "Sinh câu hỏi AI bất đồng bộ qua Celery/Redis",
+      "statement": "Hệ thống hỗ trợ gửi yêu cầu AI sinh câu hỏi dạng bất đồng bộ qua Celery worker, lập tức phản hồi task_id và trạng thái pending cho client để tránh timeout HTTP và cho phép sinh số lượng lớn câu hỏi (> 5 câu).",
+      "acceptance_criteria": [
+        "POST /api/v1/bank/enrich-async tiếp nhận tham số count, part, topic, difficulty và lập tức trả về task_id cùng trạng thái pending (< 1 giây).",
+        "Đẩy công việc sinh câu hỏi (gọi Gemini, sinh audio, Imagen vẽ tranh) vào Celery worker thực thi ngầm ở background.",
+        "Cung cấp GET /api/v1/bank/tasks/{task_id} để client kiểm tra tiến độ sinh câu hỏi.",
+        "Hỗ trợ sinh hàng loạt với số lượng lên tới 50 câu/lần mà không bị timeout."
+      ],
+      "verification": "manual",
+      "status": "planned",
+      "tests": [],
+      "notes": "Đã lên kế hoạch kiến trúc để giải quyết triệt để timeout khi sinh khối lượng lớn câu hỏi."
     }
   ]
 }
