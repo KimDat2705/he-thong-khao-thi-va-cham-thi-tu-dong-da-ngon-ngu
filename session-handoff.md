@@ -2,9 +2,9 @@
 
 > **🆕 S47 (30/06) — Dọn dẹp TOEIC & Chuẩn hóa VSTEP B1 (DONE):**
 > Loại bỏ hoàn toàn phân hệ TOEIC khỏi Frontend, Backend, Database seeders và Test Suite, quy chuẩn hóa toàn diện sang chứng chỉ VSTEP B1:
-> - **Backend**: Chạy migration `80e0b6818813` đổi mặc định `exam_type` của Question sang `"VSTEP_B1"`. Refactor các services `submission_admin.py`, `bank_admin.py`, `exam_admin.py` mặc định và chỉ hỗ trợ VSTEP B1.
+> - **Backend**: Chạy migration `80e0b6818813` đổi mặc định `exam_type` của Question sang `"VSTEP_B1"`. Refactor các services `submission_admin.py`, `bank_admin.py`, `exam_admin.py` mặc định và chỉ hỗ trợ VSTEP B1. Bổ sung 3 property động `group_passage`, `group_audio_url`, `group_image_url` vào class `Question` và cập nhật schema `QuestionRead` để tự động map thông tin QuestionGroup liên kết.
 > - **Sửa lỗi Đăng nhập**: Khôi phục hàm `seed_admin_user` và gọi nó trực tiếp trong `cloud_bootstrap.py` (load `.env` chuẩn xác và luôn đồng bộ ghi đè `hashed_password` từ biến môi trường của host nếu user admin đã tồn tại) để giải quyết triệt để lỗi lệch mật khẩu/khóa đăng nhập khi deploy cloud.
-> - **Frontend**: Dọn dẹp landing page (`page.tsx`), admin page (`admin/page.tsx`), bank page (`admin/bank/page.tsx`) loại bỏ selector TOEIC và chuyển dịch sang VSTEP B1.
+> - **Frontend**: Dọn dẹp landing page (`page.tsx`), admin page (`admin/page.tsx`), bank page (`admin/bank/page.tsx`) loại bỏ selector TOEIC và chuyển dịch sang VSTEP B1. Tích hợp **QuestionDetailModal** trên trang duyệt ngân hàng để hiển thị đầy đủ ngữ cảnh bài đọc, các options lựa chọn (đánh dấu đáp án đúng), player nghe audio, ảnh minh họa tranh và giải thích chi tiết của AI. Bật sự kiện click mở Modal khi click vào ID hoặc Content câu hỏi trong bảng.
 > - **Test Suite**: Xóa bỏ `test_toeic_generator.py` và `test_toeic_grader.py`. Refactor `conftest.py` chèn đầy đủ mock questions VSTEP B1 (Part 1-11) kèm audio/image assets. Sửa đổi 7 file test spec chuyển sang VSTEP B1, sử dụng eager Celery worker và cập nhật assertions khớp với luồng chấm điểm VSTEP B1 bất đồng bộ thực tế.
 > - **Nghiệm thu độc lập**: pytest **76/76 passed** (xanh rì 100%); Next.js frontend `npm run build` biên dịch thành công 100% không lỗi.
 

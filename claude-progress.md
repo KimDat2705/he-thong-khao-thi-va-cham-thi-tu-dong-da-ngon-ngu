@@ -810,9 +810,9 @@
 - **Tiến hành Chấm điểm AI Tự động**: Bổ sung chi tiết các trường hợp kiểm thử sâu hơn cho phần nhận xét phát âm/fluency của Speaking và chi tiết ngữ pháp của Writing.
 
 ### Session 47 -- 2026-06-30 (Claude + Anti — Loại bỏ hoàn toàn TOEIC & Quy chuẩn hóa VSTEP B1)
-- **Việc HOÀN THÀNH** (hoàn thành dọn dẹp phân hệ TOEIC và sửa lỗi đăng nhập admin):
-  - **Backend**: Chạy migration `80e0b6818813` đổi mặc định `exam_type` của Question sang `"VSTEP_B1"`. Refactor `submission_admin.py`, `bank_admin.py`, `exam_admin.py`, và các API routers mặc định và chỉ hỗ trợ VSTEP B1.
+- **Việc HOÀN THÀNH** (hoàn thành dọn dẹp phân hệ TOEIC, sửa lỗi đăng nhập và tích hợp Modal xem chi tiết câu hỏi):
+  - **Backend**: Chạy migration `80e0b6818813` đổi mặc định `exam_type` của Question sang `"VSTEP_B1"`. Refactor `submission_admin.py`, `bank_admin.py`, `exam_admin.py`, và các API routers mặc định và chỉ hỗ trợ VSTEP B1. Bổ sung 3 property động `group_passage`, `group_audio_url`, `group_image_url` vào class `Question` và cập nhật schema `QuestionRead` để tự động map thông tin QuestionGroup liên kết.
   - **Sửa lỗi Đăng nhập**: Khôi phục hàm `seed_admin_user` và gọi nó trực tiếp trong `cloud_bootstrap.py` (load `.env` chuẩn xác và luôn đồng bộ ghi đè `hashed_password` từ biến môi trường của host nếu user admin đã tồn tại) để giải quyết triệt để lỗi lệch mật khẩu/khóa đăng nhập khi deploy cloud.
-  - **Frontend**: Dọn dẹp landing page (`page.tsx`), admin page (`admin/page.tsx`), bank page (`admin/bank/page.tsx`) loại bỏ selector TOEIC và đồng bộ sang VSTEP B1.
+  - **Frontend**: Dọn dẹp landing page (`page.tsx`), admin page (`admin/page.tsx`), bank page (`admin/bank/page.tsx`) loại bỏ selector TOEIC và đồng bộ sang VSTEP B1. Tích hợp **QuestionDetailModal** trên trang duyệt ngân hàng để hiển thị đầy đủ ngữ cảnh bài đọc, các options lựa chọn (đánh dấu đáp án đúng), player nghe audio, ảnh minh họa tranh và giải thích chi tiết của AI. Bật sự kiện click mở Modal khi click vào ID hoặc Content câu hỏi trong bảng.
   - **Test Suite**: Xóa bỏ hoàn toàn `test_toeic_generator.py` và `test_toeic_grader.py`. Refactor lại `conftest.py` chèn đầy đủ mock questions VSTEP B1 (Part 1-11) kèm audio/image assets. Sửa đổi toàn bộ 7 file test spec chuyển sang VSTEP B1, sử dụng eager Celery worker và cập nhật assertions khớp với luồng chấm điểm VSTEP B1 bất đồng bộ thực tế.
 - **Nghiệm thu (Claude, độc lập)**: pytest **76/76 passed** (xanh rì 100%); Next.js frontend `npm run build` biên dịch thành công 100% không lỗi.
