@@ -110,6 +110,32 @@ def _seed_b1_bank_from_archive() -> None:
     print("Bootstrap: VSTEP B1 bank seeding completed successfully.")
 
 
+def seed_admin_user(db) -> None:
+    """Seed the admin user for testing and local management.
+    Reads ADMIN_USERNAME/ADMIN_PASSWORD environment variables.
+    """
+    from app.models.user import User
+    from app.core.security import hash_password
+
+    admin_username = os.environ.get("ADMIN_USERNAME", "admin")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "adminpassword")
+
+    existing = db.query(User).filter(User.username == admin_username).first()
+    if not existing:
+        admin_user = User(
+            username=admin_username,
+            hashed_password=hash_password(admin_password),
+            full_name="Admin Demo",
+            role="admin",
+            is_active=True
+        )
+        db.add(admin_user)
+        db.commit()
+        print(f"Seeded admin user '{admin_username}' successfully.")
+    else:
+        print(f"Admin user '{admin_username}' already exists in database.")
+
+
 def _download(file_id: str, dest: str) -> None:
     if os.path.isfile(dest) and os.path.getsize(dest) > 0:
         print(f"  cached {os.path.basename(dest)}")
@@ -155,6 +181,16 @@ def main() -> None:
             print(f"Bootstrap WARNING: B1 bank seed failed -> {type(e).__name__}: {e}")
     else:
         print("Bootstrap: VSTEP B1 bank already seeded — skipping B1 bank bootstrap.")
+
+    # Always seed admin user to make sure auth works
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        seed_admin_user(db)
+    except Exception as e:
+        print(f"Bootstrap WARNING: Seeding admin user failed -> {type(e).__name__}: {e}")
+    finally:
+        db.close()
 
     print("Bootstrap: done.")
 
