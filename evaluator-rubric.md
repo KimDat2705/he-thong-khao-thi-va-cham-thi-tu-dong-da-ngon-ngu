@@ -13,6 +13,6 @@ This rubric defines the criteria used to evaluate changes made by AI agents or d
 - **Spec Integrity**: No implementation code is marked completed unless it has an active `SPEC` reference in `specs/specs.json` and a matching test in `backend/tests/`.
 
 ## 3. Performance & Scaling (L3)
-- **Exam Generation Latency**: target < 1.5 seconds per TOEIC exam on SQLite/local DB (measured 2026-06-12: ~0.21s on test fixture). Hard gate per SPEC-SCALE-002 is < 10s — re-measure after Part-7 backtracking + validator land (B2/B4), as combinatorial search may add cost.
+- **Exam Generation Latency**: target < 1.5 seconds per VSTEP B1 exam on SQLite/local DB (measured 2026-06-12: ~0.21s on test fixture). Hard gate per SPEC-SCALE-002 is < 10s — re-measure after backtracking + validator land, as combinatorial search may add cost.
 - **Audio Upload Throughput**: Opus/WebM compressed audio uploads must handle multiple concurrent files without server timeout.
-- **Grading Queue Isolation**: AI grading requests must be dispatched asynchronously to Celery workers, never blocking the main web request thread. (Currently NOT met — grading runs synchronously; tracked as SPEC-GRADE-003, planned.)
+- **Grading Queue Isolation**: AI grading requests must be dispatched asynchronously to Celery workers, never blocking the main web request thread.
