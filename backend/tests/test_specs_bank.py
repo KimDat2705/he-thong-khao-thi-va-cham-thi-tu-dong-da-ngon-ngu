@@ -250,10 +250,10 @@ def test_SPEC_BANK_005_question_enrichment_api(db_session: Session, admin_auth_h
     candidate_auth_headers = {"Authorization": f"Bearer {candidate_token}"}
 
     try:
-        # 1. Gọi thành công với vai trò Admin (sinh 1 câu hỏi Part 1)
+        # 1. Gọi thành công với vai trò Admin (sinh 1 câu hỏi Part 1 độ khó hard)
         response = client.post(
             "/api/v1/bank/enrich",
-            json={"count": 1, "part": "1", "topic": "Giáo dục"},
+            json={"count": 1, "part": "1", "topic": "Giáo dục", "difficulty": "hard"},
             headers=admin_auth_headers
         )
         assert response.status_code == 200
@@ -261,7 +261,7 @@ def test_SPEC_BANK_005_question_enrichment_api(db_session: Session, admin_auth_h
         assert res["success"] is True
         assert res["generated_count"] == 1
 
-        # Xác nhận câu hỏi đã được lưu vào database ở trạng thái draft
+        # Xác nhận câu hỏi đã được lưu vào database ở trạng thái draft và đúng độ khó hard
         from app.models.question import Question
         q = db_session.query(Question).filter(
             Question.exam_id.is_(None),
@@ -271,6 +271,7 @@ def test_SPEC_BANK_005_question_enrichment_api(db_session: Session, admin_auth_h
         ).first()
         assert q is not None
         assert q.exam_type == "VSTEP_B1"
+        assert q.difficulty == "hard"
 
         # 2. Gọi với số lượng vượt quá giới hạn (> 5) -> Chặn 400
         response = client.post(

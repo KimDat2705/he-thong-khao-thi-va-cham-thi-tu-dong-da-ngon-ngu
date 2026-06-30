@@ -70,6 +70,7 @@ class EnrichRequest(BaseModel):
     count: int
     part: str
     topic: Optional[str] = None
+    difficulty: Optional[str] = None
 
 class EnrichResult(BaseModel):
     success: bool

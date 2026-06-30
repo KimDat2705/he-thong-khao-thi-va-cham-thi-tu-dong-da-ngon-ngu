@@ -84,32 +84,33 @@ def enrich_questions(
         part = payload.part
         count = payload.count
         topic = payload.topic
+        difficulty = payload.difficulty
 
         if count > 5:
             raise HTTPException(status_code=400, detail="Mỗi lần sinh bằng AI trên Web tối đa là 5 câu để tránh timeout mạng.")
 
         if part == "1":
-            generated_count = generator.generate_r1_questions(db, count, topic)
+            generated_count = generator.generate_r1_questions(db, count, topic, req_difficulty=difficulty)
         elif part == "2":
-            generated_count = generator.generate_r2_questions(db, count, topic)
+            generated_count = generator.generate_r2_questions(db, count, topic, req_difficulty=difficulty)
         elif part == "3":
-            generated_count = generator.generate_r3_groups(db, count, topic)
+            generated_count = generator.generate_r3_groups(db, count, topic, req_difficulty=difficulty)
         elif part == "4":
-            generated_count = generator.generate_r4_groups(db, count, topic)
+            generated_count = generator.generate_r4_groups(db, count, topic, req_difficulty=difficulty)
         elif part == "5":
-            generated_count = generator.generate_writing_questions(db, count, 5, topic)
+            generated_count = generator.generate_writing_questions(db, count, 5, topic, req_difficulty=difficulty)
         elif part == "6":
-            generated_count = generator.generate_writing_questions(db, count, 6, topic)
+            generated_count = generator.generate_writing_questions(db, count, 6, topic, req_difficulty=difficulty)
         elif part == "7":
-            generated_count = generator.generate_l1_questions(db, count, topic)
+            generated_count = generator.generate_l1_questions(db, count, topic, req_difficulty=difficulty)
         elif part == "8":
-            generated_count = generator.generate_l2_groups(db, count, topic)
+            generated_count = generator.generate_l2_groups(db, count, topic, req_difficulty=difficulty)
         elif part == "9":
-            generated_count = generator.generate_speaking_questions(db, count, 9, topic)
+            generated_count = generator.generate_speaking_questions(db, count, 9, topic, req_difficulty=difficulty)
         elif part == "10":
-            generated_count = generator.generate_speaking_questions(db, count, 10, topic)
+            generated_count = generator.generate_speaking_questions(db, count, 10, topic, req_difficulty=difficulty)
         elif part == "11":
-            generated_count = generator.generate_speaking_questions(db, count, 11, topic)
+            generated_count = generator.generate_speaking_questions(db, count, 11, topic, req_difficulty=difficulty)
         else:
             raise HTTPException(status_code=400, detail="Vui lòng chọn cụ thể từng Part (1-11) để sinh trên giao diện.")
 

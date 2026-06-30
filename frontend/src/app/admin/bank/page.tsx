@@ -47,6 +47,7 @@ export default function BankAdminPage() {
   const [enrichPart, setEnrichPart] = useState<string>("1");
   const [enrichTopic, setEnrichTopic] = useState<string>("");
   const [enrichCount, setEnrichCount] = useState<number>(1);
+  const [enrichDifficulty, setEnrichDifficulty] = useState<string>("");
   const [enriching, setEnriching] = useState<boolean>(false);
 
   // Guard authentication
@@ -164,6 +165,7 @@ export default function BankAdminPage() {
         count: enrichCount,
         part: enrichPart,
         topic: enrichTopic === "" ? undefined : enrichTopic,
+        difficulty: enrichDifficulty === "" ? undefined : enrichDifficulty,
       });
       setSuccess(`AI đã sinh thành công ${res.generated_count} câu hỏi/nhóm câu hỏi VSTEP B1 dạng Nháp.`);
       setExamType("VSTEP_B1");
@@ -264,7 +266,7 @@ export default function BankAdminPage() {
         <p className="text-xs text-blue-700 mb-4">
           Hệ thống sẽ gọi API Gemini để tự động sinh câu hỏi, đáp án, giải thích, ảnh minh hoạ (Imagen) và file âm thanh (TTS) theo đúng đặc tả Ma trận B1.
         </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase">Chọn phần (Part)</label>
             <select
@@ -297,7 +299,7 @@ export default function BankAdminPage() {
             >
               <option value="">Ngẫu nhiên</option>
               <option value="Bản thân">Bản thân</option>
-              <option value="Nhà cửa-gia đình-môi trường">Nhà cửa - Gia đình - Môi trường</option>
+              <option value="Nhà cửa-gia định-môi trường">Nhà cửa - Gia đình - Môi trường</option>
               <option value="Cuộc sống hằng ngày">Cuộc sống hằng ngày</option>
               <option value="Vui chơi-giải trí">Vui chơi - Giải trí</option>
               <option value="Đi lại-du lịch">Đi lại - Du lịch</option>
@@ -324,6 +326,21 @@ export default function BankAdminPage() {
               disabled={enriching}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Độ khó (Difficulty)</label>
+            <select
+              value={enrichDifficulty}
+              onChange={(e) => setEnrichDifficulty(e.target.value)}
+              disabled={enriching}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+            >
+              <option value="">Ngẫu nhiên (AI chọn)</option>
+              <option value="easy">Dễ (Easy)</option>
+              <option value="medium">Trung bình (Medium)</option>
+              <option value="hard">Khó (Hard)</option>
+            </select>
           </div>
 
           <div className="flex items-end">

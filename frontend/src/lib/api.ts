@@ -306,6 +306,7 @@ export async function enrichBankQuestions(payload: {
   count: number;
   part: string;
   topic?: string;
+  difficulty?: string;
 }): Promise<{ success: boolean; generated_count: number }> {
   return jsonOrThrow(
     await fetch(`${API_BASE}/api/v1/bank/enrich`, {

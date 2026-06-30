@@ -1,4 +1,5 @@
 import json
+import inspect
 import logging
 import os
 import random
@@ -178,7 +179,7 @@ class B1QuestionGenerator:
             logger.error(f"Gemini API call failed: {e}")
             raise e
 
-    def generate_r1_questions(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+    def generate_r1_questions(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate R1 (Part 1 Standalone Choice) questions and save to the bank."""
         if topic and topic not in B1_TOPICS:
             raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
@@ -186,7 +187,11 @@ class B1QuestionGenerator:
         if not self.client:
             # Mock mode
             rnd = random.Random(seed)
-            data = self._mock_r1_data(rnd, count, topic)
+            sig = inspect.signature(self._mock_r1_data)
+            if "difficulty" in sig.parameters:
+                data = self._mock_r1_data(rnd, count, topic, req_difficulty)
+            else:
+                data = self._mock_r1_data(rnd, count, topic)
         else:
             system_instruction = (
                 "You are an expert English language examiner. Generate a batch of VSTEP B1 Reading Part 1 standalone multiple-choice questions.\n"
@@ -194,7 +199,7 @@ class B1QuestionGenerator:
                 "Provide a gap placeholder '______' in the question content.\n"
                 "Options must contain exactly 4 options (A, B, C, D) and reference_answer must be A, B, C, or D.\n"
                 "The CLO must be 'Nhận diện' or 'Thông hiểu'.\n"
-                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                + (f"The difficulty must be exactly: {req_difficulty}.\n" if req_difficulty else "The difficulty must be exactly one of: easy, medium, hard.\n") +
                 "The topic must be chosen from the 14 valid B1 topics.\n"
                 "Return JSON matching the schema:\n"
                 "{\n"
@@ -220,7 +225,11 @@ class B1QuestionGenerator:
             except Exception as e:
                 logger.error(f"Failed to generate R1 questions via Gemini: {e}. Falling back to Mock.")
                 rnd = random.Random(seed)
-                data = self._mock_r1_data(rnd, count, topic)
+                sig = inspect.signature(self._mock_r1_data)
+                if "difficulty" in sig.parameters:
+                    data = self._mock_r1_data(rnd, count, topic, req_difficulty)
+                else:
+                    data = self._mock_r1_data(rnd, count, topic)
 
         # Validate and Ingest
         saved_count = 0
@@ -246,7 +255,7 @@ class B1QuestionGenerator:
 
                 # Clean/Map difficulty
                 diff_val = q_validated.difficulty.lower()
-                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+                difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (diff_val if diff_val in ["easy", "medium", "hard"] else "medium")
 
                 # Idempotency checks
                 q_data_dict = {
@@ -295,7 +304,7 @@ class B1QuestionGenerator:
 
         return saved_count
 
-    def generate_r2_questions(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+    def generate_r2_questions(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate R2 (Part 2 Standalone Choice - 3 options) questions and save to the bank."""
         if topic and topic not in B1_TOPICS:
             raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
@@ -303,14 +312,18 @@ class B1QuestionGenerator:
         if not self.client:
             # Mock mode
             rnd = random.Random(seed)
-            data = self._mock_r2_data(rnd, count, topic)
+            sig = inspect.signature(self._mock_r2_data)
+            if "difficulty" in sig.parameters:
+                data = self._mock_r2_data(rnd, count, topic, req_difficulty)
+            else:
+                data = self._mock_r2_data(rnd, count, topic)
         else:
             system_instruction = (
                 "You are an expert English language examiner. Generate a batch of VSTEP B1 Reading Part 2 standalone multiple-choice questions based on short notices, signs, or labels.\n"
                 "Each question must contain a short text (notice, message, label) and a question asking for its meaning.\n"
                 "Options must contain exactly 3 options (A, B, C) and reference_answer must be A, B, or C.\n"
                 "The CLO must be 'Thông hiểu'.\n"
-                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                + (f"The difficulty must be exactly: {req_difficulty}.\n" if req_difficulty else "The difficulty must be exactly one of: easy, medium, hard.\n") +
                 "The topic must be chosen from the 14 valid B1 topics.\n"
                 "Return JSON matching the schema:\n"
                 "{\n"
@@ -336,7 +349,11 @@ class B1QuestionGenerator:
             except Exception as e:
                 logger.error(f"Failed to generate R2 questions via Gemini: {e}. Falling back to Mock.")
                 rnd = random.Random(seed)
-                data = self._mock_r2_data(rnd, count, topic)
+                sig = inspect.signature(self._mock_r2_data)
+                if "difficulty" in sig.parameters:
+                    data = self._mock_r2_data(rnd, count, topic, req_difficulty)
+                else:
+                    data = self._mock_r2_data(rnd, count, topic)
 
         # Validate and Ingest
         saved_count = 0
@@ -365,7 +382,7 @@ class B1QuestionGenerator:
 
                 # Clean/Map difficulty
                 diff_val = q_validated.difficulty.lower()
-                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+                difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (diff_val if diff_val in ["easy", "medium", "hard"] else "medium")
 
                 # Idempotency checks
                 q_data_dict = {
@@ -414,7 +431,7 @@ class B1QuestionGenerator:
 
         return saved_count
 
-    def generate_r3_groups(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+    def generate_r3_groups(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate R3 (Part 3 Passage + 5 Choice Questions) groups and save to the bank."""
         if topic and topic not in B1_TOPICS:
             raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
@@ -422,7 +439,11 @@ class B1QuestionGenerator:
         if not self.client:
             # Mock mode
             rnd = random.Random(seed)
-            data = self._mock_r3_data(rnd, count, topic)
+            sig = inspect.signature(self._mock_r3_data)
+            if "difficulty" in sig.parameters:
+                data = self._mock_r3_data(rnd, count, topic, req_difficulty)
+            else:
+                data = self._mock_r3_data(rnd, count, topic)
         else:
             system_instruction = (
                 "You are an expert English language examiner. Generate a batch of VSTEP B1 Reading Part 3 question groups.\n"
@@ -431,7 +452,7 @@ class B1QuestionGenerator:
                 "2. A topic from the 14 valid B1 topics.\n"
                 "3. Exactly 5 child questions of 'choice' type based on the passage.\n"
                 "Each child question must have options (A, B, C, D), reference_answer (A, B, C, or D), CLO='Thông hiểu'.\n"
-                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                + (f"The difficulty must be exactly: {req_difficulty}.\n" if req_difficulty else "The difficulty must be exactly one of: easy, medium, hard.\n") +
                 "Return JSON matching the schema:\n"
                 "{\n"
                 "  \"groups\": [\n"
@@ -462,7 +483,11 @@ class B1QuestionGenerator:
             except Exception as e:
                 logger.error(f"Failed to generate R3 groups via Gemini: {e}. Falling back to Mock.")
                 rnd = random.Random(seed)
-                data = self._mock_r3_data(rnd, count, topic)
+                sig = inspect.signature(self._mock_r3_data)
+                if "difficulty" in sig.parameters:
+                    data = self._mock_r3_data(rnd, count, topic, req_difficulty)
+                else:
+                    data = self._mock_r3_data(rnd, count, topic)
 
         # Validate and Ingest
         saved_count = 0
@@ -517,7 +542,7 @@ class B1QuestionGenerator:
 
                 # Clean/Map difficulty
                 diff_val = g_validated.difficulty.lower()
-                g_difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+                g_difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (diff_val if diff_val in ["easy", "medium", "hard"] else "medium")
 
                 new_g = QuestionGroup(
                     exam_id=None,
@@ -547,7 +572,7 @@ class B1QuestionGenerator:
                     q_hash = calculate_question_hash(q_data_dict)
 
                     q_diff_val = q_validated.difficulty.lower()
-                    q_difficulty = q_diff_val if q_diff_val in ["easy", "medium", "hard"] else "medium"
+                    q_difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (q_diff_val if q_diff_val in ["easy", "medium", "hard"] else "medium")
 
                     new_q = Question(
                         exam_id=None,
@@ -576,7 +601,7 @@ class B1QuestionGenerator:
 
         return saved_count
 
-    def generate_r4_groups(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+    def generate_r4_groups(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate R4 (Part 4 Cloze Passage with blanks 21-30 + word box of 15 words) groups and save to the bank."""
         if topic and topic not in B1_TOPICS:
             raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
@@ -584,7 +609,11 @@ class B1QuestionGenerator:
         if not self.client:
             # Mock mode
             rnd = random.Random(seed)
-            data = self._mock_r4_data(rnd, count, topic)
+            sig = inspect.signature(self._mock_r4_data)
+            if "difficulty" in sig.parameters:
+                data = self._mock_r4_data(rnd, count, topic, req_difficulty)
+            else:
+                data = self._mock_r4_data(rnd, count, topic)
         else:
             system_instruction = (
                 "You are an expert English language examiner. Generate a batch of VSTEP B1 Reading Part 4 gap-fill cloze question groups.\n"
@@ -595,7 +624,7 @@ class B1QuestionGenerator:
                 "4. Exactly 10 child questions, one for each blank number 21-30.\n"
                 "Each child question must specify: blank_number, content (the sentence containing the blank), "
                 "reference_answer (the exact correct word from word_box), CLO='Vận dụng có kiểm soát'.\n"
-                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                + (f"The difficulty must be exactly: {req_difficulty}.\n" if req_difficulty else "The difficulty must be exactly one of: easy, medium, hard.\n") +
                 "Return JSON matching the schema:\n"
                 "{\n"
                 "  \"groups\": [\n"
@@ -627,7 +656,11 @@ class B1QuestionGenerator:
             except Exception as e:
                 logger.error(f"Failed to generate R4 groups via Gemini: {e}. Falling back to Mock.")
                 rnd = random.Random(seed)
-                data = self._mock_r4_data(rnd, count, topic)
+                sig = inspect.signature(self._mock_r4_data)
+                if "difficulty" in sig.parameters:
+                    data = self._mock_r4_data(rnd, count, topic, req_difficulty)
+                else:
+                    data = self._mock_r4_data(rnd, count, topic)
 
         # Validate and Ingest
         saved_count = 0
@@ -709,7 +742,7 @@ class B1QuestionGenerator:
 
                 # Clean/Map difficulty
                 diff_val = g_validated.difficulty.lower()
-                g_difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+                g_difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (diff_val if diff_val in ["easy", "medium", "hard"] else "medium")
 
                 new_g = QuestionGroup(
                     exam_id=None,
@@ -739,7 +772,7 @@ class B1QuestionGenerator:
                     q_hash = calculate_question_hash(q_data_dict)
 
                     q_diff_val = q_validated.difficulty.lower()
-                    q_difficulty = q_diff_val if q_diff_val in ["easy", "medium", "hard"] else "medium"
+                    q_difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (q_diff_val if q_diff_val in ["easy", "medium", "hard"] else "medium")
 
                     new_q = Question(
                         exam_id=None,
@@ -841,7 +874,7 @@ class B1QuestionGenerator:
             logger.error(f"Gemini Image generation failed: {e}")
             raise e
 
-    def generate_l1_questions(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+    def generate_l1_questions(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate L1 (Part 7 Listening Picture Matching - 3 choices) questions and save to the bank."""
         if topic and topic not in B1_TOPICS:
             raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
@@ -855,7 +888,11 @@ class B1QuestionGenerator:
 
         if not self.client:
             rnd = random.Random(seed)
-            data = self._mock_l1_data(rnd, count, topic)
+            sig = inspect.signature(self._mock_l1_data)
+            if "difficulty" in sig.parameters:
+                data = self._mock_l1_data(rnd, count, topic, req_difficulty)
+            else:
+                data = self._mock_l1_data(rnd, count, topic)
         else:
             system_instruction = (
                 "You are an expert English language examiner. Generate a batch of VSTEP B1 Listening Part 1 standalone multiple-choice questions with 3 picture choices.\n"
@@ -895,7 +932,11 @@ class B1QuestionGenerator:
             except Exception as e:
                 logger.error(f"Failed to generate L1 questions via Gemini: {e}. Falling back to Mock.")
                 rnd = random.Random(seed)
-                data = self._mock_l1_data(rnd, count, topic)
+                sig = inspect.signature(self._mock_l1_data)
+                if "difficulty" in sig.parameters:
+                    data = self._mock_l1_data(rnd, count, topic, req_difficulty)
+                else:
+                    data = self._mock_l1_data(rnd, count, topic)
 
         saved_count = 0
         questions_list = data.get("questions", [])
@@ -991,7 +1032,7 @@ class B1QuestionGenerator:
 
                 # Clean/Map difficulty
                 diff_val = q_validated.difficulty.lower()
-                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+                difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (diff_val if diff_val in ["easy", "medium", "hard"] else "medium")
 
                 new_q = Question(
                     exam_id=None,
@@ -1027,7 +1068,7 @@ class B1QuestionGenerator:
 
         return saved_count
 
-    def generate_l2_groups(self, db: Session, count: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+    def generate_l2_groups(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate L2 (Part 8 Note Completion - 10 blanks) groups and save to the bank."""
         if topic and topic not in B1_TOPICS:
             raise ValueError(f"Invalid topic '{topic}'. Must be one of {B1_TOPICS}")
@@ -1041,7 +1082,11 @@ class B1QuestionGenerator:
 
         if not self.client:
             rnd = random.Random(seed)
-            data = self._mock_l2_data(rnd, count, topic)
+            sig = inspect.signature(self._mock_l2_data)
+            if "difficulty" in sig.parameters:
+                data = self._mock_l2_data(rnd, count, topic, req_difficulty)
+            else:
+                data = self._mock_l2_data(rnd, count, topic)
         else:
             system_instruction = (
                 "You are an expert English language examiner. Generate a batch of VSTEP B1 Listening Part 2 gap-fill note completion question groups.\n"
@@ -1052,7 +1097,7 @@ class B1QuestionGenerator:
                 "4. Exactly 10 child questions, one for each blank number 1-10.\n"
                 "Each child question must specify: blank_number, content (the short context sentence containing the blank), "
                 "reference_answer (the correct word or short phrase from the script), CLO='Thông hiểu'.\n"
-                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                + (f"The difficulty must be exactly: {req_difficulty}.\n" if req_difficulty else "The difficulty must be exactly one of: easy, medium, hard.\n") +
                 "Return JSON matching the schema:\n"
                 "{\n"
                 "  \"groups\": [\n"
@@ -1084,7 +1129,11 @@ class B1QuestionGenerator:
             except Exception as e:
                 logger.error(f"Failed to generate L2 groups via Gemini: {e}. Falling back to Mock.")
                 rnd = random.Random(seed)
-                data = self._mock_l2_data(rnd, count, topic)
+                sig = inspect.signature(self._mock_l2_data)
+                if "difficulty" in sig.parameters:
+                    data = self._mock_l2_data(rnd, count, topic, req_difficulty)
+                else:
+                    data = self._mock_l2_data(rnd, count, topic)
 
         saved_count = 0
         groups_list = data.get("groups", [])
@@ -1160,7 +1209,7 @@ class B1QuestionGenerator:
                     raise FileNotFoundError(f"Audio file failed to generate at {audio_path}")
 
                 diff_val = g_validated.difficulty.lower()
-                g_difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+                g_difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (diff_val if diff_val in ["easy", "medium", "hard"] else "medium")
 
                 new_g = QuestionGroup(
                     exam_id=None,
@@ -1190,7 +1239,7 @@ class B1QuestionGenerator:
                     q_hash = calculate_question_hash(q_data_dict)
 
                     q_diff_val = q_validated.difficulty.lower()
-                    q_difficulty = q_diff_val if q_diff_val in ["easy", "medium", "hard"] else "medium"
+                    q_difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (q_diff_val if q_diff_val in ["easy", "medium", "hard"] else "medium")
 
                     new_q = Question(
                         exam_id=None,
@@ -1226,7 +1275,7 @@ class B1QuestionGenerator:
 
     # --- Deterministic Mock Data Generators ---
 
-    def generate_writing_questions(self, db: Session, count: int, part: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+    def generate_writing_questions(self, db: Session, count: int, part: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate Writing questions (Part 5 (W1) or Part 6 (W2)) and save to the bank."""
         if part not in (5, 6):
             raise ValueError(f"Invalid Writing part '{part}'. Must be 5 or 6.")
@@ -1238,7 +1287,11 @@ class B1QuestionGenerator:
         if not self.client:
             # Mock mode
             rnd = random.Random(seed)
-            data = self._mock_writing_data(rnd, count, part, topic)
+            sig = inspect.signature(self._mock_writing_data)
+            if "difficulty" in sig.parameters:
+                data = self._mock_writing_data(rnd, count, part, topic, req_difficulty)
+            else:
+                data = self._mock_writing_data(rnd, count, part, topic)
         else:
             system_instruction = (
                 "You are an expert English language examiner. Generate a batch of VSTEP B1 Writing questions.\n"
@@ -1249,7 +1302,7 @@ class B1QuestionGenerator:
                     "Part 6 (Writing Task 2): 'Write an email/letter (~100-120 words)' prompts. The CLO must be 'Vận dụng tổng hợp'.\n"
                 ) +
                 "The type must be 'writing'.\n"
-                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                + (f"The difficulty must be exactly: {req_difficulty}.\n" if req_difficulty else "The difficulty must be exactly one of: easy, medium, hard.\n") +
                 "The topic must be chosen from the 14 valid B1 topics.\n"
                 "Return JSON matching the schema:\n"
                 "{\n"
@@ -1275,7 +1328,11 @@ class B1QuestionGenerator:
             except Exception as e:
                 logger.error(f"Failed to generate Writing questions via Gemini: {e}. Falling back to Mock.")
                 rnd = random.Random(seed)
-                data = self._mock_writing_data(rnd, count, part, topic)
+                sig = inspect.signature(self._mock_writing_data)
+                if "difficulty" in sig.parameters:
+                    data = self._mock_writing_data(rnd, count, part, topic, req_difficulty)
+                else:
+                    data = self._mock_writing_data(rnd, count, part, topic)
 
         # Validate and Ingest
         saved_count = 0
@@ -1304,7 +1361,7 @@ class B1QuestionGenerator:
 
                 # Clean/Map difficulty
                 diff_val = q_validated.difficulty.lower()
-                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+                difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (diff_val if diff_val in ["easy", "medium", "hard"] else "medium")
 
                 # Idempotency checks
                 q_data_dict = {
@@ -1353,7 +1410,7 @@ class B1QuestionGenerator:
 
         return saved_count
 
-    def generate_speaking_questions(self, db: Session, count: int, part: int, topic: Optional[str] = None, seed: Optional[int] = None) -> int:
+    def generate_speaking_questions(self, db: Session, count: int, part: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate Speaking questions (Part 9 (S1), Part 10 (S2), Part 11 (S3)) and save to the bank."""
         if part not in (9, 10, 11):
             raise ValueError(f"Invalid Speaking part '{part}'. Must be 9, 10, or 11.")
@@ -1365,7 +1422,11 @@ class B1QuestionGenerator:
         if not self.client:
             # Mock mode
             rnd = random.Random(seed)
-            data = self._mock_speaking_data(rnd, count, part, topic)
+            sig = inspect.signature(self._mock_speaking_data)
+            if "difficulty" in sig.parameters:
+                data = self._mock_speaking_data(rnd, count, part, topic, req_difficulty)
+            else:
+                data = self._mock_speaking_data(rnd, count, part, topic)
         else:
             system_instruction = (
                 "You are an expert English language examiner. Generate a batch of VSTEP B1 Speaking questions.\n"
@@ -1378,7 +1439,7 @@ class B1QuestionGenerator:
                     "Part 11 (Speaking Part 3 - Topic Development): Topic development based on a mind map/points and follow-up questions. The CLO must be 'Vận dụng tổng hợp'.\n"
                 ) +
                 "The type must be 'speaking'.\n"
-                "The difficulty must be exactly one of: easy, medium, hard.\n"
+                + (f"The difficulty must be exactly: {req_difficulty}.\n" if req_difficulty else "The difficulty must be exactly one of: easy, medium, hard.\n") +
                 "The topic must be chosen from the 14 valid B1 topics.\n"
                 "Return JSON matching the schema:\n"
                 "{\n"
@@ -1404,7 +1465,11 @@ class B1QuestionGenerator:
             except Exception as e:
                 logger.error(f"Failed to generate Speaking questions via Gemini: {e}. Falling back to Mock.")
                 rnd = random.Random(seed)
-                data = self._mock_speaking_data(rnd, count, part, topic)
+                sig = inspect.signature(self._mock_speaking_data)
+                if "difficulty" in sig.parameters:
+                    data = self._mock_speaking_data(rnd, count, part, topic, req_difficulty)
+                else:
+                    data = self._mock_speaking_data(rnd, count, part, topic)
 
         # Validate and Ingest
         saved_count = 0
@@ -1433,7 +1498,7 @@ class B1QuestionGenerator:
 
                 # Clean/Map difficulty
                 diff_val = q_validated.difficulty.lower()
-                difficulty = diff_val if diff_val in ["easy", "medium", "hard"] else "medium"
+                difficulty = req_difficulty if req_difficulty in ["easy", "medium", "hard"] else (diff_val if diff_val in ["easy", "medium", "hard"] else "medium")
 
                 # Idempotency checks
                 q_data_dict = {
@@ -1482,11 +1547,11 @@ class B1QuestionGenerator:
 
         return saved_count
 
-    def _mock_r1_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+    def _mock_r1_data(self, rnd: random.Random, count: int, topic: Optional[str] = None, difficulty: Optional[str] = None) -> dict:
         questions = []
         for _ in range(count):
             t = topic or rnd.choice(B1_TOPICS)
-            diff = rnd.choice(["easy", "medium", "hard"])
+            diff = difficulty if difficulty in ["easy", "medium", "hard"] else rnd.choice(["easy", "medium", "hard"])
             clo = rnd.choice(["Nhận diện", "Thông hiểu"])
             ref = rnd.choice(["A", "B", "C", "D"])
             questions.append({
@@ -1505,11 +1570,11 @@ class B1QuestionGenerator:
             })
         return {"questions": questions}
 
-    def _mock_r2_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+    def _mock_r2_data(self, rnd: random.Random, count: int, topic: Optional[str] = None, difficulty: Optional[str] = None) -> dict:
         questions = []
         for _ in range(count):
             t = topic or rnd.choice(B1_TOPICS)
-            diff = rnd.choice(["easy", "medium", "hard"])
+            diff = difficulty if difficulty in ["easy", "medium", "hard"] else rnd.choice(["easy", "medium", "hard"])
             ref = rnd.choice(["A", "B", "C"])
             questions.append({
                 "content": f"NOTICE: The presentation on {t} has been moved from Room 102 to Room 204. It will start at 10 AM instead of 9:30 AM.\nWhat change has been made?",
@@ -1526,11 +1591,11 @@ class B1QuestionGenerator:
             })
         return {"questions": questions}
 
-    def _mock_r3_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+    def _mock_r3_data(self, rnd: random.Random, count: int, topic: Optional[str] = None, difficulty: Optional[str] = None) -> dict:
         groups = []
         for _ in range(count):
             t = topic or rnd.choice(B1_TOPICS)
-            diff = rnd.choice(["easy", "medium", "hard"])
+            diff = difficulty if difficulty in ["easy", "medium", "hard"] else rnd.choice(["easy", "medium", "hard"])
             questions = []
             for q_num in range(1, 6):
                 ref = rnd.choice(["A", "B", "C", "D"])
@@ -1555,11 +1620,11 @@ class B1QuestionGenerator:
             })
         return {"groups": groups}
 
-    def _mock_r4_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+    def _mock_r4_data(self, rnd: random.Random, count: int, topic: Optional[str] = None, difficulty: Optional[str] = None) -> dict:
         groups = []
         for _ in range(count):
             t = topic or rnd.choice(B1_TOPICS)
-            diff = rnd.choice(["easy", "medium", "hard"])
+            diff = difficulty if difficulty in ["easy", "medium", "hard"] else rnd.choice(["easy", "medium", "hard"])
             g_idx = rnd.randint(100, 999)
 
             words = [f"word{i}_{g_idx}" for i in range(1, 16)]
@@ -1591,11 +1656,11 @@ class B1QuestionGenerator:
             })
         return {"groups": groups}
 
-    def _mock_writing_data(self, rnd: random.Random, count: int, part: int, topic: Optional[str] = None) -> dict:
+    def _mock_writing_data(self, rnd: random.Random, count: int, part: int, topic: Optional[str] = None, difficulty: Optional[str] = None) -> dict:
         questions = []
         for _ in range(count):
             t = topic or rnd.choice(B1_TOPICS)
-            diff = rnd.choice(["easy", "medium", "hard"])
+            diff = difficulty if difficulty in ["easy", "medium", "hard"] else rnd.choice(["easy", "medium", "hard"])
             if part == 5:
                 content = f"Rewrite the following sentence about {t} using the given word:\n'It is important to study {t} every day.'\n-> You must..."
                 clo = "Vận dụng có kiểm soát"
@@ -1614,11 +1679,11 @@ class B1QuestionGenerator:
             })
         return {"questions": questions}
 
-    def _mock_speaking_data(self, rnd: random.Random, count: int, part: int, topic: Optional[str] = None) -> dict:
+    def _mock_speaking_data(self, rnd: random.Random, count: int, part: int, topic: Optional[str] = None, difficulty: Optional[str] = None) -> dict:
         questions = []
         for _ in range(count):
             t = topic or rnd.choice(B1_TOPICS)
-            diff = rnd.choice(["easy", "medium", "hard"])
+            diff = difficulty if difficulty in ["easy", "medium", "hard"] else rnd.choice(["easy", "medium", "hard"])
             if part == 9:
                 content = f"Answer three questions about {t}:\n1. Do you like {t}?\n2. How often do you learn about {t}?\n3. Who do you share {t} with?"
                 clo = "Vận dụng có kiểm soát"
@@ -1640,11 +1705,11 @@ class B1QuestionGenerator:
             })
         return {"questions": questions}
 
-    def _mock_l2_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+    def _mock_l2_data(self, rnd: random.Random, count: int, topic: Optional[str] = None, difficulty: Optional[str] = None) -> dict:
         groups = []
         for _ in range(count):
             t = topic or rnd.choice(B1_TOPICS)
-            diff = rnd.choice(["easy", "medium", "hard"])
+            diff = difficulty if difficulty in ["easy", "medium", "hard"] else rnd.choice(["easy", "medium", "hard"])
             
             script_parts = []
             note_parts = [f"Notes on {t}:"]
@@ -1675,11 +1740,11 @@ class B1QuestionGenerator:
             })
         return {"groups": groups}
 
-    def _mock_l1_data(self, rnd: random.Random, count: int, topic: Optional[str] = None) -> dict:
+    def _mock_l1_data(self, rnd: random.Random, count: int, topic: Optional[str] = None, difficulty: Optional[str] = None) -> dict:
         questions = []
         for _ in range(count):
             t = topic or rnd.choice(B1_TOPICS)
-            diff = rnd.choice(["easy", "medium", "hard"])
+            diff = difficulty if difficulty in ["easy", "medium", "hard"] else rnd.choice(["easy", "medium", "hard"])
             clo = rnd.choice(["Nhận diện", "Thông hiểu"])
             ref = rnd.choice(["A", "B", "C"])
             questions.append({
