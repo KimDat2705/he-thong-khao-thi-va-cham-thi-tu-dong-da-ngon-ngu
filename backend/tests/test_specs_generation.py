@@ -17,7 +17,25 @@ from app.models.exam import Exam
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
 from app.services.exam_validator import validate_exam, ExamValidationError
-from app.services.toeic_generator import generate_toeic_exam, InsufficientBankError, TOEIC_BLUEPRINT
+from app.services.exam_generator import generate_exam, InsufficientBankError, VSTEP_B1_BLUEPRINT
+
+TOEIC_BLUEPRINT = {
+    "exam_type": "TOEIC",
+    "language": "EN",
+    "parts": {
+        "1": {"type": "standalone", "count": 6, "difficulty": {"easy": 2, "medium": 3, "hard": 1}},
+        "2": {"type": "standalone", "count": 25, "difficulty": {"easy": 6, "medium": 13, "hard": 6}},
+        "3": {"type": "grouped", "groups": 13, "q_per_group": 3, "difficulty": {"easy": 3, "medium": 7, "hard": 3}},
+        "4": {"type": "grouped", "groups": 10, "q_per_group": 3, "difficulty": {"easy": 2, "medium": 5, "hard": 3}},
+        "5": {"type": "standalone", "count": 30, "difficulty": {"easy": 8, "medium": 15, "hard": 7}},
+        "6": {"type": "grouped", "groups": 4, "q_per_group": 4, "difficulty": {"easy": 1, "medium": 2, "hard": 1}},
+        "7": {"type": "subset_sum", "target_questions": 54, "difficulty": {"easy": 9, "medium": 28, "hard": 17}}
+    },
+    "balance_answers": True
+}
+
+def generate_toeic_exam(db, title, duration_minutes=120, seed=None):
+    return generate_exam(db, TOEIC_BLUEPRINT, title, duration_minutes, seed)
 
 # Blueprint chuẩn dùng chung cho các assertion
 PART_TARGETS = {1: 6, 2: 25, 3: 39, 4: 30, 5: 30, 6: 16, 7: 54}
@@ -132,7 +150,7 @@ def test_SPEC_GEN_004_cross_exam_overlap():
             diff = "easy" if i < 10 else ("medium" if i < 20 else "hard")
             db.add(Question(
                 part=1, type="choice", content=f"P1Q_{i}", reference_answer="A", difficulty=diff,
-                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved", exam_type="TOEIC"
             ))
 
         # Part 2: needs 25. Seed 100.
@@ -140,7 +158,7 @@ def test_SPEC_GEN_004_cross_exam_overlap():
             diff = "easy" if i < 30 else ("medium" if i < 70 else "hard")
             db.add(Question(
                 part=2, type="choice", content=f"P2Q_{i}", reference_answer="B", difficulty=diff,
-                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved", exam_type="TOEIC"
             ))
 
         # Part 3: needs 13 groups of 3. Seed 50 groups.
@@ -153,7 +171,7 @@ def test_SPEC_GEN_004_cross_exam_overlap():
             for j in range(3):
                 db.add(Question(
                     group_id=group.id, part=3, type="choice", content=f"P3G{i}Q{j}", reference_answer="C", difficulty=diff,
-                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved", exam_type="TOEIC"
                 ))
 
         # Part 4: needs 10 groups of 3. Seed 40 groups.
@@ -166,7 +184,7 @@ def test_SPEC_GEN_004_cross_exam_overlap():
             for j in range(3):
                 db.add(Question(
                     group_id=group.id, part=4, type="choice", content=f"P4G{i}Q{j}", reference_answer="D", difficulty=diff,
-                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved", exam_type="TOEIC"
                 ))
 
         # Part 5: needs 30. Seed 120.
@@ -174,7 +192,7 @@ def test_SPEC_GEN_004_cross_exam_overlap():
             diff = "easy" if i < 35 else ("medium" if i < 85 else "hard")
             db.add(Question(
                 part=5, type="choice", content=f"P5Q_{i}", reference_answer="A", difficulty=diff,
-                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved", exam_type="TOEIC"
             ))
 
         # Part 6: needs 4 groups of 4. Seed 20 groups.
@@ -187,7 +205,7 @@ def test_SPEC_GEN_004_cross_exam_overlap():
             for j in range(4):
                 db.add(Question(
                     group_id=group.id, part=6, type="choice", content=f"P6G{i}Q{j}", reference_answer="B", difficulty=diff,
-                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                    options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved", exam_type="TOEIC"
                 ))
 
         # Part 7: needs 54 questions. Seed 50 groups of sizes 2, 3, 4, 5, 6 (10 groups each).
@@ -203,14 +221,14 @@ def test_SPEC_GEN_004_cross_exam_overlap():
                 for j in range(size):
                     db.add(Question(
                         group_id=group.id, part=7, type="choice", content=f"P7G{p7_idx}Q{j}", reference_answer="C", difficulty=diff,
-                        options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved"
+                        options={"A": "1", "B": "2", "C": "3", "D": "4"}, status="approved", exam_type="TOEIC"
                     ))
                 p7_idx += 1
 
         db.commit()
 
         # Call generate_batch with different base_seeds to verify enforcement works
-        from app.services.toeic_generator import generate_batch, TOEIC_BLUEPRINT
+        from app.services.exam_generator import generate_batch
         
         for base_seed in [5, 8, 21, 23]:
             result = generate_batch(db, TOEIC_BLUEPRINT, count=5, base_seed=base_seed)
@@ -313,7 +331,7 @@ def test_SPEC_GEN_007_data_driven_generation(db_session: Session):
     db_session.refresh(bp)
     
     # Generate exam using the structure from the saved Blueprint record
-    from app.services.toeic_generator import generate_exam
+    from app.services.exam_generator import generate_exam
     exam = generate_exam(db_session, bp.structure, title="Đề Mini Data-Driven", seed=42)
     
     # Assertions to prove data-driven works
@@ -334,7 +352,7 @@ def test_generate_exam_robust_against_orphan_clones():
     Tái hiện deterministic: engine in-memory rỗng -> đề đầu tiên luôn nhận id=1; chèn sẵn
     orphan có exam_id=1 -> collision chắc chắn. Không có guard thì generate_exam raise.
     """
-    from app.services.toeic_generator import generate_exam
+    from app.services.exam_generator import generate_exam
 
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
@@ -385,7 +403,7 @@ def test_SPEC_VALIDATE_001_post_check_cleanup(db_session: Session, monkeypatch):
     initial_groups = db_session.query(QuestionGroup).count()
     initial_questions = db_session.query(Question).count()
 
-    from app.services import toeic_generator
+    from app.services import exam_generator as toeic_generator
 
     # Mock validate_exam trả về invalid
     def mock_validate_exam(db, exam_id, structure):

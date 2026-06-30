@@ -244,8 +244,7 @@
       "verification": "pytest",
       "status": "active",
       "tests": [
-        "tests/test_specs_bank.py::test_SPEC_BANK_002_generation_preserves_bank",
-        "tests/test_toeic_generator.py::test_generate_toeic_exam_success"
+        "tests/test_specs_bank.py::test_SPEC_BANK_002_generation_preserves_bank"
       ],
       "notes": "Đang đạt: generator clone bản ghi mới với exam_id của đề, không sửa bản gốc."
     },
@@ -449,8 +448,7 @@
       "verification": "pytest",
       "status": "active",
       "tests": [
-        "tests/test_specs_grading.py::test_SPEC_GRADE_001_scoring_table_properties",
-        "tests/test_toeic_grader.py::test_grade_toeic_submission_success"
+        "tests/test_specs_grading.py::test_SPEC_GRADE_001_scoring_table_properties"
       ],
       "notes": "Đang đạt: kiểm thuộc tính bảng + test E2E chấm điểm có sẵn."
     },
@@ -853,7 +851,7 @@
       "verification": "pytest",
       "status": "active",
       "tests": [
-        "tests/test_specs_bank.py::test_SPEC_BANK_004_multi_exam_type_coexistence"
+        "tests/test_specs_bank.py::test_SPEC_BANK_004_b1_bank_stats_and_questions"
       ],
       "notes": "Hỗ trợ đa loại đề thi (TOEIC & VSTEP_B1) trong cùng một DB."
     },

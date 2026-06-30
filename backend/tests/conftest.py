@@ -64,7 +64,8 @@ def db_session():
                 exam_id=None, group_id=None, part=1, type="choice",
                 content=f"Part 1 Photo Question {i}", reference_answer="A" if i % 2 == 0 else "B",
                 difficulty="easy" if i < 3 else ("medium" if i < 7 else "hard"),
-                options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}
+                options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+                exam_type="TOEIC"
             ))
             
         # Part 2: Standalone - needs 25. Create 30.
@@ -73,7 +74,8 @@ def db_session():
                 exam_id=None, group_id=None, part=2, type="choice",
                 content=f"Part 2 Question {i}", reference_answer="A" if i % 3 == 0 else "C",
                 difficulty="easy" if i < 8 else ("medium" if i < 22 else "hard"),
-                options={"A": "Option A", "B": "Option B", "C": "Option C"}
+                options={"A": "Option A", "B": "Option B", "C": "Option C"},
+                exam_type="TOEIC"
             ))
             
         # Part 3: Grouped - needs 13 groups of 3. Create 15 groups.
@@ -92,7 +94,8 @@ def db_session():
                     exam_id=None, group_id=group.id, part=3, type="choice",
                     content=f"Part 3 Group {i} Question {j}", reference_answer="D",
                     difficulty=group.difficulty,
-                    options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}
+                    options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+                    exam_type="TOEIC"
                 ))
                 
         # Part 4: Grouped - needs 10 groups of 3. Create 12 groups.
@@ -116,7 +119,8 @@ def db_session():
                     exam_id=None, group_id=group.id, part=4, type="choice",
                     content=f"Part 4 Group {i} Question {j}", reference_answer="B",
                     difficulty=group.difficulty,
-                    options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}
+                    options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+                    exam_type="TOEIC"
                 ))
                 
         # Part 5: Standalone - needs 30. Create 35.
@@ -125,7 +129,8 @@ def db_session():
                 exam_id=None, group_id=None, part=5, type="choice",
                 content=f"Part 5 Question {i}", reference_answer="C",
                 difficulty="easy" if i < 10 else ("medium" if i < 28 else "hard"),
-                options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}
+                options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+                exam_type="TOEIC"
             ))
             
         # Part 6: Grouped - needs 4 groups of 4. Create 5 groups.
@@ -144,7 +149,8 @@ def db_session():
                     exam_id=None, group_id=group.id, part=6, type="choice",
                     content=f"Part 6 Group {i} Question {j}", reference_answer="A",
                     difficulty=group.difficulty,
-                    options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}
+                    options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+                    exam_type="TOEIC"
                 ))
                 
         # Part 7: Grouped - needs total 54 questions. Create 15 groups with diverse sizes (2, 3, 4, 5 questions).
@@ -190,8 +196,123 @@ def db_session():
                     exam_id=None, group_id=group.id, part=7, type="choice",
                     content=f"Part 7 Group {i} Question {j}", reference_answer="C",
                     difficulty=group.difficulty,
-                    options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}
+                    options={"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+                    exam_type="TOEIC"
                 ))
+
+        # Part 8: Grouped (Listening - fill) - needs 1 group of 10. Create 2 groups.
+        for i in range(2):
+            group = QuestionGroup(
+                exam_id=None, part=8, topic=f"Listening fill topic {i}",
+                difficulty="medium"
+            )
+            db.add(group)
+            db.commit()
+            db.refresh(group)
+            for j in range(10):
+                db.add(Question(
+                    exam_id=None, group_id=group.id, part=8, type="fill",
+                    content=f"Part 8 Group {i} Question {j}", reference_answer="answer",
+                    difficulty=group.difficulty,
+                    exam_type="VSTEP_B1"
+                ))
+
+        # Part 9: Standalone (Speaking Part 1) - needs 1. Create 3.
+        for i in range(3):
+            db.add(Question(
+                exam_id=None, group_id=None, part=9, type="speaking",
+                content=f"Part 9 Speaking Question {i}", reference_answer=None,
+                difficulty="medium",
+                exam_type="VSTEP_B1"
+            ))
+
+        # Part 10: Standalone (Speaking Part 2) - needs 1. Create 3.
+        for i in range(3):
+            db.add(Question(
+                exam_id=None, group_id=None, part=10, type="speaking",
+                content=f"Part 10 Speaking Question {i}", reference_answer=None,
+                difficulty="medium",
+                exam_type="VSTEP_B1"
+            ))
+
+        # Part 11: Standalone (Speaking Part 3) - needs 1. Create 3.
+        for i in range(3):
+            db.add(Question(
+                exam_id=None, group_id=None, part=11, type="speaking",
+                content=f"Part 11 Speaking Question {i}", reference_answer=None,
+                difficulty="medium",
+                exam_type="VSTEP_B1"
+            ))
+
+        # Bổ sung câu hỏi standalone writing cho Part 5 và Part 6 (VSTEP B1)
+        db.add(Question(
+            exam_id=None, group_id=None, part=5, type="writing",
+            content="Part 5 VSTEP Writing Question", reference_answer=None,
+            difficulty="medium",
+            exam_type="VSTEP_B1"
+        ))
+        db.add(Question(
+            exam_id=None, group_id=None, part=6, type="writing",
+            content="Part 6 VSTEP Writing Question", reference_answer=None,
+            difficulty="medium",
+            exam_type="VSTEP_B1"
+        ))
+
+        # Part 1: Standalone VSTEP_B1 - needs 10. Create 10.
+        for i in range(10):
+            db.add(Question(
+                exam_id=None, group_id=None, part=1, type="choice",
+                content=f"Part 1 VSTEP Photo Question {i}", reference_answer="A",
+                difficulty="medium", options={"A": "Option A", "B": "Option B"},
+                exam_type="VSTEP_B1"
+            ))
+
+        # Part 2: Standalone VSTEP_B1 - needs 5. Create 5.
+        for i in range(5):
+            db.add(Question(
+                exam_id=None, group_id=None, part=2, type="choice",
+                content=f"Part 2 VSTEP Question {i}", reference_answer="A",
+                difficulty="medium", options={"A": "Option A", "B": "Option B"},
+                exam_type="VSTEP_B1"
+            ))
+
+        # Part 3: Grouped VSTEP_B1 - needs 1 group of 5. Create 1 group.
+        group3 = QuestionGroup(exam_id=None, part=3, topic="Family", difficulty="medium")
+        db.add(group3)
+        db.commit()
+        db.refresh(group3)
+        for j in range(5):
+            db.add(Question(
+                exam_id=None, group_id=group3.id, part=3, type="choice",
+                content=f"Part 3 VSTEP Grouped Question {j}", reference_answer="A",
+                difficulty="medium", options={"A": "a", "B": "b"},
+                exam_type="VSTEP_B1"
+            ))
+
+        # Part 4: Grouped VSTEP_B1 - needs 1 group of 10. Create 1 group.
+        group4 = QuestionGroup(exam_id=None, part=4, topic="Work", difficulty="medium")
+        db.add(group4)
+        db.commit()
+        db.refresh(group4)
+        for j in range(10):
+            db.add(Question(
+                exam_id=None, group_id=group4.id, part=4, type="choice",
+                content=f"Part 4 VSTEP Grouped Question {j}", reference_answer="A",
+                difficulty="medium", options={"A": "a", "B": "b"},
+                exam_type="VSTEP_B1"
+            ))
+
+        # Part 7: Standalone VSTEP_B1 - needs 5. Create 5.
+        for i in range(5):
+            db.add(Question(
+                exam_id=None, group_id=None, part=7, type="choice",
+                content=f"Part 7 VSTEP Question {i}", reference_answer="A",
+                difficulty="medium", options={"A": "Option A", "B": "Option B"},
+                audio_url=f"/static/audio_gen/part7_{i}.wav",
+                image_url=f"/static/img/part7_{i}.png",
+                exam_type="VSTEP_B1"
+            ))
+
         db.commit()
         yield db
     finally:

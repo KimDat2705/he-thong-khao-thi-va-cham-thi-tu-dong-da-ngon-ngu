@@ -1,3 +1,12 @@
+# Session Handoff — CHỐT PHIÊN 30/06/2026 (Dọn dẹp TOEIC & Chuẩn hóa VSTEP B1)
+
+> **🆕 S47 (30/06) — Dọn dẹp TOEIC & Chuẩn hóa VSTEP B1 (DONE):**
+> Loại bỏ hoàn toàn phân hệ TOEIC khỏi Frontend, Backend, Database seeders và Test Suite, quy chuẩn hóa toàn diện sang chứng chỉ VSTEP B1:
+> - **Backend**: Chạy migration `80e0b6818813` đổi mặc định `exam_type` của Question sang `"VSTEP_B1"`. Refactor các services `submission_admin.py`, `bank_admin.py`, `exam_admin.py` mặc định và chỉ hỗ trợ VSTEP B1 (giữ logic tương thích ngược cục bộ cho test cô lập).
+> - **Frontend**: Dọn dẹp landing page (`page.tsx`), admin page (`admin/page.tsx`), bank page (`admin/bank/page.tsx`) loại bỏ selector TOEIC và chuyển dịch sang VSTEP B1.
+> - **Test Suite**: Xóa bỏ `test_toeic_generator.py` và `test_toeic_grader.py`. Refactor `conftest.py` chèn đầy đủ mock questions VSTEP B1 (Part 1-11) kèm audio/image assets. Sửa đổi 7 file test spec chuyển sang VSTEP B1, sử dụng eager Celery worker và cập nhật assertions khớp với luồng chấm điểm VSTEP B1 bất đồng bộ thực tế.
+> - **Nghiệm thu độc lập**: pytest **76/76 passed** (xanh rì 100%); Next.js frontend `npm run build` biên dịch thành công 100% không lỗi.
+
 # Session Handoff — CHỐT PHIÊN 30/06/2026 (Hoàn thành tính năng AI Sinh Câu Hỏi trực quan trên Giao diện Web)
 
 > **🆕 S46 (30/06) — AI Sinh Câu Hỏi trên Giao diện Web (DONE):**

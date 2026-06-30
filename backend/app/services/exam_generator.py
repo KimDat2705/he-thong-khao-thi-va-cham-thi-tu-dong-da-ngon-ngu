@@ -9,52 +9,6 @@ class InsufficientBankError(ValueError):
     """Raised when the question bank does not have enough questions to generate an exam."""
     pass
 
-TOEIC_BLUEPRINT = {
-    "exam_type": "TOEIC",
-    "language": "EN",
-    "parts": {
-        "1": {
-            "type": "standalone",
-            "count": 6,
-            "difficulty": {"easy": 2, "medium": 3, "hard": 1}
-        },
-        "2": {
-            "type": "standalone",
-            "count": 25,
-            "difficulty": {"easy": 6, "medium": 13, "hard": 6}
-        },
-        "3": {
-            "type": "grouped",
-            "groups": 13,
-            "q_per_group": 3,
-            "difficulty": {"easy": 3, "medium": 7, "hard": 3}
-        },
-        "4": {
-            "type": "grouped",
-            "groups": 10,
-            "q_per_group": 3,
-            "difficulty": {"easy": 2, "medium": 5, "hard": 3}
-        },
-        "5": {
-            "type": "standalone",
-            "count": 30,
-            "difficulty": {"easy": 8, "medium": 15, "hard": 7}
-        },
-        "6": {
-            "type": "grouped",
-            "groups": 4,
-            "q_per_group": 4,
-            "difficulty": {"easy": 1, "medium": 2, "hard": 1}
-        },
-        "7": {
-            "type": "subset_sum",
-            "target_questions": 54,
-            "difficulty": {"easy": 9, "medium": 28, "hard": 17}
-        }
-    },
-    "balance_answers": True
-}
-
 VSTEP_B1_BLUEPRINT = {
     "exam_type": "VSTEP_B1",
     "language": "EN",
@@ -110,19 +64,13 @@ VSTEP_B1_BLUEPRINT = {
     "balance_answers": False
 }
 
-def generate_toeic_exam(db: Session, title: str, duration_minutes: int = 120, seed: int = None) -> Exam:
-    """
-    Wrapper for generating a TOEIC exam using the standard TOEIC blueprint.
-    """
-    return generate_exam(db, TOEIC_BLUEPRINT, title, duration_minutes, seed)
-
 def generate_exam(db: Session, structure: dict, title: str, duration_minutes: int = 120, seed: int = None) -> Exam:
     """
     Generates an exam dynamically based on the provided Blueprint structure dict.
     """
     local_random = random.Random(seed)
     parts_config = structure.get("parts", {})
-    exam_type = structure.get("exam_type", "TOEIC")
+    exam_type = structure.get("exam_type", "VSTEP_B1")
     bank_exam_type = "VSTEP_B1" if exam_type == "VSTEP_B1" else "TOEIC"
 
     # --- Pre-check bank sufficiency (Fail-Fast) ---

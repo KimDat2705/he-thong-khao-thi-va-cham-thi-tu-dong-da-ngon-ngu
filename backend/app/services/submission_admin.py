@@ -6,7 +6,7 @@ from app.models.exam import Exam
 from app.models.question import Question
 from app.models.submission import Submission, SubmissionDetail
 from app.models.grade import Grade
-from app.services.toeic_grader import grade_toeic_submission
+
 
 
 def create_submission_and_grade(
@@ -22,24 +22,13 @@ def create_submission_and_grade(
     if not exam.is_active:
         raise ValueError("Exam is retired")
 
-    # 2. Decide grading mode by question type (BEFORE writing any record):
-    #    - exams containing Writing/Speaking questions are graded asynchronously
-    #      by the Celery worker via Gemini (SPEC-GRADE-003);
-    #    - pure multiple-choice TOEIC exams keep synchronous scaled grading (SPEC-SUBMIT-001);
-    #    - anything else (non-TOEIC, no essays) is unsupported -> 400.
-    has_essay = db.query(Question).filter(
-        Question.exam_id == exam_id,
-        Question.type.in_(("writing", "speaking"))
-    ).first() is not None
-
+    # 2. Decide grading mode (VSTEP B1 uses async AI grading)
     is_vstep_b1 = exam.exam_type == "VSTEP_B1"
-    if not has_essay and exam.exam_type.upper() != "TOEIC" and not is_vstep_b1:
-        raise ValueError("Exam type is not TOEIC")
+    if not is_vstep_b1:
+        raise ValueError("Only VSTEP B1 exams are supported")
 
     # 3. Reuse an in-progress server-side attempt (from POST /start + autosave) if
     #    one exists for this candidate+exam; otherwise create a fresh submission.
-    #    Backward compatible: a direct submit without /start finds no attempt and
-    #    creates one as before.
     now = datetime.datetime.utcnow()
     sub = (
         db.query(Submission)
@@ -86,49 +75,25 @@ def create_submission_and_grade(
     db.commit()
     db.refresh(sub)
 
-    # 5a. ASYNC path (SPEC-GRADE-003): enqueue AI grading and return immediately.
-    if has_essay or is_vstep_b1:
-        sub.status = "grading"
-        db.commit()
-        db.refresh(sub)
-        # Lazy import keeps the synchronous TOEIC path free of the Celery/Redis
-        # stack and avoids import cycles.
-        from app.workers.tasks import grade_submission_task
-        # Enqueue AI grading for a Celery worker. If no broker/worker is reachable
-        # (e.g. Render free tier has no Redis), fall back to grading inline so the
-        # result still completes. Either way the response below returns "grading"
-        # first; with eager/inline the grade is already written by the time the
-        # candidate polls.
-        try:
-            grade_submission_task.delay(submission_id=sub.id)
-        except Exception:
-            grade_submission_task.apply(args=[sub.id])
-        return {
-            "submission_id": sub.id,
-            "status": sub.status,  # "grading" — worker fills scores later
-            "listening_score": None,
-            "reading_score": None,
-            "total_score": None,
-            "listening_correct": None,
-            "reading_correct": None,
-        }
-
-    # 5b. SYNC path: grade TOEIC L&R immediately.
-    grade = grade_toeic_submission(db, sub.id)
+    # 5. Enqueue AI grading for VSTEP B1 (SPEC-GRADE-003)
+    sub.status = "grading"
+    db.commit()
     db.refresh(sub)
-
-    # Extract scores from semantically-named columns (SPEC-GRADE-002)
-    listening_correct = grade.feedback_speaking.get("correct_answers", 0) if grade.feedback_speaking else 0
-    reading_correct = grade.feedback_writing.get("correct_answers", 0) if grade.feedback_writing else 0
-
+    
+    from app.workers.tasks import grade_submission_task
+    try:
+        grade_submission_task.delay(submission_id=sub.id)
+    except Exception:
+        grade_submission_task.apply(args=[sub.id])
+        
     return {
         "submission_id": sub.id,
-        "status": sub.status,
-        "listening_score": grade.score_listening,
-        "reading_score": grade.score_reading,
-        "total_score": grade.score_total,
-        "listening_correct": listening_correct,
-        "reading_correct": reading_correct
+        "status": sub.status,  # "grading" — worker fills scores later
+        "listening_score": None,
+        "reading_score": None,
+        "total_score": None,
+        "listening_correct": None,
+        "reading_correct": None,
     }
 
 

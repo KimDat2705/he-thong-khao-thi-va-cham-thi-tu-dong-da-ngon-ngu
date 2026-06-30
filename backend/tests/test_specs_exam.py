@@ -97,7 +97,7 @@ def test_SPEC_EXAM_002_exam_lifecycle(db_session: Session, admin_auth_headers: d
         db_exam = Exam(
             title="Lifecycle TOEIC",
             language="EN",
-            exam_type="TOEIC",
+            exam_type="VSTEP_B1",
             duration_minutes=60,
             is_active=True
         )

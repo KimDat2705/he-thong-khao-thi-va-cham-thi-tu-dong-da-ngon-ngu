@@ -21,7 +21,7 @@ class Question(Base):
     topic = Column(String, nullable=True)  # Topic domain
     status = Column(String, default="approved")  # "draft" | "approved"
     explanation = Column(Text, nullable=True)  # AI/Teacher explanation for grading feedback
-    exam_type = Column(String, default="TOEIC", server_default="TOEIC", nullable=False)
+    exam_type = Column(String, default="VSTEP_B1", server_default="VSTEP_B1", nullable=False)
     language = Column(String, default="EN", server_default="EN", nullable=False)
     
     # New columns for M2

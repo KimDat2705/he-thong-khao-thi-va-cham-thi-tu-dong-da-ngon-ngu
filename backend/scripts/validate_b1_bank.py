@@ -27,7 +27,7 @@ if BACKEND_DIR not in sys.path:
 from app.core.database import SessionLocal  # noqa: E402
 from app.models.question import Question  # noqa: E402
 from app.models.question_group import QuestionGroup  # noqa: E402
-from app.services.toeic_generator import VSTEP_B1_BLUEPRINT  # noqa: E402
+from app.services.exam_generator import VSTEP_B1_BLUEPRINT  # noqa: E402
 
 MIN_WAV_BYTES = 100 * 1024     # file TTS thật ~MB; <100KB là nghi/hỏng
 MIN_WAV_SECONDS = 3.0          # item nghe ngắn nhất vẫn > vài giây

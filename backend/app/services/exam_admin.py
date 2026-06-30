@@ -4,11 +4,9 @@ from sqlalchemy.orm import Session
 from app.models.exam import Exam
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
-from app.services.toeic_generator import (
-    generate_toeic_exam,
+from app.services.exam_generator import (
     generate_exam,
     generate_batch,
-    TOEIC_BLUEPRINT,
     VSTEP_B1_BLUEPRINT,
     InsufficientBankError,
 )
@@ -25,12 +23,25 @@ __all__ = [
 ]
 
 
-def _part_type(part: int, exam_type: str = "TOEIC") -> str:
+TOEIC_BLUEPRINT = {
+    "exam_type": "TOEIC",
+    "language": "EN",
+    "parts": {
+        "1": {"type": "standalone", "count": 6, "difficulty": {"easy": 2, "medium": 3, "hard": 1}},
+        "2": {"type": "standalone", "count": 25, "difficulty": {"easy": 8, "medium": 12, "hard": 5}},
+        "3": {"type": "grouped", "groups": 13, "q_per_group": 3, "difficulty": {"easy": 4, "medium": 6, "hard": 3}},
+        "4": {"type": "grouped", "groups": 10, "q_per_group": 3, "difficulty": {"easy": 3, "medium": 5, "hard": 2}},
+        "5": {"type": "standalone", "count": 30, "difficulty": {"easy": 10, "medium": 15, "hard": 5}},
+        "6": {"type": "grouped", "groups": 4, "q_per_group": 4, "difficulty": {"easy": 1, "medium": 2, "hard": 1}},
+        "7": {"type": "subset_sum", "target_questions": 54, "difficulty": {"easy": 15, "medium": 25, "hard": 14}}
+    },
+    "balance_answers": True
+}
+
+
+def _part_type(part: int, exam_type: str = "VSTEP_B1") -> str:
     """Look up the structural type of a part from the corresponding blueprint."""
-    if exam_type == "VSTEP_B1":
-        blueprint = VSTEP_B1_BLUEPRINT
-    else:
-        blueprint = TOEIC_BLUEPRINT
+    blueprint = TOEIC_BLUEPRINT if exam_type == "TOEIC" else VSTEP_B1_BLUEPRINT
     spec = blueprint.get("parts", {}).get(str(part), {})
     return spec.get("type", "standalone")
 
@@ -40,22 +51,17 @@ def generate_demo_exam(
     title: Optional[str] = None,
     seed: Optional[int] = None,
     duration_minutes: int = 120,
-    exam_type: str = "TOEIC",
+    exam_type: str = "VSTEP_B1",
 ) -> Exam:
     """
-    Generate a full exam (TOEIC or VSTEP B1) from the approved question bank.
+    Generate a full VSTEP B1 exam from the approved question bank.
     Raises InsufficientBankError if the bank does not have enough approved items.
     """
-    if exam_type == "VSTEP_B1":
-        final_title = title or "VSTEP B1 Demo Exam"
-        return generate_exam(
-            db, structure=VSTEP_B1_BLUEPRINT, title=final_title, duration_minutes=duration_minutes, seed=seed
-        )
-    else:
-        final_title = title or "TOEIC Demo Exam"
-        return generate_toeic_exam(
-            db, title=final_title, duration_minutes=duration_minutes, seed=seed
-        )
+    final_title = title or ("TOEIC Demo Exam" if exam_type == "TOEIC" else "VSTEP B1 Demo Exam")
+    structure = TOEIC_BLUEPRINT if exam_type == "TOEIC" else VSTEP_B1_BLUEPRINT
+    return generate_exam(
+        db, structure=structure, title=final_title, duration_minutes=duration_minutes, seed=seed
+    )
 
 
 def list_exams(db: Session, include_inactive: bool = False) -> List[dict]:
@@ -221,7 +227,7 @@ def set_exam_active(db: Session, exam_id: int, active: bool) -> Optional[dict]:
 def generate_batch_exams(
     db: Session,
     count: int,
-    exam_type: Optional[str] = "TOEIC",
+    exam_type: Optional[str] = "VSTEP_B1",
     structure: Optional[dict] = None,
     base_seed: Optional[int] = None,
     max_overlap_limit: float = 0.40,
@@ -230,9 +236,7 @@ def generate_batch_exams(
     Generate a batch of exams and return a dict with exams, overlap report, and validation summary.
     """
     if not structure:
-        if exam_type == "TOEIC":
-            structure = TOEIC_BLUEPRINT
-        elif exam_type == "VSTEP_B1":
+        if exam_type == "VSTEP_B1":
             structure = VSTEP_B1_BLUEPRINT
         else:
             raise ValueError(f"Unsupported exam type: {exam_type}")

@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
-from app.services.toeic_generator import TOEIC_BLUEPRINT, VSTEP_B1_BLUEPRINT
+from app.services.exam_generator import VSTEP_B1_BLUEPRINT
 from app.schemas.bank import QuestionUpdate, BankStats, PartStats
 
 def list_bank_questions(
@@ -15,8 +15,8 @@ def list_bank_questions(
     difficulty: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
-    exam_type: Optional[str] = "TOEIC"
-) -> Dict[str, Any]:
+    exam_type: Optional[str] = "VSTEP_B1"
+):
     """
     List bank questions (where exam_id is NULL) with pagination and filters.
     """
@@ -89,7 +89,7 @@ def approve_questions(db: Session, ids: List[int]) -> int:
         
     return updated_count
 
-def compute_bank_stats(db: Session, exam_type: str = "TOEIC") -> BankStats:
+def compute_bank_stats(db: Session, exam_type: str = "VSTEP_B1") -> BankStats:
     """
     Computes statistics of the question bank and evaluates blueprint sufficiency.
     """
@@ -119,7 +119,7 @@ def compute_bank_stats(db: Session, exam_type: str = "TOEIC") -> BankStats:
         
     # 3. Cross-reference with Blueprint
     blueprint_sufficiency = []
-    blueprint = VSTEP_B1_BLUEPRINT if exam_type == "VSTEP_B1" else TOEIC_BLUEPRINT
+    blueprint = VSTEP_B1_BLUEPRINT
     parts_config = blueprint.get("parts", {})
     
     for part_str, part_spec in parts_config.items():

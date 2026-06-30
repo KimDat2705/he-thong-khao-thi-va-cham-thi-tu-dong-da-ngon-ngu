@@ -75,7 +75,7 @@ def test_SPEC_STATS_001_exam_analytics(db_session: Session, monkeypatch):
     exam = Exam(
         title="VSTEP Statistics Exam",
         language="EN",
-        exam_type="VSTEP",
+        exam_type="VSTEP_B1",
         duration_minutes=90,
         is_active=True
     )
@@ -95,11 +95,11 @@ def test_SPEC_STATS_001_exam_analytics(db_session: Session, monkeypatch):
         status="approved"
     )
     qw = Question(
-        exam_id=exam.id, part=2, type="writing", content="Essay on Environment",
+        exam_id=exam.id, part=5, type="writing", content="Essay on Environment",
         status="approved"
     )
     qs = Question(
-        exam_id=exam.id, part=3, type="speaking", content="Describe your favorite city",
+        exam_id=exam.id, part=9, type="speaking", content="Describe your favorite city",
         status="approved"
     )
     db_session.add_all([q1, q2, qw, qs])
@@ -169,10 +169,10 @@ def test_SPEC_STATS_001_exam_analytics(db_session: Session, monkeypatch):
         data = resp_stats.json()
 
         assert data["submission_count"] == 3
-        # score_summary: mean = (17.5 + 16.5 + 8.0) / 3 = 14.0, min = 8.0, max = 17.5
-        assert data["score_summary"]["mean"] == pytest.approx(14.0)
+        # score_summary: mean = (15.0 + 14.0 + 8.0) / 3 = 12.33333, min = 8.0, max = 15.0
+        assert data["score_summary"]["mean"] == pytest.approx(12.33333, abs=1e-2)
         assert data["score_summary"]["min"] == pytest.approx(8.0)
-        assert data["score_summary"]["max"] == pytest.approx(17.5)
+        assert data["score_summary"]["max"] == pytest.approx(15.0)
 
         items = {item["question_id"]: item for item in data["items"]}
         

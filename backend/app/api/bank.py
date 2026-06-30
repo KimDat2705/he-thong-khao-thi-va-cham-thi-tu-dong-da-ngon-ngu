@@ -19,7 +19,7 @@ def list_questions(
     difficulty: Optional[str] = None,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    exam_type: Optional[str] = Query("TOEIC"),
+    exam_type: Optional[str] = Query("VSTEP_B1"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
@@ -58,7 +58,7 @@ def approve_questions(
 
 @router.get("/stats", response_model=BankStats)
 def get_stats(
-    exam_type: str = Query("TOEIC"),
+    exam_type: str = Query("VSTEP_B1"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "teacher"))
 ):

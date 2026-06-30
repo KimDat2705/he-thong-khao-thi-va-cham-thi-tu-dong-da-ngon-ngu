@@ -309,7 +309,7 @@ def test_SPEC_AUTH_004_endpoint_gating(client: TestClient, db_session: Session):
     exam = Exam(
         title="Gating Exam",
         language="EN",
-        exam_type="TOEIC",
+        exam_type="VSTEP_B1",
         duration_minutes=120,
         is_active=True
     )

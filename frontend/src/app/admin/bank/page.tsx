@@ -384,31 +384,17 @@ export default function BankAdminPage() {
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Tất cả parts</option>
-              {examType === "TOEIC" ? (
-                <>
-                  <option value="1">Part 1</option>
-                  <option value="2">Part 2</option>
-                  <option value="3">Part 3</option>
-                  <option value="4">Part 4</option>
-                  <option value="5">Part 5</option>
-                  <option value="6">Part 6</option>
-                  <option value="7">Part 7</option>
-                </>
-              ) : (
-                <>
-                  <option value="1">Part 1: Đọc - Câu đơn (R1)</option>
-                  <option value="2">Part 2: Đọc - Thông báo ngắn (R2)</option>
-                  <option value="3">Part 3: Đọc - Đoạn văn (R3)</option>
-                  <option value="4">Part 4: Đọc - Điền từ (R4)</option>
-                  <option value="5">Part 5: Viết - Viết lại câu (W1)</option>
-                  <option value="6">Part 6: Viết - Thư/luận (W2)</option>
-                  <option value="7">Part 7: Nghe - Chọn tranh (L1)</option>
-                  <option value="8">Part 8: Nghe - Điền thông tin (L2)</option>
-                  <option value="9">Part 9: Nói - Phỏng vấn (S1)</option>
-                  <option value="10">Part 10: Nói - Thảo luận giải pháp (S2)</option>
-                  <option value="11">Part 11: Nói - Phát triển chủ đề (S3)</option>
-                </>
-              )}
+              <option value="1">Part 1: Đọc - Câu đơn (R1)</option>
+              <option value="2">Part 2: Đọc - Thông báo ngắn (R2)</option>
+              <option value="3">Part 3: Đọc - Đoạn văn (R3)</option>
+              <option value="4">Part 4: Đọc - Điền từ (R4)</option>
+              <option value="5">Part 5: Viết - Viết lại câu (W1)</option>
+              <option value="6">Part 6: Viết - Thư/luận (W2)</option>
+              <option value="7">Part 7: Nghe - Chọn tranh (L1)</option>
+              <option value="8">Part 8: Nghe - Điền thông tin (L2)</option>
+              <option value="9">Part 9: Nói - Phỏng vấn (S1)</option>
+              <option value="10">Part 10: Nói - Thảo luận giải pháp (S2)</option>
+              <option value="11">Part 11: Nói - Phát triển chủ đề (S3)</option>
             </select>
           </div>
 

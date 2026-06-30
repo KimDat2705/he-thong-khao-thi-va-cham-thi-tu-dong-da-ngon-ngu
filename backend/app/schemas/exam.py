@@ -8,7 +8,7 @@ class ExamGenerateRequest(BaseModel):
     title: Optional[str] = None
     seed: Optional[int] = None
     duration_minutes: int = 120
-    exam_type: Optional[str] = "TOEIC"
+    exam_type: Optional[str] = "VSTEP_B1"
 
 
 class ExamSummary(BaseModel):
@@ -82,7 +82,7 @@ class ExamUpdate(BaseModel):
 
 class ExamBatchGenerateRequest(BaseModel):
     """Payload to generate a batch of exams."""
-    exam_type: Optional[str] = "TOEIC"
+    exam_type: Optional[str] = "VSTEP_B1"
     structure: Optional[dict] = None
     count: int
     seed: Optional[int] = None

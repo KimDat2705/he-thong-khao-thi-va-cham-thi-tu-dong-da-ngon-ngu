@@ -19,7 +19,7 @@ def test_seed_b1_bank_idempotency_and_update(db_session: Session, tmp_path):
         reference_answer="A",
         difficulty="easy",
         status="draft",
-        exam_type="TOEIC",
+        exam_type="TOEFL",
         language="EN",
         content_hash="toeic_hash_123"
     )
@@ -42,6 +42,11 @@ def test_seed_b1_bank_idempotency_and_update(db_session: Session, tmp_path):
     )
     db_session.add(pre_existing_q)
     db_session.commit()
+
+    initial_count = db_session.query(Question).filter(
+        Question.exam_id.is_(None),
+        Question.exam_type == "VSTEP_B1"
+    ).count()
 
     # 3. Create mock JSON payload with B1 questions/groups
     mock_data = {
@@ -181,7 +186,7 @@ def test_seed_b1_bank_idempotency_and_update(db_session: Session, tmp_path):
         Question.exam_id.is_(None),
         Question.exam_type == "VSTEP_B1"
     ).count()
-    assert b1_q_count_before == 4 # pre-existing (1) + child_qs (2) + new_standalone (1)
+    assert b1_q_count_before == initial_count + 3 # pre-existing (1) + child_qs (2) + new_standalone (1)
 
     # 6. Run seeder for the SECOND time (Idempotency check)
     success_2 = seed_from_json(db_session, str(temp_json))

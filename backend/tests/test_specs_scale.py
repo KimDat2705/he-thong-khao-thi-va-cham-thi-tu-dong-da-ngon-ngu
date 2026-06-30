@@ -9,7 +9,7 @@ import time
 
 from sqlalchemy.orm import Session
 
-from app.services.toeic_generator import generate_toeic_exam
+from app.services.exam_generator import generate_exam, VSTEP_B1_BLUEPRINT
 
 
 def test_SPEC_SCALE_001_config_from_environment(monkeypatch):
@@ -32,14 +32,11 @@ def test_SPEC_SCALE_001_config_from_environment(monkeypatch):
 
 
 def test_SPEC_SCALE_002_generation_latency_smoke(db_session: Session):
-    """SPEC-SCALE-002: Sinh một đề TOEIC hoàn chỉnh từ ngân hàng chuẩn phải hoàn
-    tất trong dưới 10 giây (đảm bảo sinh lô 100 đề khả thi trong một phiên).
-
-    Smoke test trên SQLite in-memory; số liệu PostgreSQL thực tế đo lại ở giai
-    đoạn load test (SPEC-SCALE-003, k6/Locust trên staging).
+    """SPEC-SCALE-002: Sinh một đề VSTEP B1 hoàn chỉnh từ ngân hàng chuẩn phải hoàn
+    tất trong dưới 10 giây.
     """
     started = time.perf_counter()
-    exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-SCALE-002")
+    exam = generate_exam(db_session, VSTEP_B1_BLUEPRINT, title="Đề kiểm tra SPEC-SCALE-002")
     elapsed = time.perf_counter() - started
 
     assert exam.id is not None

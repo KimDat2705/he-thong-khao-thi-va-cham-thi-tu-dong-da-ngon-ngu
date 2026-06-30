@@ -225,7 +225,8 @@ def test_SPEC_ENRICH_002_ai_writing_speaking_generation_and_validation(db_sessio
     w1_qs = db_session.query(Question).filter(
         Question.exam_id.is_(None),
         Question.part == 5,
-        Question.type == "writing"
+        Question.type == "writing",
+        Question.status == "draft"
     ).all()
     assert len(w1_qs) == 2
     for q in w1_qs:
@@ -241,7 +242,8 @@ def test_SPEC_ENRICH_002_ai_writing_speaking_generation_and_validation(db_sessio
     w2_qs = db_session.query(Question).filter(
         Question.exam_id.is_(None),
         Question.part == 6,
-        Question.type == "writing"
+        Question.type == "writing",
+        Question.status == "draft"
     ).all()
     assert len(w2_qs) == 2
     for q in w2_qs:
@@ -263,7 +265,8 @@ def test_SPEC_ENRICH_002_ai_writing_speaking_generation_and_validation(db_sessio
     speaking_qs = db_session.query(Question).filter(
         Question.exam_id.is_(None),
         Question.part.in_([9, 10, 11]),
-        Question.type == "speaking"
+        Question.type == "speaking",
+        Question.status == "draft"
     ).all()
     assert len(speaking_qs) == 3
     for q in speaking_qs:

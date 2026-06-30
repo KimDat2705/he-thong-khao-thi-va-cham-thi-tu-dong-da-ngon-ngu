@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.exam import Exam
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
-from app.services.toeic_generator import generate_toeic_exam
+from app.services.exam_generator import generate_exam, VSTEP_B1_BLUEPRINT
 
 
 def test_SPEC_COLLATE_004_no_mojibake_in_bank_or_exam(db_session: Session):
@@ -18,7 +18,7 @@ def test_SPEC_COLLATE_004_no_mojibake_in_bank_or_exam(db_session: Session):
     options, đoạn văn, đáp án, giải thích) phải là UTF-8 hợp lệ, không chứa ký tự
     thay thế U+FFFD hay lỗi mã hóa.
     """
-    generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-COLLATE-004 — tiếng Việt có dấu")
+    generate_exam(db_session, VSTEP_B1_BLUEPRINT, title="Đề kiểm tra SPEC-COLLATE-004 — tiếng Việt có dấu")
 
     def assert_clean(text, origin):
         if text is None:

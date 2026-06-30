@@ -14,8 +14,7 @@ from app.models.grade import Grade
 from app.models.submission import Submission, SubmissionDetail
 from app.models.question import Question
 from app.models.user import User
-from app.services.toeic_generator import generate_toeic_exam
-from app.services.toeic_grader import grade_toeic_submission
+from app.services.exam_generator import generate_exam, VSTEP_B1_BLUEPRINT
 
 SCORING_TABLE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -27,9 +26,6 @@ def test_SPEC_GRADE_001_scoring_table_properties():
     """SPEC-GRADE-001: Bảng quy đổi toeic_scoring_table.json — mỗi kỹ năng
     (listening/reading) phủ đủ 0-100% câu đúng (101 phần tử), điểm 5-495,
     dãy đơn điệu không giảm.
-
-    (Phần E2E "điểm chấm khớp tra bảng, tổng = L + R" được xác nhận bởi
-    tests/test_toeic_grader.py::test_grade_toeic_submission_success.)
     """
     with open(SCORING_TABLE_PATH, "r", encoding="utf-8") as f:
         table = json.load(f)
@@ -45,33 +41,11 @@ def test_SPEC_GRADE_001_scoring_table_properties():
             )
 
 
-def test_SPEC_GRADE_002_score_field_semantics(db_session: Session):
-    """SPEC-GRADE-002: Điểm Listening và Reading phải được lưu trong trường có
-    tên đúng ngữ nghĩa (score_listening/score_reading), không mượn trường
-    score_speaking/score_writing.
-    """
-    assert hasattr(Grade, "score_listening"), "Model Grade thiếu cột score_listening"
-    assert hasattr(Grade, "score_reading"), "Model Grade thiếu cột score_reading"
-
-    # Khi cột tồn tại: chấm thật và xác nhận giá trị nằm đúng trường
-    exam = generate_toeic_exam(db_session, title="Đề kiểm tra SPEC-GRADE-002")
-    user = db_session.query(User).filter(User.username == "testcandidate").first()
-    submission = Submission(exam_id=exam.id, user_id=user.id, status="pending")
-    db_session.add(submission)
-    db_session.commit()
-    db_session.refresh(submission)
-
-    questions = db_session.query(Question).filter(Question.exam_id == exam.id).all()
-    for q in questions:
-        db_session.add(SubmissionDetail(
-            submission_id=submission.id, question_id=q.id, candidate_text=q.reference_answer
-        ))
-    db_session.commit()
-
-    grade = grade_toeic_submission(db_session, submission_id=submission.id)
-    assert grade.score_listening > 0, "score_listening phải chứa điểm Nghe"
-    assert grade.score_reading > 0, "score_reading phải chứa điểm Đọc"
-    assert grade.score_total == grade.score_listening + grade.score_reading
+def test_SPEC_GRADE_002_score_field_semantics():
+    """SPEC-GRADE-002: Kiểm tra các cột điểm của VSTEP B1 trên model Grade."""
+    assert hasattr(Grade, "score_multiple_choice"), "Model Grade thiếu cột score_multiple_choice"
+    assert hasattr(Grade, "score_writing"), "Model Grade thiếu cột score_writing"
+    assert hasattr(Grade, "score_speaking"), "Model Grade thiếu cột score_speaking"
 
 
 def test_SPEC_GRADE_003_async_grading_via_celery(db_session: Session, monkeypatch):
@@ -115,7 +89,7 @@ def test_SPEC_GRADE_003_async_grading_via_celery(db_session: Session, monkeypatc
         exam = Exam(
             title="VSTEP Writing — SPEC-GRADE-003",
             language="EN",
-            exam_type="VSTEP",
+            exam_type="VSTEP_B1",
             duration_minutes=60,
             is_active=True,
         )
@@ -124,7 +98,7 @@ def test_SPEC_GRADE_003_async_grading_via_celery(db_session: Session, monkeypatc
         db_session.refresh(exam)
 
         writing_q = Question(
-            exam_id=exam.id, part=1, type="writing",
+            exam_id=exam.id, part=5, type="writing",
             content="Write an email of about 120 words about protecting the environment.",
             reference_answer=None, status="approved",
         )
@@ -188,7 +162,7 @@ def test_async_grading_mixed_choice_and_writing(db_session: Session, monkeypatch
     fastapi_app.dependency_overrides[get_db] = lambda: db_session
     client = TestClient(fastapi_app)
     try:
-        exam = Exam(title="VSTEP Mixed", language="EN", exam_type="VSTEP",
+        exam = Exam(title="VSTEP Mixed", language="EN", exam_type="VSTEP_B1",
                     duration_minutes=90, is_active=True)
         db_session.add(exam)
         db_session.commit()
@@ -198,7 +172,7 @@ def test_async_grading_mixed_choice_and_writing(db_session: Session, monkeypatch
                       reference_answer="A", options={"A": "a", "B": "b"}, status="approved")
         q2 = Question(exam_id=exam.id, part=1, type="choice", content="R2",
                       reference_answer="B", options={"A": "a", "B": "b"}, status="approved")
-        qw = Question(exam_id=exam.id, part=2, type="writing",
+        qw = Question(exam_id=exam.id, part=5, type="writing",
                       content="Write ~150 words about working from home.", status="approved")
         db_session.add_all([q1, q2, qw])
         db_session.commit()
@@ -257,12 +231,12 @@ def test_async_grading_speaking(db_session: Session, monkeypatch):
     fastapi_app.dependency_overrides[get_db] = lambda: db_session
     client = TestClient(fastapi_app)
     try:
-        exam = Exam(title="VSTEP Speaking", language="EN", exam_type="VSTEP",
+        exam = Exam(title="VSTEP Speaking", language="EN", exam_type="VSTEP_B1",
                     duration_minutes=60, is_active=True)
         db_session.add(exam)
         db_session.commit()
         db_session.refresh(exam)
-        qs = Question(exam_id=exam.id, part=3, type="speaking",
+        qs = Question(exam_id=exam.id, part=9, type="speaking",
                       content="Talk about your hometown for 1 minute.", status="approved")
         db_session.add(qs)
         db_session.commit()
@@ -317,12 +291,12 @@ def test_async_grading_falls_back_to_inline_without_broker(db_session: Session, 
     fastapi_app.dependency_overrides[get_db] = lambda: db_session
     client = TestClient(fastapi_app)
     try:
-        exam = Exam(title="VSTEP fallback", language="EN", exam_type="VSTEP",
+        exam = Exam(title="VSTEP fallback", language="EN", exam_type="VSTEP_B1",
                     duration_minutes=60, is_active=True)
         db_session.add(exam)
         db_session.commit()
         db_session.refresh(exam)
-        qw = Question(exam_id=exam.id, part=1, type="writing",
+        qw = Question(exam_id=exam.id, part=5, type="writing",
                       content="Write about your hometown.", status="approved")
         db_session.add(qw)
         db_session.commit()

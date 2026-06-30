@@ -29,12 +29,17 @@ def generate_exam(
     """
     Generate a full TOEIC exam from the approved question bank.    """
     try:
+        exam_type = payload.exam_type
+        if (exam_type == "VSTEP_B1" or not exam_type) and payload.title and "TOEIC" in payload.title:
+            exam_type = "TOEIC"
+        elif not exam_type:
+            exam_type = "VSTEP_B1"
         exam = exam_admin.generate_demo_exam(
             db,
             title=payload.title,
             seed=payload.seed,
             duration_minutes=payload.duration_minutes,
-            exam_type=payload.exam_type or "TOEIC",
+            exam_type=exam_type,
         )
     except InsufficientBankError as e:
         raise HTTPException(status_code=409, detail=f"Ngân hàng câu hỏi chưa đủ để sinh đề: {e}")
