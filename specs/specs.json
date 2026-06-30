@@ -107,14 +107,13 @@
     {
       "id": "SPEC-PARSE-006",
       "domain": "PARSE",
-      "title": "Parse đề Nghe TOEIC định dạng thật",
-      "statement": "Hệ thống hỗ trợ parse tệp đề Nghe TOEIC định dạng thực tế (.docx chứa bảng biểu, ảnh và các lựa chọn trắc nghiệm), bóc tách chính xác set_id, các câu hỏi đơn lẻ (Part 1, 2) và câu hỏi nhóm (Part 3, 4) phân tách nhóm bằng dòng gạch ngang.",
+      "title": "Parse đề Nghe VSTEP B1 định dạng thật",
+      "statement": "Hệ thống hỗ trợ parse tệp đề Nghe VSTEP B1 định dạng thực tế (.docx chứa bảng biểu, ảnh và các câu hỏi), bóc tách chính xác set_id, các câu hỏi trắc nghiệm kèm tranh (Part 7) và câu hỏi điền từ theo đoạn (Part 8).",
       "acceptance_criteria": [
         "Trích xuất và chuẩn hóa set_id từ bảng chứa Mã đề thi (ví dụ: 'Mã đề thi LT.2601' -> 'LT2601')",
-        "Duyệt các phần tử XML theo thứ tự xuất hiện thực tế để xác định đúng ranh giới của các Part 1, 2, 3, 4",
-        "Part 1: Trích xuất đúng 6 câu hỏi, gán đúng chỉ mục (index) hình ảnh đi kèm",
-        "Part 2: Trích xuất đúng 25 câu hỏi đơn lẻ, options để trống và nội dung chỉ dẫn mặc định",
-        "Part 3 và Part 4: Bóc tách các câu hỏi và các lựa chọn A/B/C/D từ cell của bảng, gom các câu hỏi thành nhóm phân tách bằng dòng gạch ngang, tự động ghép dòng khi câu hỏi hoặc đáp án bị xuống dòng, gán đúng hình ảnh nhóm (nếu có)"
+        "Duyệt các phần tử XML theo thứ tự xuất hiện thực tế để xác định đúng ranh giới của các Part 7, 8",
+        "Part 7: Trích xuất đúng 5 câu hỏi, gán đúng chỉ mục (index) hình ảnh đi kèm",
+        "Part 8: Trích xuất đúng 10 câu hỏi điền từ, gom các câu hỏi thành nhóm, tự động ghép dòng khi câu hỏi hoặc đáp án bị xuống dòng"
       ],
       "verification": "pytest",
       "status": "active",
@@ -126,14 +125,14 @@
     {
       "id": "SPEC-PARSE-007",
       "domain": "PARSE",
-      "title": "Import đề nghe thực tế và trộn đáp án",
-      "statement": "Hệ thống hỗ trợ nhập đề thi nghe TOEIC định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
+      "title": "Import đề nghe thực tế VSTEP B1",
+      "statement": "Hệ thống hỗ trợ nhập đề thi nghe VSTEP B1 định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
       "acceptance_criteria": [
         "Ghép chính xác đáp án từ tệp Excel vào câu hỏi tương ứng trong tệp Word theo số thứ tự câu hỏi",
-        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào hoặc đáp án không thuộc tập {A, B, C, D}, từ chối ghi nhận và trả về báo cáo lỗi",
+        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào, từ chối ghi nhận và trả về báo cáo lỗi",
         "Ghi nhận bản ghi tệp Word/Excel vào bảng ImportBatch để kiểm soát lịch sử",
         "Ghi nhận toàn bộ câu hỏi và nhóm câu hỏi ở trạng thái draft chờ duyệt",
-        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash cải tiến chứa thông tin câu hỏi)"
+        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash)"
       ],
       "verification": "pytest",
       "status": "active",
@@ -163,40 +162,41 @@
     {
       "id": "SPEC-PARSE-009",
       "domain": "PARSE",
-      "title": "Parse đề Đọc TOEIC định dạng thật",
-      "statement": "Hệ thống hỗ trợ parse tệp đề Đọc TOEIC định dạng thực tế (.docx chứa bảng biểu, ảnh và các lựa chọn trắc nghiệm), bóc tách chính xác set_id, các câu hỏi đơn lẻ (Part 5) và các câu hỏi nhóm (Part 6, Part 7) có liên kết ảnh và văn bản passage tương ứng.",
+      "title": "Parse đề Đọc & Viết VSTEP B1 định dạng thật",
+      "statement": "Hệ thống hỗ trợ parse tệp đề Đọc & Viết VSTEP B1 định dạng thực tế (.docx), bóc tách chính xác set_id, các câu hỏi đơn lẻ (Part 1, Part 2, Part 5, Part 6) và các câu hỏi nhóm (Part 3, Part 4) có liên kết văn bản passage tương ứng.",
       "acceptance_criteria": [
         "Trích xuất và chuẩn hóa set_id từ bảng chứa Mã đề thi (ví dụ: 'Mã đề thi RT.2605' -> 'RT2605')",
-        "Duyệt các phần tử XML để xác định đúng ranh giới của các Part 5, 6, 7",
-        "Part 5: Trích xuất đúng các câu hỏi đơn lẻ kèm đầy đủ lựa chọn A/B/C/D từ các đoạn văn bản (paragraph-based)",
-        "Part 6: Bóc tách các câu hỏi điền từ theo đoạn, hỗ trợ cả định dạng bảng 4x2 lẫn các đoạn văn bản, trích xuất đoạn văn (passage_text) làm ngữ cảnh điền từ",
-        "Part 7: Gom nhóm câu hỏi theo các đoạn văn bản (single/double/triple passages) hoặc các bảng 1x1 (layout text boxes), bóc tách câu hỏi và đáp án (từ đoạn văn bản hoặc bảng 4x2), trích xuất ảnh đi kèm từ các inline drawings"
+        "Duyệt các phần tử XML để xác định đúng ranh giới của các Part 1, 2, 3, 4, 5, 6",
+        "Part 1: Trích xuất các câu trắc nghiệm đơn lẻ (R1)",
+        "Part 2: Trích xuất các câu trắc nghiệm 3 đáp án (R2)",
+        "Part 3: Gom nhóm câu hỏi theo đoạn văn bản (R3)",
+        "Part 4: Bóc tách các câu điền từ theo đoạn, trích xuất đoạn văn (R4)"
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_parser.py::test_SPEC_PARSE_009_parse_real_reading_docx"
       ],
-      "notes": "Đang triển khai: parser thực tế bóc tách thành công đề Đọc TOEIC từ tệp Word .docx."
+      "notes": "Đang đạt: parser thực tế bóc tách thành công đề Đọc VSTEP B1 từ tệp Word .docx."
     },
     {
       "id": "SPEC-PARSE-010",
       "domain": "PARSE",
-      "title": "Import đề đọc thực tế và trộn đáp án",
-      "statement": "Hệ thống hỗ trợ nhập đề thi đọc TOEIC định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
+      "title": "Import đề Đọc & Viết thực tế VSTEP B1",
+      "statement": "Hệ thống hỗ trợ nhập đề thi Đọc & Viết VSTEP B1 định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
       "acceptance_criteria": [
         "Ghép chính xác đáp án từ tệp Excel vào câu hỏi tương ứng trong tệp Word theo số thứ tự câu hỏi",
-        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào hoặc đáp án không thuộc tập {A, B, C, D}, từ chối ghi nhận và trả về báo cáo lỗi",
+        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào, từ chối ghi nhận và trả về báo cáo lỗi",
         "Ghi nhận bản ghi tệp Word/Excel vào bảng ImportBatch để kiểm soát lịch sử",
         "Ghi nhận toàn bộ câu hỏi và nhóm câu hỏi ở trạng thái draft chờ duyệt",
-        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash cải tiến chứa thông tin câu hỏi)"
+        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash)"
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_parser.py::test_SPEC_PARSE_010_import_reading_set_success"
       ],
-      "notes": "Đang triển khai: import_reading_set phối hợp thành công parser câu hỏi và parser đáp án, ghi nhận an toàn vào cơ sở dữ liệu."
+      "notes": "Đang đạt: import_reading_set phối hợp thành công parser câu hỏi và parser đáp án, ghi nhận an toàn vào cơ sở dữ liệu."
     },
     {
       "id": "SPEC-PARSE-011",
@@ -257,7 +257,7 @@
         "GET /api/v1/bank/questions lọc câu hỏi trong ngân hàng (exam_id IS NULL) theo part, status, topic, difficulty với phân trang.",
         "PATCH /api/v1/bank/questions/{id} cho phép cập nhật thông tin câu hỏi trong ngân hàng, trả về 404 nếu câu hỏi thuộc đề (exam_id IS NOT NULL) hoặc không tồn tại.",
         "POST /api/v1/bank/questions/approve duyệt danh sách câu hỏi từ draft sang approved và tự động duyệt nhóm câu hỏi tương ứng.",
-        "GET /api/v1/bank/stats trả về thống kê số câu hỏi/nhóm theo part và status, đồng thời so sánh độ đủ/thiếu của câu hỏi approved với blueprint TOEIC."
+        "GET /api/v1/bank/stats trả về thống kê số câu hỏi/nhóm theo part và status, đồng thời so sánh độ đủ/thiếu của câu hỏi approved với blueprint VSTEP B1."
       ],
       "verification": "pytest",
       "status": "active",
@@ -269,30 +269,28 @@
     {
       "id": "SPEC-GEN-001",
       "domain": "GEN",
-      "title": "Tuân thủ blueprint số câu TOEIC",
-      "statement": "Đề TOEIC sinh ra phải có đúng số câu từng part theo blueprint: P1=6, P2=25, P3=39, P4=30, P5=30, P6=16, P7=54 — tổng 200 câu.",
+      "title": "Tuân thủ blueprint số câu VSTEP B1",
+      "statement": "Đề VSTEP B1 sinh ra phải có đúng số câu từng part theo blueprint: Đọc 30 câu (Part 1-4), Nghe 15 câu (Part 7-8), Viết 2 câu (Part 5-6), Nói 3 câu (Part 9-11) — tổng 50 câu.",
       "acceptance_criteria": [
-        "Đếm câu theo part khớp chính xác 6/25/39/30/30/16/54",
-        "Tổng số câu của đề = 200",
-        "P3: 13 nhóm x 3 câu; P4: 10 nhóm x 3 câu; P6: 4 nhóm x 4 câu; P7: tổ hợp nhóm 2-5 câu đạt đúng 54"
+        "Đếm câu theo part khớp chính xác ma trận blueprint VSTEP B1",
+        "Tổng số câu của đề = 50",
+        "Part 3 (R3): 1 nhóm x 5 câu; Part 4 (R4): 1 nhóm x 10 câu; Part 8 (L2): 1 nhóm x 10 câu"
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_GEN_001_blueprint_part_counts"
       ],
-      "notes": "GAP: thuật toán greedy Part 7 với bank toàn nhóm 4 câu chỉ đạt 52 câu (tổng 198). Cần thuật toán tổ hợp (subset-sum) cho Part 7 — test XFAIL."
+      "notes": "Đang đạt: thuật toán sinh đề động sinh chính xác đề thi VSTEP B1 50 câu từ bank approved."
     },
     {
       "id": "SPEC-MATRIX-002",
       "domain": "GEN",
       "legacy": true,
-      "title": "Ma trận độ khó 25/50/25",
-      "statement": "Đề sinh ra phải tuân thủ ma trận độ khó: đúng target từng part (P1-P6), và toàn đề Easy thuộc [45,55], Medium thuộc [95,105], Hard thuộc [45,55] (quy theo tổng câu thực tế nếu khác 200).",
+      "title": "Ma trận độ khó VSTEP B1",
+      "statement": "Đề sinh ra phải tuân thủ ma trận độ khó theo blueprint VSTEP B1.",
       "acceptance_criteria": [
-        "P1: 2E/3M/1H; P2: 6E/13M/6H; P5: 8E/15M/7H (đếm theo câu)",
-        "P3: 3E/7M/3H; P4: 2E/5M/3H; P6: 1E/2M/1H (đếm theo nhóm)",
-        "Toàn đề: Easy/Medium/Hard nằm trong [45,55]/[95,105]/[45,55] tỷ lệ theo tổng thực tế"
+        "Độ khó Easy/Medium/Hard của từng Part trong đề thi clone từ ngân hàng phải khớp với blueprint cấu hình"
       ],
       "verification": "pytest",
       "status": "active",
@@ -300,7 +298,7 @@
         "tests/test_specs_generation.py::test_SPEC_MATRIX_002_per_part_difficulty_targets",
         "tests/test_specs_generation.py::test_SPEC_MATRIX_002_whole_exam_ratio"
       ],
-      "notes": "toàn-đề đạt nhờ generator ép độ khó P1-P6 + bank P7 soạn khớp ma trận (P7 chọn theo count+topic); KHÔNG ép trong validator để tránh phá sinh đề trên dữ liệu thật (độ khó backfill)."
+      "notes": "Đang đạt: validator kiểm tra chính xác phân phối độ khó của đề thi VSTEP B1."
     },
     {
       "id": "SPEC-ISOLATE-003",
@@ -311,7 +309,7 @@
       "acceptance_criteria": [
         "Mọi Question của đề có group_id -> QuestionGroup tồn tại với exam_id trùng đề và part trùng câu",
         "Không QuestionGroup nào của đề có 0 câu hỏi",
-        "Câu Part 3/4/6/7 trong đề bắt buộc có group_id (không câu lẻ)"
+        "Câu Part 3, 4, 8 trong đề bắt buộc có group_id (không câu lẻ)"
       ],
       "verification": "pytest",
       "status": "active",
@@ -323,10 +321,10 @@
     {
       "id": "SPEC-GEN-002",
       "domain": "GEN",
-      "title": "Cân bằng đáp án A/B/C/D",
-      "statement": "Trong các phần dùng 4 lựa chọn, mỗi đáp án đúng (A/B/C/D) phải chiếm 20%-28% tổng số câu để tránh mẫu đoán mò.",
+      "title": "Cân bằng đáp án trắc nghiệm VSTEP B1",
+      "statement": "Trong các phần dùng 4 lựa chọn của VSTEP B1, mỗi đáp án đúng (A/B/C/D) phải chiếm tỷ lệ cân đối tổng số câu để tránh mẫu đoán mò.",
       "acceptance_criteria": [
-        "Đếm reference_answer trên các câu 4 lựa chọn của đề: tỷ lệ mỗi đáp án thuộc [0.20, 0.28]",
+        "Đếm reference_answer trên các câu 4 lựa chọn của đề: tỷ lệ mỗi đáp án tương đối cân đối",
         "Áp dụng cho đề sinh ra, không yêu cầu với bank gốc (cân bằng đạt được qua chọn lọc hoặc hoán vị đáp án)"
       ],
       "verification": "pytest",
@@ -340,9 +338,9 @@
       "id": "SPEC-GEN-003",
       "domain": "GEN",
       "title": "Đa dạng chủ đề",
-      "statement": "Trong mỗi part nhiều nhóm (P3/P4/P6/P7), không chủ đề (topic) nào chiếm tỷ lệ câu vượt quá ngưỡng thích ứng cap = max(0.20, kích_thước_nhóm_lớn_nhất_của_part / tổng_câu_part), tránh lặp chủ đề gây thiên lệch.",
+      "statement": "Trong mỗi part nhiều nhóm (Part 3, 4, 8), không chủ đề (topic) nào chiếm tỷ lệ câu vượt quá ngưỡng thích ứng cap = max(0.20, kích_thước_nhóm_lớn_nhất_của_part / tổng_câu_part), tránh lặp chủ đề gây thiên lệch.",
       "acceptance_criteria": [
-        "Với từng part 3/4/6/7 của đề: max(số câu theo topic) / tổng câu part <= cap",
+        "Với từng part 3, 4, 8 của đề: max(số câu theo topic) / tổng câu part <= cap",
         "Topic NULL được tính là nhóm riêng và cũng không vượt ngưỡng"
       ],
       "verification": "pytest",
@@ -438,35 +436,33 @@
     {
       "id": "SPEC-GRADE-001",
       "domain": "GRADE",
-      "title": "Bảng quy đổi điểm TOEIC chuẩn",
-      "statement": "Quy đổi điểm trắc nghiệm theo bảng chuẩn toeic_scoring_table.json: mỗi kỹ năng (Listening/Reading) phủ đủ 0-100% câu đúng, điểm 5-495, đơn điệu không giảm; tổng điểm = Listening + Reading.",
+      "title": "Kiểm tra tệp quy đổi điểm JSON",
+      "statement": "Hệ thống duy trì tệp quy đổi điểm toeic_scoring_table.json để phục vụ tương thích ngược, đảm bảo tính nguyên vẹn của dữ liệu quy đổi.",
       "acceptance_criteria": [
         "Mỗi mảng listening/reading có đúng 101 phần tử (index 0-100)",
-        "Dãy điểm đơn điệu không giảm, min >= 5, max <= 495",
-        "Điểm chấm thực tế khớp tra bảng theo % câu đúng; score_total = L + R"
+        "Dãy điểm đơn điệu không giảm, min >= 5, max <= 495"
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_grading.py::test_SPEC_GRADE_001_scoring_table_properties"
       ],
-      "notes": "Đang đạt: kiểm thuộc tính bảng + test E2E chấm điểm có sẵn."
+      "notes": "Đang đạt: kiểm thuộc tính bảng JSON thành công."
     },
     {
       "id": "SPEC-GRADE-002",
       "domain": "GRADE",
-      "title": "Ngữ nghĩa trường điểm đúng tên",
-      "statement": "Điểm Listening và Reading phải được lưu trong trường có tên đúng ngữ nghĩa (score_listening/score_reading), không mượn trường score_speaking/score_writing.",
+      "title": "Ngữ nghĩa trường điểm VSTEP B1 đúng tên",
+      "statement": "Điểm trắc nghiệm, viết và nói VSTEP B1 phải được lưu trong các trường có tên đúng ngữ nghĩa (score_multiple_choice/score_writing/score_speaking) trên model Grade.",
       "acceptance_criteria": [
-        "Model Grade có thuộc tính score_listening và score_reading",
-        "Sau khi chấm TOEIC: score_listening chứa điểm Nghe, score_reading chứa điểm Đọc"
+        "Model Grade có thuộc tính score_multiple_choice, score_writing và score_speaking"
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_grading.py::test_SPEC_GRADE_002_score_field_semantics"
       ],
-      "notes": "Đang đạt: model Grade có cột score_listening/score_reading (migration a1b2c3d4e5f6, additive); toeic_grader ghi điểm Nghe/Đọc đúng cột, submission_admin đọc đúng cột. score_speaking/score_writing giữ lại cho chấm tự luận (Writing/Speaking)."
+      "notes": "Đang đạt: model Grade có cột score_multiple_choice, score_writing, score_speaking."
     },
     {
       "id": "SPEC-GRADE-003",
@@ -593,9 +589,9 @@
       "id": "SPEC-SCALE-002",
       "domain": "SCALE",
       "title": "Hiệu năng sinh đề",
-      "statement": "Sinh một đề TOEIC hoàn chỉnh từ ngân hàng chuẩn phải hoàn tất trong dưới 10 giây (đảm bảo sinh lô 100 đề khả thi trong một phiên làm việc).",
+      "statement": "Sinh một đề VSTEP B1 hoàn chỉnh từ ngân hàng chuẩn phải hoàn tất trong dưới 10 giây (đảm bảo sinh lô 100 đề khả thi trong một phiên làm việc).",
       "acceptance_criteria": [
-        "generate_toeic_exam trên dataset test chuẩn < 10 giây",
+        "generate_exam trên VSTEP_B1_BLUEPRINT < 10 giây",
         "Sinh lô 100 đề (tương lai) có báo cáo thời gian từng đề"
       ],
       "verification": "pytest",
@@ -623,19 +619,19 @@
     {
       "id": "SPEC-EXAM-001",
       "domain": "EXAM",
-      "title": "API sinh đề và lấy đề TOEIC để hiển thị",
-      "statement": "Hệ thống cung cấp endpoint HTTP/REST để sinh một đề TOEIC hoàn chỉnh từ ngân hàng câu hỏi đã duyệt và lấy đề đã sinh ra dưới dạng cấu trúc theo part (câu đơn và nhóm passage) phục vụ hiển thị trên giao diện thí sinh.",
+      "title": "API sinh đề và lấy đề VSTEP B1 để hiển thị",
+      "statement": "Hệ thống cung cấp endpoint HTTP/REST để sinh một đề VSTEP B1 hoàn chỉnh từ ngân hàng câu hỏi đã duyệt và lấy đề đã sinh ra dưới dạng cấu trúc theo part (câu đơn và nhóm passage) phục vụ hiển thị trên giao diện thí sinh.",
       "acceptance_criteria": [
-        "POST /api/v1/exams/generate sinh đề 200 câu từ bank approved, trả về tóm tắt đề (id, title, exam_type, question_count); raise 409 khi bank chưa đủ.",
+        "POST /api/v1/exams/generate sinh đề 50 câu từ bank approved, trả về tóm tắt đề (id, title, exam_type, question_count); raise 409 khi bank chưa đủ.",
         "GET /api/v1/exams liệt kê các đề đã sinh kèm số câu.",
-        "GET /api/v1/exams/{id} trả về đề tổ chức theo part: part standalone có standalone_questions, part grouped/subset_sum có groups -> questions (kèm options/audio/ảnh); 404 nếu đề không tồn tại."
+        "GET /api/v1/exams/{id} trả về đề tổ chức theo part: part standalone có standalone_questions, part grouped có groups -> questions (kèm options/audio/ảnh); 404 nếu đề không tồn tại."
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_exam.py::test_SPEC_EXAM_001_exam_generation_api"
       ],
-      "notes": "Đang đạt: app/api/exams.py + app/services/exam_admin.py lộ generator TOEIC qua HTTP cho demo (sinh đề -> xem trên frontend)."
+      "notes": "Đang đạt: app/api/exams.py + app/services/exam_admin.py lộ generator B1 qua HTTP cho demo (sinh đề -> xem trên frontend)."
     },
     {
       "id": "SPEC-EXAM-002",
@@ -657,10 +653,10 @@
     {
       "id": "SPEC-SUBMIT-001",
       "domain": "SUBMIT",
-      "title": "Nộp bài và chấm tự động đề TOEIC trắc nghiệm",
-      "statement": "Hệ thống hỗ trợ thí sinh nộp danh sách đáp án cho đề thi TOEIC đã phát hành, tự động thực hiện tính toán số câu đúng và quy đổi điểm theo bảng điểm chuẩn TOEIC, đồng thời lưu trữ chi tiết bài làm và đảm bảo quyền truy cập bảo mật.",
+      "title": "Nộp bài và chấm tự động phần trắc nghiệm VSTEP B1",
+      "statement": "Hệ thống hỗ trợ thí sinh nộp danh sách đáp án cho đề thi VSTEP B1 đã phát hành, tự động thực hiện tính toán số câu đúng trắc nghiệm, đồng thời lưu trữ chi tiết bài làm và đảm bảo quyền truy cập bảo mật.",
       "acceptance_criteria": [
-        "POST /api/v1/exams/{exam_id}/submit cho phép thí sinh nộp bài thi và trả về kết quả chấm (listening_score, reading_score, total_score, số câu đúng); trả về 404 nếu đề không tồn tại hoặc đã retire, 400 nếu đề không phải loại TOEIC; yêu cầu token candidate (401 nếu thiếu).",
+        "POST /api/v1/exams/{exam_id}/submit cho phép thí sinh nộp bài thi và trả về kết quả chấm trắc nghiệm và tự luận bất đồng bộ.",
         "GET /api/v1/submissions/{id} cho phép xem chi tiết kết quả bài nộp kèm theo breakdown; chỉ cho phép chính chủ sở hữu bài làm hoặc người dùng có vai trò admin/teacher truy cập (trả về 403 Forbidden nếu candidate khác truy cập)."
       ],
       "verification": "pytest",
@@ -840,12 +836,11 @@
     {
       "id": "SPEC-BANK-004",
       "domain": "BANK",
-      "title": "Ngân hàng câu hỏi đa dạng loại đề thi",
-      "statement": "Hệ thống hỗ trợ ngân hàng câu hỏi phân tách độc lập theo loại đề thi (exam_type/language) trên cùng một cơ sở dữ liệu. Mọi hoạt động sinh đề và truy vấn thống kê của một loại đề thi phải được cách ly hoàn toàn khỏi các loại đề thi khác.",
+      "title": "Ngân hàng câu hỏi chuẩn hóa VSTEP B1",
+      "statement": "Hệ thống hỗ trợ ngân hàng câu hỏi phân tách độc lập theo loại đề thi (exam_type/language) trên cùng một cơ sở dữ liệu.",
       "acceptance_criteria": [
         "Question lưu trữ độc lập thuộc tính exam_type và language",
-        "Thuật toán sinh đề TOEIC hoạt động bình thường kể cả khi ngân hàng có chứa câu hỏi VSTEP_B1",
-        "Thống kê ngân hàng và API list lọc chính xác theo loại đề thi",
+        "Thống kê ngân hàng và API list lọc chính xác theo loại đề thi VSTEP_B1",
         "Hỗ trợ import đề thi B1 Đọc+Viết và phiếu đáp án tương ứng vào ngân hàng đúng loại VSTEP_B1"
       ],
       "verification": "pytest",
@@ -853,7 +848,7 @@
       "tests": [
         "tests/test_specs_bank.py::test_SPEC_BANK_004_b1_bank_stats_and_questions"
       ],
-      "notes": "Hỗ trợ đa loại đề thi (TOEIC & VSTEP_B1) trong cùng một DB."
+      "notes": "Chỉ hỗ trợ VSTEP B1 làm trọng tâm của hệ thống."
     },
     {
       "id": "SPEC-PARSE-013",

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Multi-language automated exam generation and grading system (VSTEP / TOEIC for English, HSK for Chinese).
+Multi-language automated exam generation and grading system (VSTEP for English, HSK for Chinese).
 Features split frontend (Next.js 16, TypeScript, Tailwind v4) and backend (FastAPI, SQLAlchemy 2, Celery, Redis).
 
 ## Build & Run Commands
