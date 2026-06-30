@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
-from app.services.toeic_generator import TOEIC_BLUEPRINT
+from app.services.toeic_generator import TOEIC_BLUEPRINT, VSTEP_B1_BLUEPRINT
 from app.schemas.bank import QuestionUpdate, BankStats, PartStats
 
 def list_bank_questions(
@@ -89,13 +89,13 @@ def approve_questions(db: Session, ids: List[int]) -> int:
         
     return updated_count
 
-def compute_bank_stats(db: Session) -> BankStats:
+def compute_bank_stats(db: Session, exam_type: str = "TOEIC") -> BankStats:
     """
     Computes statistics of the question bank and evaluates blueprint sufficiency.
     """
     # 1. Count questions by part and status (only bank questions)
     q_stats = db.query(Question.part, Question.status, func.count(Question.id))\
-        .filter(Question.exam_id.is_(None), Question.exam_type == "TOEIC")\
+        .filter(Question.exam_id.is_(None), Question.exam_type == exam_type)\
         .group_by(Question.part, Question.status).all()
         
     question_counts = {}
@@ -107,7 +107,7 @@ def compute_bank_stats(db: Session) -> BankStats:
         
     # 2. Count groups by part and status (only bank groups)
     g_stats = db.query(QuestionGroup.part, QuestionGroup.status, func.count(QuestionGroup.id))\
-        .filter(QuestionGroup.exam_id.is_(None), QuestionGroup.questions.any(Question.exam_type == "TOEIC"))\
+        .filter(QuestionGroup.exam_id.is_(None), QuestionGroup.questions.any(Question.exam_type == exam_type))\
         .group_by(QuestionGroup.part, QuestionGroup.status).all()
         
     group_counts = {}
@@ -117,9 +117,10 @@ def compute_bank_stats(db: Session) -> BankStats:
             group_counts[part_str] = {}
         group_counts[part_str][status] = count
         
-    # 3. Cross-reference with TOEIC_BLUEPRINT
+    # 3. Cross-reference with Blueprint
     blueprint_sufficiency = []
-    parts_config = TOEIC_BLUEPRINT.get("parts", {})
+    blueprint = VSTEP_B1_BLUEPRINT if exam_type == "VSTEP_B1" else TOEIC_BLUEPRINT
+    parts_config = blueprint.get("parts", {})
     
     for part_str, part_spec in parts_config.items():
         part = int(part_str)
@@ -131,7 +132,7 @@ def compute_bank_stats(db: Session) -> BankStats:
                 Question.group_id.is_(None),
                 Question.part == part,
                 Question.status == "approved",
-                Question.exam_type == "TOEIC"
+                Question.exam_type == exam_type
             ).count()
             needed_count = part_spec.get("count", 0)
             
@@ -140,7 +141,7 @@ def compute_bank_stats(db: Session) -> BankStats:
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved",
-                QuestionGroup.questions.any(Question.exam_type == "TOEIC")
+                QuestionGroup.questions.any(Question.exam_type == exam_type)
             ).count()
             needed_count = part_spec.get("groups", 0)
             
@@ -149,7 +150,7 @@ def compute_bank_stats(db: Session) -> BankStats:
                 QuestionGroup.exam_id.is_(None),
                 QuestionGroup.part == part,
                 QuestionGroup.status == "approved",
-                QuestionGroup.questions.any(Question.exam_type == "TOEIC")
+                QuestionGroup.questions.any(Question.exam_type == exam_type)
             ).all()
             approved_count = sum(len(g.questions) for g in approved_groups)
             needed_count = part_spec.get("target_questions", 0)
@@ -168,8 +169,9 @@ def compute_bank_stats(db: Session) -> BankStats:
             is_sufficient=is_sufficient
         ))
         
-    # Ensure all parts 1 to 7 have at least empty dict in counts for API response consistency
-    for part in range(1, 8):
+    # Ensure all parts have at least empty dict in counts for API response consistency
+    max_parts = 11 if exam_type == "VSTEP_B1" else 7
+    for part in range(1, max_parts + 1):
         part_str = str(part)
         if part_str not in question_counts:
             question_counts[part_str] = {}

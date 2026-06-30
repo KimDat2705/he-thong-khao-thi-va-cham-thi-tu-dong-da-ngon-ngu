@@ -58,12 +58,14 @@ def approve_questions(
 
 @router.get("/stats", response_model=BankStats)
 def get_stats(
+    exam_type: str = Query("TOEIC"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
-    Get bank statistics and TOEIC blueprint sufficiency mapping.    """
-    return bank_admin.compute_bank_stats(db)
+    Get bank statistics and blueprint sufficiency mapping.
+    """
+    return bank_admin.compute_bank_stats(db, exam_type=exam_type)
 
 
 @router.post("/enrich", response_model=EnrichResult)

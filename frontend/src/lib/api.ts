@@ -125,9 +125,12 @@ export async function loginRequest(username: string, password: string): Promise<
   );
 }
 
-export async function getBankStats(): Promise<BankStats> {
+export async function getBankStats(examType?: string): Promise<BankStats> {
+  const url = examType
+    ? `${API_BASE}/api/v1/bank/stats?exam_type=${examType}`
+    : `${API_BASE}/api/v1/bank/stats`;
   return jsonOrThrow(
-    await fetch(`${API_BASE}/api/v1/bank/stats`, {
+    await fetch(url, {
       cache: "no-store",
       headers: { ...authHeaders() },
     }),

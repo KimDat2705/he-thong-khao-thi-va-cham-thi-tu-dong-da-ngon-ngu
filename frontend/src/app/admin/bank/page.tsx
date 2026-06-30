@@ -26,6 +26,7 @@ export default function BankAdminPage() {
   const [authChecked, setAuthChecked] = useState(false);
 
   // Filter states
+  const [examType, setExamType] = useState<string>("TOEIC");
   const [status, setStatus] = useState<string>("draft");
   const [part, setPart] = useState<number | "">("");
   const [difficulty, setDifficulty] = useState<string>("");
@@ -66,12 +67,13 @@ export default function BankAdminPage() {
         status: status === "" ? undefined : status,
         difficulty: difficulty === "" ? undefined : difficulty,
         topic: topic === "" ? undefined : topic,
+        exam_type: examType,
         limit,
         offset,
       };
       const [qData, sData] = await Promise.all([
         listBankQuestions(qParams),
-        getBankStats(),
+        getBankStats(examType),
       ]);
       setQuestions(qData.items);
       setTotal(qData.total);
@@ -94,7 +96,7 @@ export default function BankAdminPage() {
     if (authChecked) {
       fetchData();
     }
-  }, [part, status, difficulty, topic, page, authChecked]);
+  }, [part, status, difficulty, topic, page, examType, authChecked]);
 
   // Debounce topic input
   useEffect(() => {
@@ -161,6 +163,9 @@ export default function BankAdminPage() {
         topic: enrichTopic === "" ? undefined : enrichTopic,
       });
       setSuccess(`AI đã sinh thành công ${res.generated_count} câu hỏi/nhóm câu hỏi VSTEP B1 dạng Nháp.`);
+      setExamType("VSTEP_B1");
+      setStatus("draft");
+      setPage(1);
       await fetchData();
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -348,7 +353,24 @@ export default function BankAdminPage() {
       {/* Filters Form */}
       <div className="mt-6 rounded-lg border bg-gray-50 p-4">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Bộ lọc tìm kiếm</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Loại đề thi</label>
+            <select
+              value={examType}
+              onChange={(e) => {
+                setExamType(e.target.value);
+                setPart("");
+                setPage(1);
+                setSelectedIds([]);
+              }}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="TOEIC">TOEIC</option>
+              <option value="VSTEP_B1">VSTEP B1</option>
+            </select>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase">Trạng thái</label>
             <select
@@ -378,13 +400,31 @@ export default function BankAdminPage() {
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Tất cả parts</option>
-              <option value="1">Part 1</option>
-              <option value="2">Part 2</option>
-              <option value="3">Part 3</option>
-              <option value="4">Part 4</option>
-              <option value="5">Part 5</option>
-              <option value="6">Part 6</option>
-              <option value="7">Part 7</option>
+              {examType === "TOEIC" ? (
+                <>
+                  <option value="1">Part 1</option>
+                  <option value="2">Part 2</option>
+                  <option value="3">Part 3</option>
+                  <option value="4">Part 4</option>
+                  <option value="5">Part 5</option>
+                  <option value="6">Part 6</option>
+                  <option value="7">Part 7</option>
+                </>
+              ) : (
+                <>
+                  <option value="1">Part 1: Đọc - Câu đơn (R1)</option>
+                  <option value="2">Part 2: Đọc - Thông báo ngắn (R2)</option>
+                  <option value="3">Part 3: Đọc - Đoạn văn (R3)</option>
+                  <option value="4">Part 4: Đọc - Điền từ (R4)</option>
+                  <option value="5">Part 5: Viết - Viết lại câu (W1)</option>
+                  <option value="6">Part 6: Viết - Thư/luận (W2)</option>
+                  <option value="7">Part 7: Nghe - Chọn tranh (L1)</option>
+                  <option value="8">Part 8: Nghe - Điền thông tin (L2)</option>
+                  <option value="9">Part 9: Nói - Phỏng vấn (S1)</option>
+                  <option value="10">Part 10: Nói - Thảo luận giải pháp (S2)</option>
+                  <option value="11">Part 11: Nói - Phát triển chủ đề (S3)</option>
+                </>
+              )}
             </select>
           </div>
 
