@@ -996,6 +996,22 @@
       "status": "planned",
       "tests": [],
       "notes": "Đã lên kế hoạch kiến trúc để giải quyết triệt để timeout khi sinh khối lượng lớn câu hỏi."
+    },
+    {
+      "id": "SPEC-BANK-007",
+      "domain": "BANK",
+      "title": "Sinh câu hỏi lai ghép Hybrid (Seed & Paraphrase)",
+      "statement": "Hệ thống hỗ trợ nhập liệu câu hỏi chuẩn (Seed) từ các nguồn kiểm định thế giới làm khung gốc, và sử dụng AI để paraphrase, vẽ tranh minh họa mới, sinh audio và tự động gán nhãn độ khó dựa trên CEFR B1.",
+      "acceptance_criteria": [
+        "Hỗ trợ lưu trữ các bộ câu hỏi gốc (Seed) làm tham chiếu chuẩn học thuật trong cơ sở dữ liệu.",
+        "Tích hợp tính năng AI Paraphrase viết lại câu hỏi và tráo đổi các phương án gây nhiễu (distractors) dựa trên câu hỏi Seed.",
+        "Tự động gửi mô tả hình ảnh của câu gốc cho Imagen để tạo ảnh minh họa mới, tránh vi phạm bản quyền hình ảnh gốc.",
+        "Tự động phân tích từ vựng bằng AI đối chiếu với bộ từ vựng CEFR B1 để gán nhãn độ khó (easy, medium, hard) khách quan."
+      ],
+      "verification": "manual",
+      "status": "planned",
+      "tests": [],
+      "notes": "Đặc tả kiến trúc lai ghép giải quyết vấn đề bản quyền và độ tin cậy sư phạm."
     }
   ]
 }
