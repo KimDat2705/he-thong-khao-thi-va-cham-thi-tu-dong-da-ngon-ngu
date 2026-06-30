@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # "high demand" on free even for 1 call — Google rations free capacity for
     # brand-new flagships; it works on a PAID tier. Switch back to 3.5-flash
     # (set GEMINI_MODEL=gemini-3.5-flash) when on paid. No code change needed.
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash"
     GEMINI_MAX_RETRIES: int = 4
     GEMINI_RETRY_BASE_DELAY: float = 1.5
     
