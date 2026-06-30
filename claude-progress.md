@@ -810,8 +810,9 @@
 - **Tiến hành Chấm điểm AI Tự động**: Bổ sung chi tiết các trường hợp kiểm thử sâu hơn cho phần nhận xét phát âm/fluency của Speaking và chi tiết ngữ pháp của Writing.
 
 ### Session 47 -- 2026-06-30 (Claude + Anti — Loại bỏ hoàn toàn TOEIC & Quy chuẩn hóa VSTEP B1)
-- **Việc HOÀN THÀNH** (hoàn thành dọn dẹp phân hệ TOEIC):
-  - **Backend**: Chạy migration `80e0b6818813` đổi mặc định `exam_type` của Question sang `"VSTEP_B1"`. Refactor `submission_admin.py`, `bank_admin.py`, `exam_admin.py`, và các API routers mặc định và chỉ hỗ trợ VSTEP B1 (chỉ chừa lại logic tương thích ngược trong generator cho test cô lập).
+- **Việc HOÀN THÀNH** (hoàn thành dọn dẹp phân hệ TOEIC và sửa lỗi đăng nhập admin):
+  - **Backend**: Chạy migration `80e0b6818813` đổi mặc định `exam_type` của Question sang `"VSTEP_B1"`. Refactor `submission_admin.py`, `bank_admin.py`, `exam_admin.py`, và các API routers mặc định và chỉ hỗ trợ VSTEP B1.
+  - **Sửa lỗi Đăng nhập**: Khôi phục hàm `seed_admin_user` và gọi nó trực tiếp trong `cloud_bootstrap.py` để đảm bảo tài khoản admin (đọc từ env `ADMIN_USERNAME` / `ADMIN_PASSWORD`) luôn được tạo và cập nhật lúc khởi động app khi cơ sở dữ liệu reset trên môi trường cloud.
   - **Frontend**: Dọn dẹp landing page (`page.tsx`), admin page (`admin/page.tsx`), bank page (`admin/bank/page.tsx`) loại bỏ selector TOEIC và đồng bộ sang VSTEP B1.
-  - **Test Suite**: Xóa bỏ hoàn toàn `test_toeic_generator.py` và `test_toeic_grader.py`. Refactor lại `conftest.py` chèn đầy đủ mock questions VSTEP B1 (Part 1-11) kèm audio/image assets. Sửa đổi toàn bộ 7 file test spec (submission, grading, stats, exam, enrich, scale, i18n) chuyển sang VSTEP B1, sử dụng eager Celery worker và cập nhật assertions khớp với luồng chấm điểm VSTEP B1 bất đồng bộ thực tế.
+  - **Test Suite**: Xóa bỏ hoàn toàn `test_toeic_generator.py` và `test_toeic_grader.py`. Refactor lại `conftest.py` chèn đầy đủ mock questions VSTEP B1 (Part 1-11) kèm audio/image assets. Sửa đổi toàn bộ 7 file test spec chuyển sang VSTEP B1, sử dụng eager Celery worker và cập nhật assertions khớp với luồng chấm điểm VSTEP B1 bất đồng bộ thực tế.
 - **Nghiệm thu (Claude, độc lập)**: pytest **76/76 passed** (xanh rì 100%); Next.js frontend `npm run build` biên dịch thành công 100% không lỗi.
