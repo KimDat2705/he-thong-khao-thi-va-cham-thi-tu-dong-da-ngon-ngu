@@ -5,7 +5,6 @@ Ngân hàng = các bản ghi Question/QuestionGroup có exam_id IS NULL.
 Sinh đề chỉ được CLONE từ ngân hàng, không được sửa/phá bản gốc, và (mục tiêu)
 chỉ được chọn item đã qua duyệt (status='approved').
 """
-import pytest
 from sqlalchemy.orm import Session
 
 from app.models.question import Question
@@ -277,6 +276,87 @@ def test_SPEC_BANK_004_multi_exam_type_coexistence(db_session: Session, admin_au
         assert resp_b1.json()["total"] == 32
         for item in resp_b1.json()["items"]:
             assert item["exam_type"] == "VSTEP_B1"
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
+def test_SPEC_BANK_005_question_enrichment_api(db_session: Session, admin_auth_headers: dict):
+    """
+    SPEC-BANK-005: Kiểm thử API sinh câu hỏi tự động (Enrichment).
+    Xác minh các hành vi:
+    - Quyền Admin/Teacher gọi thành công (Mock Mode).
+    - Giới hạn số lượng câu sinh tối đa 5 câu/lần.
+    - Validate part hợp lệ.
+    - Candidate gọi bị chặn 403.
+    """
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+
+    # Tự tạo token và header cho candidate
+    candidate_token = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+    candidate_auth_headers = {"Authorization": f"Bearer {candidate_token}"}
+
+    try:
+        # 1. Gọi thành công với vai trò Admin (sinh 1 câu hỏi Part 1)
+        response = client.post(
+            "/api/v1/bank/enrich",
+            json={"count": 1, "part": "1", "topic": "Giáo dục"},
+            headers=admin_auth_headers
+        )
+        assert response.status_code == 200
+        res = response.json()
+        assert res["success"] is True
+        assert res["generated_count"] == 1
+
+        # Xác nhận câu hỏi đã được lưu vào database ở trạng thái draft
+        from app.models.question import Question
+        q = db_session.query(Question).filter(
+            Question.exam_id.is_(None),
+            Question.part == 1,
+            Question.status == "draft",
+            Question.topic == "Giáo dục"
+        ).first()
+        assert q is not None
+        assert q.exam_type == "VSTEP_B1"
+
+        # 2. Gọi với số lượng vượt quá giới hạn (> 5) -> Chặn 400
+        response = client.post(
+            "/api/v1/bank/enrich",
+            json={"count": 6, "part": "1"},
+            headers=admin_auth_headers
+        )
+        assert response.status_code == 400
+        assert "tối đa là 5" in response.json()["detail"]
+
+        # 3. Gọi với Part không hợp lệ -> Chặn 400
+        response = client.post(
+            "/api/v1/bank/enrich",
+            json={"count": 1, "part": "invalid_part"},
+            headers=admin_auth_headers
+        )
+        assert response.status_code == 400
+        assert "chọn cụ thể từng Part" in response.json()["detail"]
+
+        # 4. Người dùng thường (Candidate) gọi -> Chặn 403
+        response = client.post(
+            "/api/v1/bank/enrich",
+            json={"count": 1, "part": "1"},
+            headers=candidate_auth_headers
+        )
+        assert response.status_code == 403
+
+        # 5. Người dùng không đăng nhập gọi -> Chặn 401
+        response = client.post(
+            "/api/v1/bank/enrich",
+            json={"count": 1, "part": "1"}
+        )
+        assert response.status_code == 401
+
     finally:
         fastapi_app.dependency_overrides.clear()
 

@@ -9,6 +9,7 @@ import {
   listBankQuestions,
   approveBankQuestions,
   getBankStats,
+  enrichBankQuestions,
   getToken,
   clearToken,
 } from "@/lib/api";
@@ -37,6 +38,12 @@ export default function BankAdminPage() {
 
   // Selection states
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // AI Enrichment states
+  const [enrichPart, setEnrichPart] = useState<string>("1");
+  const [enrichTopic, setEnrichTopic] = useState<string>("");
+  const [enrichCount, setEnrichCount] = useState<number>(1);
+  const [enriching, setEnriching] = useState<boolean>(false);
 
   // Guard authentication
   useEffect(() => {
@@ -142,6 +149,32 @@ export default function BankAdminPage() {
     }
   }
 
+  // AI Enrichment handler
+  async function handleEnrich() {
+    setEnriching(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await enrichBankQuestions({
+        count: enrichCount,
+        part: enrichPart,
+        topic: enrichTopic === "" ? undefined : enrichTopic,
+      });
+      setSuccess(`AI đã sinh thành công ${res.generated_count} câu hỏi/nhóm câu hỏi VSTEP B1 dạng Nháp.`);
+      await fetchData();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
+    } finally {
+      setEnriching(false);
+    }
+  }
+
   function onLogout() {
     clearToken();
     router.push("/login");
@@ -213,6 +246,103 @@ export default function BankAdminPage() {
           <div className="text-xs font-medium text-green-800 uppercase tracking-wider">Tổng câu đã duyệt (Approved)</div>
           <div className="mt-1 text-2xl font-semibold text-green-900">{loading && !stats ? "..." : totalApproved}</div>
         </div>
+      </div>
+
+      {/* AI Question Enrichment Panel */}
+      <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+        <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-1.5">
+          <span>✨</span> Tự động sinh câu hỏi bằng AI (Enrichment)
+        </h3>
+        <p className="text-xs text-blue-700 mb-4">
+          Hệ thống sẽ gọi API Gemini để tự động sinh câu hỏi, đáp án, giải thích, ảnh minh hoạ (Imagen) và file âm thanh (TTS) theo đúng đặc tả Ma trận B1.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Chọn phần (Part)</label>
+            <select
+              value={enrichPart}
+              onChange={(e) => setEnrichPart(e.target.value)}
+              disabled={enriching}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+            >
+              <option value="1">Part 1: Đọc - Câu trắc nghiệm (R1)</option>
+              <option value="2">Part 2: Đọc - Thông báo ngắn (R2)</option>
+              <option value="3">Part 3: Đọc - Đoạn văn (R3)</option>
+              <option value="4">Part 4: Đọc - Điền từ (R4)</option>
+              <option value="5">Part 5: Viết - Viết lại câu (W1)</option>
+              <option value="6">Part 6: Viết - Thư/luận (W2)</option>
+              <option value="7">Part 7: Nghe - Chọn tranh (L1)</option>
+              <option value="8">Part 8: Nghe - Điền thông tin (L2)</option>
+              <option value="9">Part 9: Nói - Phỏng vấn (S1)</option>
+              <option value="10">Part 10: Nói - Thảo luận giải pháp (S2)</option>
+              <option value="11">Part 11: Nói - Phát triển chủ đề (S3)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Chủ đề (Topic)</label>
+            <select
+              value={enrichTopic}
+              onChange={(e) => setEnrichTopic(e.target.value)}
+              disabled={enriching}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+            >
+              <option value="">Ngẫu nhiên</option>
+              <option value="Bản thân">Bản thân</option>
+              <option value="Nhà cửa-gia đình-môi trường">Nhà cửa - Gia đình - Môi trường</option>
+              <option value="Cuộc sống hằng ngày">Cuộc sống hằng ngày</option>
+              <option value="Vui chơi-giải trí">Vui chơi - Giải trí</option>
+              <option value="Đi lại-du lịch">Đi lại - Du lịch</option>
+              <option value="Mối quan hệ">Mối quan hệ</option>
+              <option value="Sức khỏe">Sức khỏe</option>
+              <option value="Giáo dục">Giáo dục</option>
+              <option value="Mua bán">Mua bán</option>
+              <option value="Thực phẩm-đồ uống">Thực phẩm - Đồ uống</option>
+              <option value="Các dịch vụ">Các dịch vụ</option>
+              <option value="Địa điểm-địa danh">Địa điểm - Địa danh</option>
+              <option value="Ngôn ngữ">Ngôn ngữ</option>
+              <option value="Thời tiết">Thời tiết</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Số lượng sinh (Tối đa 5)</label>
+            <input
+              type="number"
+              min={1}
+              max={5}
+              value={enrichCount}
+              onChange={(e) => setEnrichCount(Math.min(5, Math.max(1, Number(e.target.value))))}
+              disabled={enriching}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={handleEnrich}
+              disabled={enriching}
+              className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {enriching ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span>Đang sinh...</span>
+                </>
+              ) : (
+                <span>AI Sinh Câu Hỏi</span>
+              )}
+            </button>
+          </div>
+        </div>
+        {enriching && (
+          <p className="text-[11px] text-blue-600 mt-2 italic animate-pulse">
+            * AI đang làm việc (sinh văn bản, tạo ảnh Imagen & đọc phát âm TTS nếu là phần nghe). Quá trình này có thể tốn từ 10-30 giây tùy tốc độ mạng của API Gemini...
+          </p>
+        )}
       </div>
 
       {/* Filters Form */}

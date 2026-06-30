@@ -296,6 +296,23 @@ export async function approveBankQuestions(ids: number[]): Promise<{ updated: nu
   );
 }
 
+export async function enrichBankQuestions(payload: {
+  count: number;
+  part: string;
+  topic?: string;
+}): Promise<{ success: boolean; generated_count: number }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/bank/enrich`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
 export interface SubmissionResult {
   submission_id: number;
   status: string;

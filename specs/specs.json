@@ -969,6 +969,24 @@
         "tests/test_specs_enrich.py::test_SPEC_ENRICH_005_ai_l1_generation_and_validation"
       ],
       "notes": "Làm giàu ngân hàng câu hỏi Nghe Phần 1 bằng Gemini AI, TTS và Image Generation."
+    },
+    {
+      "id": "SPEC-BANK-005",
+      "domain": "BANK",
+      "title": "API sinh câu hỏi bằng AI trên giao diện",
+      "statement": "Hệ thống cung cấp endpoint API /enrich để giáo viên/admin có thể kích hoạt AI (Gemini, TTS, Imagen) tự động sinh câu hỏi trực tiếp từ giao diện web, đảm bảo kiểm soát số lượng sinh tối đa và bảo mật phân quyền.",
+      "acceptance_criteria": [
+        "POST /api/v1/bank/enrich chấp nhận count, part, topic và gọi generator tương ứng để tạo câu hỏi nháp.",
+        "Giới hạn tối đa 5 câu hỏi/lần sinh trên web để tránh timeout mạng.",
+        "Validate part và topic hợp lệ.",
+        "Chỉ cho phép người dùng có vai trò admin/teacher truy cập, trả về 403 cho candidate và 401 cho người dùng chưa xác thực."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_bank.py::test_SPEC_BANK_005_question_enrichment_api"
+      ],
+      "notes": "Đã triển khai endpoint và form sinh câu hỏi trên giao diện Admin."
     }
   ]
 }

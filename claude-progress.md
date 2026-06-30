@@ -795,4 +795,15 @@
 - (Tuỳ chọn) hardening PARSE-002: bắt buộc block Listening phải có trường Audio.
 - Cân nhắc thêm PostgreSQL service vào `ci.yml` để tự động test `alembic upgrade head` (hiện CI chỉ chạy pytest SQLite — không bắt được lỗi migration PG-specific).
 - Khi có CI check cho `main`: bật "Require status checks" trong branch protection (nếu repo chuyển public/nâng gói).
-- Chờ sếp xác nhận quy đổi độ khó câu→nhóm (±1 trong dung sai ±2). **(Quy ước MP3 KHÔNG chờ đối tác — đã chốt nội bộ ở A2.)**
+- 
+
+### Session 46 -- 2026-06-30 (Claude + Anti — Hoàn thành Tính năng AI Sinh Câu Hỏi trực quan trên Giao diện Web)
+- **Việc HOÀN THÀNH** (commit trên `Dat`, +`SPEC-BANK-005`):
+  - **Backend**: Thêm schemas `EnrichRequest` và `EnrichResult` trong `backend/app/schemas/bank.py`.
+  - **FastAPI API**: Bổ sung endpoint `POST /api/v1/bank/enrich` trong `backend/app/api/bank.py` cho phép gọi `B1QuestionGenerator` để sinh câu hỏi nháp (`draft`) theo Part, count, topic từ UI. Endpoint được bảo vệ bằng phân quyền admin/teacher, chặn count > 5 để tránh timeout mạng của Render Free.
+  - **Frontend**: Khai báo hàm `enrichBankQuestions` ở `frontend/src/lib/api.ts`. Thiết kế Panel điều khiển **"AI Sinh Câu Hỏi"** trên trang `frontend/src/app/admin/bank/page.tsx` với đầy đủ options chọn Part 1-11, Topic B1 và nút bấm có trạng thái loading, tự động khóa nút khi đang xử lý và reload lại danh sách câu hỏi khi hoàn thành.
+  - **Specs Traceability**: Bổ sung spec `SPEC-BANK-005` vào `specs/specs.json` và liên kết với test case `test_SPEC_BANK_005_question_enrichment_api` trong `backend/tests/test_specs_bank.py`.
+- **Nghiệm thu (Claude, độc lập)**: pytest **78/78 passed** (traceability 4/4); ruff lint sạch sẽ; `npm run build` Next.js frontend biên dịch hoàn toàn thành công mà không có lỗi TypeScript nào.
+
+## Next Steps
+- **Triển khai deploy**: Đẩy code mới lên main để Vercel/Render redeploy, sau đó đối tác có thể kiểm thử trực tiếp tính năng sinh câu hỏi trực quan trên giao diện web.

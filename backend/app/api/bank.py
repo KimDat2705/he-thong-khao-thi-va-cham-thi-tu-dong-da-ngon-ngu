@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
+import logging
 
 from app.core.database import get_db
 from app.core.deps import require_role
 from app.models.user import User
-from app.schemas.bank import QuestionRead, QuestionUpdate, ApproveRequest, ApproveResult, BankStats, QuestionListResponse
+from app.schemas.bank import QuestionRead, QuestionUpdate, ApproveRequest, ApproveResult, BankStats, QuestionListResponse, EnrichRequest, EnrichResult
 from app.services import bank_admin
 
 router = APIRouter(prefix="/api/v1/bank", tags=["Bank Admin"])
@@ -63,4 +64,59 @@ def get_stats(
     """
     Get bank statistics and TOEIC blueprint sufficiency mapping.    """
     return bank_admin.compute_bank_stats(db)
+
+
+@router.post("/enrich", response_model=EnrichResult)
+def enrich_questions(
+    payload: EnrichRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
+    """
+    AI sinh câu hỏi nháp VSTEP B1 lưu vào ngân hàng câu hỏi.
+    """
+    from app.services.b1_question_gen import B1QuestionGenerator
+    generator = B1QuestionGenerator()
+    try:
+        generated_count = 0
+        part = payload.part
+        count = payload.count
+        topic = payload.topic
+
+        if count > 5:
+            raise HTTPException(status_code=400, detail="Mỗi lần sinh bằng AI trên Web tối đa là 5 câu để tránh timeout mạng.")
+
+        if part == "1":
+            generated_count = generator.generate_r1_questions(db, count, topic)
+        elif part == "2":
+            generated_count = generator.generate_r2_questions(db, count, topic)
+        elif part == "3":
+            generated_count = generator.generate_r3_groups(db, count, topic)
+        elif part == "4":
+            generated_count = generator.generate_r4_groups(db, count, topic)
+        elif part == "5":
+            generated_count = generator.generate_writing_questions(db, count, 5, topic)
+        elif part == "6":
+            generated_count = generator.generate_writing_questions(db, count, 6, topic)
+        elif part == "7":
+            generated_count = generator.generate_l1_questions(db, count, topic)
+        elif part == "8":
+            generated_count = generator.generate_l2_groups(db, count, topic)
+        elif part == "9":
+            generated_count = generator.generate_speaking_questions(db, count, 9, topic)
+        elif part == "10":
+            generated_count = generator.generate_speaking_questions(db, count, 10, topic)
+        elif part == "11":
+            generated_count = generator.generate_speaking_questions(db, count, 11, topic)
+        else:
+            raise HTTPException(status_code=400, detail="Vui lòng chọn cụ thể từng Part (1-11) để sinh trên giao diện.")
+
+        return EnrichResult(success=True, generated_count=generated_count)
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"AI Generation failed: {e}")
+        # Nếu exception là HTTPException thì ném lại
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"AI Generation failed: {str(e)}")
 

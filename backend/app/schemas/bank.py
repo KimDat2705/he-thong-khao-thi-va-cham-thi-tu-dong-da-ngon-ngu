@@ -63,3 +63,12 @@ class QuestionListResponse(BaseModel):
     total: int
     items: List[QuestionRead]
 
+class EnrichRequest(BaseModel):
+    count: int
+    part: str
+    topic: Optional[str] = None
+
+class EnrichResult(BaseModel):
+    success: bool
+    generated_count: int
+
