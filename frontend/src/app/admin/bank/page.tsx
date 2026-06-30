@@ -12,6 +12,8 @@ import {
   enrichBankQuestions,
   getToken,
   clearToken,
+  audioSrc,
+  imageSrc,
 } from "@/lib/api";
 
 export default function BankAdminPage() {
@@ -39,6 +41,7 @@ export default function BankAdminPage() {
 
   // Selection states
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedQuestion, setSelectedQuestion] = useState<QuestionRead | null>(null);
 
   // AI Enrichment states
   const [enrichPart, setEnrichPart] = useState<string>("1");
@@ -494,7 +497,15 @@ export default function BankAdminPage() {
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td className="py-3 px-3 font-semibold text-gray-700">#{q.id}</td>
+                    <td className="py-3 px-3 font-semibold text-gray-700">
+                      <button
+                        onClick={() => setSelectedQuestion(q)}
+                        className="text-blue-600 hover:underline hover:text-blue-800 focus:outline-none"
+                        title="Xem chi tiết"
+                      >
+                        #{q.id}
+                      </button>
+                    </td>
                     <td className="py-3 px-3">
                       <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
                         Part {q.part}
@@ -518,9 +529,13 @@ export default function BankAdminPage() {
                       )}
                     </td>
                     <td className="py-3 px-3 max-w-md">
-                      <div className="font-medium text-gray-800 line-clamp-2" title={q.content}>
+                      <button
+                        onClick={() => setSelectedQuestion(q)}
+                        className="text-left font-medium text-gray-800 line-clamp-2 hover:text-blue-600 transition focus:outline-none"
+                        title="Bấm để xem chi tiết câu hỏi"
+                      >
                         {q.content}
-                      </div>
+                      </button>
                     </td>
                     <td className="py-3 px-3 text-right pr-4">
                       {q.status === "approved" ? (
@@ -564,6 +579,169 @@ export default function BankAdminPage() {
             >
               Trang sau
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Question Detail Modal */}
+      {selectedQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl rounded-xl bg-white shadow-2xl border border-gray-100 flex flex-col max-h-[85vh] overflow-hidden transform transition duration-300 scale-100 text-left">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b px-6 py-4 bg-gray-50/80">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  Chi tiết câu hỏi <span className="text-blue-600 font-mono">#{selectedQuestion.id}</span>
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Part {selectedQuestion.part} • Topic: {selectedQuestion.topic || "N/A"} • Độ khó: {selectedQuestion.difficulty || "N/A"}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedQuestion(null)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition focus:outline-none"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              {/* Badges Info */}
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded bg-blue-100 px-2.5 py-1 font-semibold text-blue-800">
+                  Part {selectedQuestion.part}
+                </span>
+                <span className={`rounded px-2.5 py-1 font-semibold border ${
+                  selectedQuestion.difficulty === "easy" ? "bg-green-50 text-green-700 border-green-200" :
+                  selectedQuestion.difficulty === "medium" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                  "bg-orange-50 text-orange-700 border-orange-200"
+                }`}>
+                  Độ khó: {selectedQuestion.difficulty?.toUpperCase()}
+                </span>
+                {selectedQuestion.clo && (
+                  <span className="rounded bg-indigo-50 px-2.5 py-1 font-semibold text-indigo-700 border border-indigo-200">
+                    CLO: {selectedQuestion.clo}
+                  </span>
+                )}
+                <span className={`rounded-full px-2.5 py-1 font-semibold text-xs border ${
+                  selectedQuestion.status === "approved" ? "bg-green-100 text-green-800 border-green-200" : "bg-amber-100 text-amber-800 border-amber-200"
+                }`}>
+                  {selectedQuestion.status === "approved" ? "Approved" : "Draft (Nháp)"}
+                </span>
+              </div>
+
+              {/* Group Passage / Reading passage */}
+              {selectedQuestion.group_passage && (
+                <div className="rounded-lg border bg-gray-50/50 p-4 space-y-2">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bài đọc / Ngữ cảnh chung</h4>
+                  <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto font-sans bg-white p-3 rounded border">
+                    {selectedQuestion.group_passage}
+                  </div>
+                </div>
+              )}
+
+              {/* Audio Player */}
+              {(selectedQuestion.audio_url || selectedQuestion.group_audio_url) && (
+                <div className="rounded-lg border bg-blue-50/30 p-4 space-y-2">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">File âm thanh (Listening)</h4>
+                  <audio
+                    src={audioSrc(selectedQuestion.audio_url || selectedQuestion.group_audio_url) || ""}
+                    controls
+                    className="w-full mt-1"
+                  />
+                </div>
+              )}
+
+              {/* Question Content */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Nội dung câu hỏi</h4>
+                <p className="text-base font-semibold text-gray-900 bg-gray-50/20 p-3 rounded border">
+                  {selectedQuestion.content}
+                </p>
+              </div>
+
+              {/* Image Graphics (Part 7 Tranh) */}
+              {(selectedQuestion.image_url || selectedQuestion.group_image_url) && (
+                <div className="rounded-lg border p-4 space-y-2">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Hình ảnh minh họa</h4>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    {(selectedQuestion.image_url || selectedQuestion.group_image_url)?.split(",").map((url, i) => (
+                      <div key={i} className="border rounded overflow-hidden shadow-sm bg-gray-50 flex flex-col items-center">
+                        <img
+                          src={imageSrc(url) || ""}
+                          alt={`Minh họa ${i+1}`}
+                          className="max-h-48 object-contain"
+                        />
+                        {((selectedQuestion.image_url || selectedQuestion.group_image_url)?.split(",").length ?? 0) > 1 && (
+                          <span className="text-xs font-semibold py-1 bg-gray-100 w-full text-center text-gray-600 border-t">
+                            Hình ảnh {String.fromCharCode(65 + i)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Options & Reference Answer */}
+              {selectedQuestion.options && Object.keys(selectedQuestion.options).length > 0 ? (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Các phương án lựa chọn</h4>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {Object.entries(selectedQuestion.options).map(([key, val]) => {
+                      const isCorrect = key === selectedQuestion.reference_answer;
+                      return (
+                        <div
+                          key={key}
+                          className={`flex items-start gap-3 rounded-lg border p-3 transition ${
+                            isCorrect
+                              ? "bg-green-50 border-green-300 text-green-950 font-medium"
+                              : "bg-white border-gray-200 text-gray-700"
+                          }`}
+                        >
+                          <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                            isCorrect ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
+                          }`}>
+                            {key}
+                          </span>
+                          <span className="text-sm pt-0.5">{val}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : selectedQuestion.reference_answer ? (
+                <div className="rounded-lg border bg-green-50/30 p-4 space-y-2 border-green-100">
+                  <h4 className="text-xs font-bold text-green-700 uppercase tracking-wider">Đáp án mẫu / Đúng</h4>
+                  <p className="text-sm font-semibold text-green-900 bg-white p-3 rounded border border-green-200 whitespace-pre-wrap leading-relaxed">
+                    {selectedQuestion.reference_answer}
+                  </p>
+                </div>
+              ) : null}
+
+              {/* Explanation */}
+              {selectedQuestion.explanation && (
+                <div className="rounded-lg border bg-yellow-50/20 p-4 space-y-2 border-yellow-100">
+                  <h4 className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Giải thích đáp án</h4>
+                  <p className="text-sm text-gray-700 bg-white p-3 rounded border border-yellow-200 whitespace-pre-wrap leading-relaxed">
+                    {selectedQuestion.explanation}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t px-6 py-4 bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setSelectedQuestion(null)}
+                className="rounded-lg bg-gray-900 hover:bg-gray-800 px-5 py-2 text-sm font-semibold text-white shadow transition focus:outline-none"
+              >
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}

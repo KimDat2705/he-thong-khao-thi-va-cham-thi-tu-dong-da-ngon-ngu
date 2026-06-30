@@ -23,6 +23,9 @@ class QuestionRead(BaseModel):
     import_batch_id: Optional[int] = None
     exam_type: Optional[str] = None
     language: Optional[str] = None
+    group_passage: Optional[str] = None
+    group_audio_url: Optional[str] = None
+    group_image_url: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -40,3 +40,15 @@ class Question(Base):
     source_question = relationship("Question", remote_side=[id])
     import_batch = relationship("ImportBatch", back_populates="questions")
 
+    @property
+    def group_passage(self):
+        return self.group.passage_text if self.group else None
+
+    @property
+    def group_audio_url(self):
+        return self.group.audio_url if self.group else None
+
+    @property
+    def group_image_url(self):
+        return self.group.image_url if self.group else None
+

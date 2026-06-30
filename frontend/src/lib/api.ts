@@ -254,6 +254,9 @@ export interface QuestionRead {
   source_question_id: number | null;
   content_hash: string | null;
   import_batch_id: number | null;
+  group_passage: string | null;
+  group_audio_url: string | null;
+  group_image_url: string | null;
   created_at: string | null;
 }
 
