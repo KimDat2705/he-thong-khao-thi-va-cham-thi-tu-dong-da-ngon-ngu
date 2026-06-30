@@ -14,6 +14,9 @@ BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
+from dotenv import load_dotenv
+load_dotenv(os.path.join(BACKEND_DIR, ".env"))
+
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BACKEND_DIR, ".bootstrap_data"))
 AUDIO_DIR = os.environ.get("AUDIO_DIR", os.path.join(BACKEND_DIR, "audio_data"))
 os.environ.setdefault("DATABASE_URL", "sqlite:///./demo_toeic.db")  # DB name kept for SQLite path consistency
@@ -133,7 +136,9 @@ def seed_admin_user(db) -> None:
         db.commit()
         print(f"Seeded admin user '{admin_username}' successfully.")
     else:
-        print(f"Admin user '{admin_username}' already exists in database.")
+        existing.hashed_password = hash_password(admin_password)
+        db.commit()
+        print(f"Updated password for admin user '{admin_username}' from environment.")
 
 
 def _download(file_id: str, dest: str) -> None:
