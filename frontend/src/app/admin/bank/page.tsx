@@ -11,6 +11,7 @@ import {
   getBankStats,
   enrichBankQuestionsAsync,
   getEnrichTask,
+  paraphraseBankQuestion,
   getToken,
   clearToken,
   audioSrc,
@@ -51,6 +52,10 @@ export default function BankAdminPage() {
   const [enrichDifficulty, setEnrichDifficulty] = useState<string>("");
   const [enriching, setEnriching] = useState<boolean>(false);
   const [enrichProgress, setEnrichProgress] = useState<string>("");
+
+  // BANK-007 paraphrase states
+  const [paraphrasing, setParaphrasing] = useState<boolean>(false);
+  const [paraphraseCount, setParaphraseCount] = useState<number>(3);
 
   // Guard authentication
   useEffect(() => {
@@ -215,6 +220,35 @@ export default function BankAdminPage() {
     }
   }
 
+  // BANK-007: nhân bản (paraphrase) một câu trắc nghiệm sẵn có thành N biến thể nháp.
+  async function handleParaphrase(seedId: number) {
+    setParaphrasing(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await paraphraseBankQuestion({ seed_question_id: seedId, count: paraphraseCount });
+      setSuccess(
+        `AI đã nhân bản ${res.generated_count} biến thể nháp từ câu #${seedId} ` +
+        `(viết lại đề + phương án, giữ điểm ngữ pháp & đáp án, tránh trùng bản quyền).`,
+      );
+      setSelectedQuestion(null);
+      setExamType("VSTEP_B1");
+      setStatus("draft");
+      setPage(1);
+      await fetchData();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
+    } finally {
+      setParaphrasing(false);
+    }
+  }
+
   function onLogout() {
     clearToken();
     router.push("/login");
@@ -252,6 +286,7 @@ export default function BankAdminPage() {
       </div>
       <p className="mt-1 text-sm text-gray-500">
         Giáo viên duyệt câu hỏi từ trạng thái Draft sang Approved để cho phép sinh đề.
+        Bấm vào một câu trắc nghiệm để xem chi tiết và <span className="font-medium text-purple-700">🧬 Nhân bản (AI Paraphrase)</span> thành biến thể mới.
       </p>
 
       {/* Tabs navigation */}
@@ -781,10 +816,51 @@ export default function BankAdminPage() {
             </div>
 
             {/* Footer */}
-            <div className="border-t px-6 py-4 bg-gray-50 flex justify-end">
+            <div className="border-t px-6 py-4 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
+              {/* BANK-007: Nhân bản (Paraphrase) — chỉ cho câu trắc nghiệm có phương án */}
+              {selectedQuestion.type === "choice" &&
+              selectedQuestion.options &&
+              Object.keys(selectedQuestion.options).length >= 2 ? (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-gray-500">Số biến thể</label>
+                  <select
+                    value={paraphraseCount}
+                    onChange={(e) => setParaphraseCount(Number(e.target.value))}
+                    disabled={paraphrasing}
+                    className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:bg-gray-100"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleParaphrase(selectedQuestion.id)}
+                    disabled={paraphrasing}
+                    title="AI viết lại câu này thành các biến thể nháp mới (giữ điểm ngữ pháp + đáp án, sinh ảnh mới cho câu tranh, tránh trùng bản quyền)"
+                    className="rounded-lg bg-purple-600 hover:bg-purple-700 px-4 py-2 text-sm font-semibold text-white shadow transition focus:outline-none disabled:bg-purple-300 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {paraphrasing ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span>Đang nhân bản...</span>
+                      </>
+                    ) : (
+                      <span>🧬 Nhân bản AI (Paraphrase)</span>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs text-gray-400 italic">
+                  Chỉ nhân bản (paraphrase) được câu trắc nghiệm có phương án.
+                </span>
+              )}
               <button
                 onClick={() => setSelectedQuestion(null)}
-                className="rounded-lg bg-gray-900 hover:bg-gray-800 px-5 py-2 text-sm font-semibold text-white shadow transition focus:outline-none"
+                disabled={paraphrasing}
+                className="rounded-lg bg-gray-900 hover:bg-gray-800 px-5 py-2 text-sm font-semibold text-white shadow transition focus:outline-none disabled:opacity-50"
               >
                 Đóng
               </button>

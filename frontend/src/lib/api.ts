@@ -358,6 +358,25 @@ export async function getEnrichTask(jobId: string): Promise<EnrichJobStatus> {
   );
 }
 
+// SPEC-BANK-007: paraphrase an existing bank question (the "seed") into N fresh
+// draft variants — reworded stem + distractors, new image for picture items,
+// CEFR-B1 difficulty label; each variant links back via source_question_id.
+export async function paraphraseBankQuestion(payload: {
+  seed_question_id: number;
+  count: number;
+}): Promise<{ success: boolean; generated_count: number; seed_question_id: number }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/bank/paraphrase`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
 export interface SubmissionResult {
   submission_id: number;
   status: string;
