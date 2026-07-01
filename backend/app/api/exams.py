@@ -27,13 +27,9 @@ def generate_exam(
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
-    Generate a full TOEIC exam from the approved question bank.    """
+    Generate a full VSTEP B1 exam from the approved question bank.    """
     try:
-        exam_type = payload.exam_type
-        if (exam_type == "VSTEP_B1" or not exam_type) and payload.title and "TOEIC" in payload.title:
-            exam_type = "TOEIC"
-        elif not exam_type:
-            exam_type = "VSTEP_B1"
+        exam_type = payload.exam_type or "VSTEP_B1"
         exam = exam_admin.generate_demo_exam(
             db,
             title=payload.title,
@@ -113,7 +109,7 @@ def generate_exam_batch(
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
-    Generate a batch of TOEIC or custom exams from the approved question bank.
+    Generate a batch of VSTEP B1 or custom exams from the approved question bank.
     Includes pairwise overlap check report to verify diversity.    """
     try:
         result = exam_admin.generate_batch_exams(

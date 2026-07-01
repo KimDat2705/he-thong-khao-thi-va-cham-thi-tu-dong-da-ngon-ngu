@@ -54,7 +54,7 @@ class GroupOut(BaseModel):
 
 
 class PartOut(BaseModel):
-    """One TOEIC part: standalone questions and/or grouped passages."""
+    """One VSTEP B1 part: standalone questions and/or grouped passages."""
     part: int
     part_type: str  # "standalone" | "grouped" | "subset_sum"
     question_count: int

@@ -19,130 +19,6 @@
   },
   "specs": [
     {
-      "id": "SPEC-PARSE-001",
-      "domain": "PARSE",
-      "legacy": true,
-      "title": "Không câu hỏi khuyết đáp án sau import",
-      "statement": "Sau khi Parser Engine import một file nguồn (Word/Excel), không tồn tại bất kỳ câu hỏi trắc nghiệm nào trong ngân hàng thiếu reference_answer hoặc thiếu options.",
-      "acceptance_criteria": [
-        "Query câu hỏi type='choice' có reference_answer IS NULL hoặc rỗng trả về 0 bản ghi",
-        "Query câu hỏi type='choice' có options IS NULL hoặc rỗng trả về 0 bản ghi",
-        "File nguồn chứa câu khuyết đáp án phải bị từ chối ở validation gate (xem SPEC-PARSE-004)"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_001_no_incomplete_questions_after_import"
-      ],
-      "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
-    },
-    {
-      "id": "SPEC-PARSE-002",
-      "domain": "PARSE",
-      "title": "Liên kết audio Listening phải hợp lệ",
-      "statement": "Mỗi nhóm câu hỏi Listening import từ file LTxxxx.docx phải được liên kết tới file MP3 tồn tại theo quy ước đặt tên; nếu file âm thanh thiếu, import phải thất bại với thông báo rõ ràng.",
-      "acceptance_criteria": [
-        "Sau import thành công, mọi QuestionGroup part 3/4 (và câu Part 1/2) có audio_url trỏ tới file tồn tại trong storage",
-        "Import bộ Listening với MP3 thiếu phải raise lỗi và rollback (không ghi bản ghi nào)",
-        "Báo cáo lỗi nêu rõ tên file MP3 bị thiếu"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_002_listening_audio_link_resolves"
-      ],
-      "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
-    },
-    {
-      "id": "SPEC-PARSE-003",
-      "domain": "PARSE",
-      "title": "Import idempotent (chống nhân bản)",
-      "statement": "Import lại cùng một file nguồn không tạo bản ghi trùng lặp trong ngân hàng câu hỏi; nhận diện trùng bằng content-hash của câu hỏi/nhóm.",
-      "acceptance_criteria": [
-        "Import cùng file 2 lần: tổng số Question và QuestionGroup không đổi sau lần 2",
-        "Mỗi câu hỏi/nhóm có content-hash được lưu để đối chiếu",
-        "Lần import thứ 2 báo cáo số bản ghi bị bỏ qua do trùng"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_003_reimport_is_idempotent"
-      ],
-      "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
-    },
-    {
-      "id": "SPEC-PARSE-004",
-      "domain": "PARSE",
-      "title": "Import all-or-nothing kèm báo cáo lỗi",
-      "statement": "Import theo đơn vị file là giao dịch nguyên tử: file không qua validation thì 0 bản ghi được ghi vào DB, đồng thời sinh báo cáo lỗi JSON liệt kê từng vi phạm.",
-      "acceptance_criteria": [
-        "File lỗi (khuyết đáp án, sai cấu trúc, thiếu audio) -> số bản ghi trong DB không đổi",
-        "Báo cáo lỗi JSON chứa: tên file, vị trí lỗi (số câu/dòng), loại lỗi, mô tả",
-        "Mọi item import thành công vào bank ở trạng thái status='draft' chờ duyệt"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_004_failed_import_writes_nothing"
-      ],
-      "notes": "Lập kế hoạch: Parser chưa tồn tại — test SKIP."
-    },
-    {
-      "id": "SPEC-PARSE-005",
-      "domain": "PARSE",
-      "title": "Import đáp án từ file Excel",
-      "statement": "Phần mềm nạp đáp án chính xác từ file mẫu Excel (*.xlsx) chứa ma trận câu hỏi và đáp án đúng lặp theo các khối (block) cột.",
-      "acceptance_criteria": [
-        "Đọc file Excel định dạng nhị phân, tự động định vị dòng tiêu đề và các cột Câu/Đáp án",
-        "Gộp toàn bộ các khối lặp cột thành một cấu trúc duy nhất chứa đầy đủ đáp án của 100 câu hỏi",
-        "Đáp án thu thập được phải chuẩn hóa về dạng chữ hoa và thuộc tập {A, B, C, D}"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_005_answer_key_import"
-      ],
-      "notes": "Đang đạt: parser hỗ trợ phân tích đáp án từ file Excel cấu trúc thực tế."
-    },
-    {
-      "id": "SPEC-PARSE-006",
-      "domain": "PARSE",
-      "title": "Parse đề Nghe TOEIC định dạng thật",
-      "statement": "Hệ thống hỗ trợ parse tệp đề Nghe TOEIC định dạng thực tế (.docx chứa bảng biểu, ảnh và các lựa chọn trắc nghiệm), bóc tách chính xác set_id, các câu hỏi đơn lẻ (Part 1, 2) và câu hỏi nhóm (Part 3, 4) phân tách nhóm bằng dòng gạch ngang.",
-      "acceptance_criteria": [
-        "Trích xuất và chuẩn hóa set_id từ bảng chứa Mã đề thi (ví dụ: 'Mã đề thi LT.2601' -> 'LT2601')",
-        "Duyệt các phần tử XML theo thứ tự xuất hiện thực tế để xác định đúng ranh giới của các Part 1, 2, 3, 4",
-        "Part 1: Trích xuất đúng 6 câu hỏi, gán đúng chỉ mục (index) hình ảnh đi kèm",
-        "Part 2: Trích xuất đúng 25 câu hỏi đơn lẻ, options để trống và nội dung chỉ dẫn mặc định",
-        "Part 3 và Part 4: Bóc tách các câu hỏi và các lựa chọn A/B/C/D từ cell của bảng, gom các câu hỏi thành nhóm phân tách bằng dòng gạch ngang, tự động ghép dòng khi câu hỏi hoặc đáp án bị xuống dòng, gán đúng hình ảnh nhóm (nếu có)"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_006_parse_real_listening_docx"
-      ],
-      "notes": "Đang đạt: parser thực tế bóc tách thành công câu hỏi từ tệp đề Nghe Word table-based và trích xuất đúng set_id. [S45-fix] Spec mo ta parser Nghe TOEIC (parse_listening_docx) van con code+test. Khi HOAN TAT pivot (go han TOEIC parser) thi go luon spec+test nay; B1 Nghe da co PARSE-013 (parse_b1_listening_docx)."
-    },
-    {
-      "id": "SPEC-PARSE-007",
-      "domain": "PARSE",
-      "title": "Import đề nghe thực tế và trộn đáp án",
-      "statement": "Hệ thống hỗ trợ nhập đề thi nghe TOEIC định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
-      "acceptance_criteria": [
-        "Ghép chính xác đáp án từ tệp Excel vào câu hỏi tương ứng trong tệp Word theo số thứ tự câu hỏi",
-        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào hoặc đáp án không thuộc tập {A, B, C, D}, từ chối ghi nhận và trả về báo cáo lỗi",
-        "Ghi nhận bản ghi tệp Word/Excel vào bảng ImportBatch để kiểm soát lịch sử",
-        "Ghi nhận toàn bộ câu hỏi và nhóm câu hỏi ở trạng thái draft chờ duyệt",
-        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash cải tiến chứa thông tin câu hỏi)"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_007_import_listening_set_success"
-      ],
-      "notes": "Đang đạt: import_listening_set phối hợp thành công parser câu hỏi và parser đáp án, ghi nhận an toàn vào cơ sở dữ liệu. [S45-fix] Spec mo ta parser Nghe TOEIC (parse_listening_docx) van con code+test. Khi HOAN TAT pivot (go han TOEIC parser) thi go luon spec+test nay; B1 Nghe da co PARSE-013 (parse_b1_listening_docx)."
-    },
-    {
       "id": "SPEC-PARSE-008",
       "domain": "PARSE",
       "title": "Chuyển đổi tệp tin Word .doc legacy sang .docx",
@@ -159,63 +35,6 @@
         "tests/test_specs_parser.py::test_SPEC_PARSE_008_doc_converter"
       ],
       "notes": "Đang triển khai: converter hỗ trợ chuyển đổi .doc bằng công cụ hệ thống soffice."
-    },
-    {
-      "id": "SPEC-PARSE-009",
-      "domain": "PARSE",
-      "title": "Parse đề Đọc & Viết VSTEP B1 định dạng thật",
-      "statement": "Hệ thống hỗ trợ parse tệp đề Đọc & Viết VSTEP B1 định dạng thực tế (.docx), bóc tách chính xác set_id, các câu hỏi đơn lẻ (Part 1, Part 2, Part 5, Part 6) và các câu hỏi nhóm (Part 3, Part 4) có liên kết văn bản passage tương ứng.",
-      "acceptance_criteria": [
-        "Trích xuất và chuẩn hóa set_id từ bảng chứa Mã đề thi (ví dụ: 'Mã đề thi RT.2605' -> 'RT2605')",
-        "Duyệt các phần tử XML để xác định đúng ranh giới của các Part 1, 2, 3, 4, 5, 6",
-        "Part 1: Trích xuất các câu trắc nghiệm đơn lẻ (R1)",
-        "Part 2: Trích xuất các câu trắc nghiệm 3 đáp án (R2)",
-        "Part 3: Gom nhóm câu hỏi theo đoạn văn bản (R3)",
-        "Part 4: Bóc tách các câu điền từ theo đoạn, trích xuất đoạn văn (R4)"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_009_parse_real_reading_docx"
-      ],
-      "notes": "Đang đạt: parser thực tế bóc tách thành công đề Đọc VSTEP B1 từ tệp Word .docx."
-    },
-    {
-      "id": "SPEC-PARSE-010",
-      "domain": "PARSE",
-      "title": "Import đề Đọc & Viết thực tế VSTEP B1",
-      "statement": "Hệ thống hỗ trợ nhập đề thi Đọc & Viết VSTEP B1 định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
-      "acceptance_criteria": [
-        "Ghép chính xác đáp án từ tệp Excel vào câu hỏi tương ứng trong tệp Word theo số thứ tự câu hỏi",
-        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào, từ chối ghi nhận và trả về báo cáo lỗi",
-        "Ghi nhận bản ghi tệp Word/Excel vào bảng ImportBatch để kiểm soát lịch sử",
-        "Ghi nhận toàn bộ câu hỏi và nhóm câu hỏi ở trạng thái draft chờ duyệt",
-        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash)"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_010_import_reading_set_success"
-      ],
-      "notes": "Đang đạt: import_reading_set phối hợp thành công parser câu hỏi và parser đáp án, ghi nhận an toàn vào cơ sở dữ liệu."
-    },
-    {
-      "id": "SPEC-PARSE-011",
-      "domain": "PARSE",
-      "title": "Liên kết tệp âm thanh Listening cấp file",
-      "statement": "Hệ thống hỗ trợ tự động tìm kiếm và liên kết tệp âm thanh gộp (.mp3) tương ứng với mã đề Listening (theo số đơn hoặc dải phủ) để gán vào thuộc tính audio_url của mọi câu hỏi/nhóm câu hỏi, đồng thời báo cáo sự mơ hồ (ambiguous) nếu một đề khớp nhiều file âm thanh, và cho phép bỏ qua nếu không tìm thấy tệp (non-fatal).",
-      "acceptance_criteria": [
-        "Khớp và liên kết tệp MP3 theo dải (start-end) hoặc số đơn tương ứng với set ID",
-        "Gán tên tệp MP3 tìm thấy làm audio_url cho toàn bộ câu hỏi và nhóm câu hỏi",
-        "Nếu không tìm thấy tệp MP3, đặt audio_url thành null mà không ném ngoại lệ",
-        "Báo cáo danh sách tất cả tệp âm thanh trùng lặp nếu phát hiện mơ hồ (hơn 1 tệp khớp) trong thuộc tính audio_ambiguous"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_parser.py::test_SPEC_PARSE_011_listening_audio_linking"
-      ],
-      "notes": "Đang triển khai: import_exam_set tự động định vị và gán file MP3 theo dải đề thi Listening."
     },
     {
       "id": "SPEC-BANK-001",
@@ -268,106 +87,6 @@
       "notes": "Đang đạt: Cung cấp đầy đủ các endpoint CRUD, duyệt và thống kê ngân hàng câu hỏi."
     },
     {
-      "id": "SPEC-GEN-001",
-      "domain": "GEN",
-      "title": "Tuân thủ blueprint số câu VSTEP B1",
-      "statement": "Đề VSTEP B1 sinh ra phải có đúng số câu từng part theo blueprint: Đọc 30 câu (Part 1-4), Nghe 15 câu (Part 7-8), Viết 2 câu (Part 5-6), Nói 3 câu (Part 9-11) — tổng 50 câu.",
-      "acceptance_criteria": [
-        "Đếm câu theo part khớp chính xác ma trận blueprint VSTEP B1",
-        "Tổng số câu của đề = 50",
-        "Part 3 (R3): 1 nhóm x 5 câu; Part 4 (R4): 1 nhóm x 10 câu; Part 8 (L2): 1 nhóm x 10 câu"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_generation.py::test_SPEC_GEN_001_blueprint_part_counts"
-      ],
-      "notes": "Đang đạt: thuật toán sinh đề động sinh chính xác đề thi VSTEP B1 50 câu từ bank approved."
-    },
-    {
-      "id": "SPEC-MATRIX-002",
-      "domain": "GEN",
-      "legacy": true,
-      "title": "Ma trận độ khó VSTEP B1",
-      "statement": "Đề sinh ra phải tuân thủ ma trận độ khó theo blueprint VSTEP B1.",
-      "acceptance_criteria": [
-        "Độ khó Easy/Medium/Hard của từng Part trong đề thi clone từ ngân hàng phải khớp với blueprint cấu hình"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_generation.py::test_SPEC_MATRIX_002_per_part_difficulty_targets",
-        "tests/test_specs_generation.py::test_SPEC_MATRIX_002_whole_exam_ratio"
-      ],
-      "notes": "Đang đạt: validator kiểm tra chính xác phân phối độ khó của đề thi VSTEP B1."
-    },
-    {
-      "id": "SPEC-ISOLATE-003",
-      "domain": "GEN",
-      "legacy": true,
-      "title": "Cách ly nhóm — không câu mồ côi",
-      "statement": "Câu hỏi thuộc nhóm (đoạn văn/file nghe chung) phải đi nguyên nhóm vào đề: mọi câu có group_id phải tham chiếu nhóm tồn tại, cùng đề, cùng part; mọi nhóm trong đề phải có đủ câu hỏi.",
-      "acceptance_criteria": [
-        "Mọi Question của đề có group_id -> QuestionGroup tồn tại với exam_id trùng đề và part trùng câu",
-        "Không QuestionGroup nào của đề có 0 câu hỏi",
-        "Câu Part 3, 4, 8 trong đề bắt buộc có group_id (không câu lẻ)"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_generation.py::test_SPEC_ISOLATE_003_group_isolation_no_orphans"
-      ],
-      "notes": "ID legacy giữ nguyên từ v1. Đang đạt: clone_group sao chép nguyên nhóm kèm toàn bộ câu hỏi."
-    },
-    {
-      "id": "SPEC-GEN-002",
-      "domain": "GEN",
-      "title": "Cân bằng đáp án trắc nghiệm VSTEP B1",
-      "statement": "Trong các phần dùng 4 lựa chọn của VSTEP B1, mỗi đáp án đúng (A/B/C/D) phải chiếm tỷ lệ cân đối tổng số câu để tránh mẫu đoán mò.",
-      "acceptance_criteria": [
-        "Đếm reference_answer trên các câu 4 lựa chọn của đề: tỷ lệ mỗi đáp án tương đối cân đối",
-        "Áp dụng cho đề sinh ra, không yêu cầu với bank gốc (cân bằng đạt được qua chọn lọc hoặc hoán vị đáp án)"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_generation.py::test_SPEC_GEN_002_answer_balance"
-      ],
-      "notes": "Đang đạt: generator hoán vị đáp án và các lựa chọn trên câu hỏi clone để đảm bảo cân bằng phân bố đáp án đúng."
-    },
-    {
-      "id": "SPEC-GEN-003",
-      "domain": "GEN",
-      "title": "Đa dạng chủ đề",
-      "statement": "Trong mỗi part nhiều nhóm (Part 3, 4, 8), không chủ đề (topic) nào chiếm tỷ lệ câu vượt quá ngưỡng thích ứng cap = max(0.20, kích_thước_nhóm_lớn_nhất_của_part / tổng_câu_part), tránh lặp chủ đề gây thiên lệch.",
-      "acceptance_criteria": [
-        "Với từng part 3, 4, 8 của đề: max(số câu theo topic) / tổng câu part <= cap",
-        "Topic NULL được tính là nhóm riêng và cũng không vượt ngưỡng"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_generation.py::test_SPEC_GEN_003_topic_diversity"
-      ],
-      "notes": "Đang đạt: generator áp dụng ràng buộc đa dạng hóa chủ đề thích ứng cho mọi part nhóm."
-    },
-    {
-      "id": "SPEC-GEN-004",
-      "domain": "GEN",
-      "title": "Độ trùng lặp giữa các đề trong lô",
-      "statement": "Khi sinh lô 100 đề, hai đề bất kỳ không được trùng nhau quá 40% câu hỏi nguồn (truy vết qua source_question_id).",
-      "acceptance_criteria": [
-        "Với mọi cặp đề (i, j) trong lô: |source_ids(i) giao source_ids(j)| / 200 <= 0.40",
-        "Mỗi câu clone lưu source_question_id trỏ về câu gốc trong bank"
-      ],
-      "verification": "pytest",
-      "status": "active",
-      "tests": [
-        "tests/test_specs_generation.py::test_SPEC_GEN_004_cross_exam_overlap"
-      ],
-      "notes": "Đang đạt: generate_batch sinh lô đề thi đồng thời tính toán ma trận độ trùng lặp câu nguồn giữa các đề và đảm bảo tỷ lệ trùng <= 40%."
-    },
-    {
       "id": "SPEC-GEN-005",
       "domain": "GEN",
       "title": "Sinh đề tái lập được bằng seed",
@@ -406,26 +125,25 @@
       "statement": "Thuật toán sinh đề động dựa hoàn toàn trên cấu trúc Blueprint (structure) được định nghĩa trong dữ liệu cấu hình hoặc database, thay vì hardcode cấu trúc đề thi.",
       "acceptance_criteria": [
         "Sinh đề sử dụng cấu trúc Blueprint structure động được truyền vào hàm lõi",
-        "Các part sinh ra phải khớp chính xác số câu, nhóm và độ khó theo cấu hình của structure truyền vào",
-        "Tồn tại wrapper mỏng cho đề thi TOEIC chuẩn để giữ nguyên các API cũ"
+        "Các part sinh ra phải khớp chính xác số câu và nhóm theo cấu hình của structure truyền vào",
+        "Tồn tại wrapper mỏng cho đề thi VSTEP B1 chuẩn để giữ nguyên các API cũ"
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_GEN_007_data_driven_generation"
       ],
-      "notes": "Đang đạt: refactor thành công thuật toán sinh đề lõi và wrapper TOEIC."
+      "notes": "Đang đạt: thuật toán sinh đề lõi data-driven và wrapper VSTEP B1."
     },
     {
       "id": "SPEC-GEN-008",
       "domain": "GEN",
       "title": "Sinh đề VSTEP B1 đa dạng từ ngân hàng câu hỏi",
-      "statement": "Hệ thống hỗ trợ sinh đề thi VSTEP B1 hoàn chỉnh với đúng 50 câu hỏi phân bổ qua 11 phần (Đọc 30 câu, Nghe 15 câu, Viết 2 câu, Nói 3 câu), bảo đảm clone đầy đủ thuộc tính tệp âm thanh (audio_url), hình ảnh (image_url) và không ảnh hưởng đến thuật toán sinh đề thi TOEIC chuẩn.",
+      "statement": "Hệ thống hỗ trợ sinh đề thi VSTEP B1 hoàn chỉnh với đúng 50 câu hỏi phân bổ qua 11 phần (Đọc 30 câu, Nghe 15 câu, Viết 2 câu, Nói 3 câu), bảo đảm clone đầy đủ thuộc tính tệp âm thanh (audio_url) và hình ảnh (image_url) từ ngân hàng câu hỏi.",
       "acceptance_criteria": [
         "Đề sinh ra có tổng số câu hỏi bằng đúng 50",
         "Số lượng câu hỏi từng phần khớp chính xác blueprint VSTEP B1 (Đọc: R1=10, R2=5, R3=5, R4=10; Viết: W1=1, W2=1; Nghe: L1=5, L2=10; Nói: S1=1, S2=1, S3=1)",
-        "Các thuộc tính liên quan đến phương tiện truyền thông (audio_url, image_url) được sao chép nguyên vẹn từ ngân hàng",
-        "Quá trình sinh đề VSTEP B1 không làm ảnh hưởng đến tính đúng đắn của việc sinh đề TOEIC (không hồi quy)"
+        "Các thuộc tính liên quan đến phương tiện truyền thông (audio_url, image_url) được sao chép nguyên vẹn từ ngân hàng"
       ],
       "verification": "pytest",
       "status": "active",
@@ -480,7 +198,7 @@
       "tests": [
         "tests/test_specs_grading.py::test_SPEC_GRADE_003_async_grading_via_celery"
       ],
-      "notes": "Đang đạt: endpoint submit định tuyến theo loại câu hỏi — đề có câu writing/speaking được đẩy vào hàng đợi qua grade_submission_task.delay() và trả về ngay status='grading' (chưa điểm); worker Celery chấm ngầm qua ai_grading_service (Gemini, mock-safe) rồi ghi grades + submission.status='completed'. Đề TOEIC trắc nghiệm thuần vẫn chấm đồng bộ (SPEC-SUBMIT-001). Test dùng celery task_always_eager + AI mock mode, không cần Redis/mạng."
+      "notes": "Đang đạt: endpoint submit định tuyến theo loại câu hỏi — đề có câu writing/speaking được đẩy vào hàng đợi qua grade_submission_task.delay() và trả về ngay status='grading' (chưa điểm); worker Celery chấm ngầm qua ai_grading_service (Gemini, mock-safe) rồi ghi grades + submission.status='completed'. Đề trắc nghiệm thuần vẫn chấm đồng bộ (SPEC-SUBMIT-001). Test dùng celery task_always_eager + AI mock mode, không cần Redis/mạng."
     },
     {
       "id": "SPEC-GRADE-004",
@@ -682,7 +400,7 @@
       "tests": [
         "tests/test_specs_generation.py::test_SPEC_VALIDATE_001_post_check_cleanup"
       ],
-      "notes": "Đang đạt: toeic_generator tích hợp validate_exam post-check và xóa sạch các bản ghi liên quan nếu kiểm định không hợp lệ."
+      "notes": "Đang đạt: generator tích hợp validate_exam post-check và xóa sạch các bản ghi liên quan nếu kiểm định không hợp lệ."
     },
     {
       "id": "SPEC-AUTH-001",

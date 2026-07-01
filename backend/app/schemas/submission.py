@@ -34,8 +34,8 @@ class SubmissionResult(BaseModel):
     status: str
     # Scores are None when grading is asynchronous (essay/Writing/Speaking via
     # Celery): the submit endpoint returns immediately with status "grading" and
-    # the worker fills in the scores later (SPEC-GRADE-003). For synchronous TOEIC
-    # grading these are populated in the response.
+    # the worker fills in the scores later (SPEC-GRADE-003). For synchronous
+    # multiple-choice grading these are populated in the response.
     listening_score: Optional[float] = None
     reading_score: Optional[float] = None
     total_score: Optional[float] = None

@@ -23,26 +23,9 @@ __all__ = [
 ]
 
 
-TOEIC_BLUEPRINT = {
-    "exam_type": "TOEIC",
-    "language": "EN",
-    "parts": {
-        "1": {"type": "standalone", "count": 6, "difficulty": {"easy": 2, "medium": 3, "hard": 1}},
-        "2": {"type": "standalone", "count": 25, "difficulty": {"easy": 8, "medium": 12, "hard": 5}},
-        "3": {"type": "grouped", "groups": 13, "q_per_group": 3, "difficulty": {"easy": 4, "medium": 6, "hard": 3}},
-        "4": {"type": "grouped", "groups": 10, "q_per_group": 3, "difficulty": {"easy": 3, "medium": 5, "hard": 2}},
-        "5": {"type": "standalone", "count": 30, "difficulty": {"easy": 10, "medium": 15, "hard": 5}},
-        "6": {"type": "grouped", "groups": 4, "q_per_group": 4, "difficulty": {"easy": 1, "medium": 2, "hard": 1}},
-        "7": {"type": "subset_sum", "target_questions": 54, "difficulty": {"easy": 15, "medium": 25, "hard": 14}}
-    },
-    "balance_answers": True
-}
-
-
 def _part_type(part: int, exam_type: str = "VSTEP_B1") -> str:
-    """Look up the structural type of a part from the corresponding blueprint."""
-    blueprint = TOEIC_BLUEPRINT if exam_type == "TOEIC" else VSTEP_B1_BLUEPRINT
-    spec = blueprint.get("parts", {}).get(str(part), {})
+    """Look up the structural type of a part from the VSTEP B1 blueprint."""
+    spec = VSTEP_B1_BLUEPRINT.get("parts", {}).get(str(part), {})
     return spec.get("type", "standalone")
 
 
@@ -57,10 +40,9 @@ def generate_demo_exam(
     Generate a full VSTEP B1 exam from the approved question bank.
     Raises InsufficientBankError if the bank does not have enough approved items.
     """
-    final_title = title or ("TOEIC Demo Exam" if exam_type == "TOEIC" else "VSTEP B1 Demo Exam")
-    structure = TOEIC_BLUEPRINT if exam_type == "TOEIC" else VSTEP_B1_BLUEPRINT
+    final_title = title or "VSTEP B1 Demo Exam"
     return generate_exam(
-        db, structure=structure, title=final_title, duration_minutes=duration_minutes, seed=seed
+        db, structure=VSTEP_B1_BLUEPRINT, title=final_title, duration_minutes=duration_minutes, seed=seed
     )
 
 

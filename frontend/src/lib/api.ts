@@ -1,4 +1,4 @@
-// Thin client for the TOEIC demo backend (FastAPI).
+// Thin client for the VSTEP B1 demo backend (FastAPI).
 // Override the base URL with NEXT_PUBLIC_API_BASE; defaults to local dev server.
 
 export const API_BASE =

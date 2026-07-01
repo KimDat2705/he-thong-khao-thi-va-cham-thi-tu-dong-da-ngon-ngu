@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Hệ thống Khảo thí và Chấm thi Đa ngôn ngữ",
-  description: "Hệ thống tạo đề và chấm thi tự động đa ngôn ngữ (TOEIC / VSTEP / HSK)",
+  description: "Hệ thống tạo đề và chấm thi tự động đa ngôn ngữ (VSTEP / HSK)",
 };
 
 export default function RootLayout({

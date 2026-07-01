@@ -9,7 +9,7 @@ class Grade(Base):
     id = Column(Integer, primary_key=True, index=True)
     submission_id = Column(Integer, ForeignKey("submissions.id", ondelete="CASCADE"), unique=True, nullable=False)
     score_multiple_choice = Column(Float, default=0.0)
-    # Objective L&R scaled scores (TOEIC). Stored in semantically-named columns
+    # Objective L&R scaled scores (VSTEP B1). Stored in semantically-named columns
     # rather than borrowing score_speaking/score_writing (SPEC-GRADE-002).
     score_listening = Column(Float, default=0.0)
     score_reading = Column(Float, default=0.0)

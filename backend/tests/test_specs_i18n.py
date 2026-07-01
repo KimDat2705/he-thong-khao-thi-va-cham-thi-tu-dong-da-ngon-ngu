@@ -1,7 +1,7 @@
 """
 SPEC-COLLATE-004, SPEC-I18N-001 — Bảo chứng nền tảng Đa ngôn ngữ.
 
-Chiến lược dự án: làm tiếng Anh (TOEIC + B1 VSTEP) trước, tiếng Trung (HSK) sau —
+Chiến lược dự án: làm tiếng Anh (VSTEP B1) trước, tiếng Trung (HSK) sau —
 nhưng schema và generator phải trung lập ngôn ngữ NGAY TỪ ĐẦU để thêm tiếng Trung
 chỉ là thêm DATA (blueprint + prompt + ngân hàng câu hỏi), không refactor.
 """

@@ -389,7 +389,7 @@ export default function TakeView({ id }: { id: string }) {
     q.type === "speaking" ? !!audioUrls[q.id] : (selectedAnswers[q.id]?.trim() ?? "") !== ""
   ).length;
   // Essay exams (Writing/Speaking) are graded asynchronously by AI — the result
-  // panel polls for the score instead of showing TOEIC L/R numbers immediately.
+  // panel polls for the score instead of showing L/R numbers immediately.
   const isEssayExam = questions.some((q) => q.type === "writing" || q.type === "speaking");
   // Mixed exams (e.g. VSTEP: Reading MCQ + Writing) also have auto-graded choice
   // questions; the essay result panel shows that score alongside the AI feedback.

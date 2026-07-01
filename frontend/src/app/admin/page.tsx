@@ -85,8 +85,7 @@ export default function AdminPage() {
     setGenerating(true);
     setError(null);
     try {
-      const typeLabel = examType === "VSTEP_B1" ? "VSTEP B1" : "TOEIC";
-      const title = `${typeLabel} Demo ${new Date().toLocaleString("vi-VN")}`;
+      const title = `VSTEP B1 Demo ${new Date().toLocaleString("vi-VN")}`;
       await generateExam(title, examType);
       await refresh();
     } catch (err) {

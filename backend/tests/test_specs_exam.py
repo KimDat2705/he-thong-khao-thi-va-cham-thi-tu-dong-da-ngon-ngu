@@ -17,14 +17,14 @@ def test_SPEC_EXAM_001_exam_generation_api(db_session: Session, admin_auth_heade
     client = TestClient(fastapi_app)
 
     try:
-        # 1. Generate a full TOEIC exam from the approved bank.
-        resp = client.post("/api/v1/exams/generate", json={"title": "Demo TOEIC", "seed": 42}, headers=admin_auth_headers)
+        # 1. Generate a full VSTEP B1 exam from the approved bank.
+        resp = client.post("/api/v1/exams/generate", json={"title": "Demo VSTEP B1", "seed": 42}, headers=admin_auth_headers)
         assert resp.status_code == 200, resp.text
         summary = resp.json()
         exam_id = summary["id"]
-        assert summary["title"] == "Demo TOEIC"
-        assert summary["exam_type"] == "TOEIC"
-        assert summary["question_count"] == 200
+        assert summary["title"] == "Demo VSTEP B1"
+        assert summary["exam_type"] == "VSTEP_B1"
+        assert summary["question_count"] == 50
 
         # 2. List exams contains the generated one.
         resp = client.get("/api/v1/exams")
@@ -36,23 +36,23 @@ def test_SPEC_EXAM_001_exam_generation_api(db_session: Session, admin_auth_heade
         resp = client.get(f"/api/v1/exams/{exam_id}")
         assert resp.status_code == 200
         detail = resp.json()
-        assert detail["total_questions"] == 200
+        assert detail["total_questions"] == 50
         parts = {p["part"]: p for p in detail["parts"]}
-        assert set(parts.keys()) == {1, 2, 3, 4, 5, 6, 7}
+        assert set(parts.keys()) == set(range(1, 12))
 
         # Standalone parts expose standalone_questions; grouped parts expose groups.
         assert parts[1]["part_type"] == "standalone"
-        assert parts[1]["question_count"] == 6
-        assert len(parts[1]["standalone_questions"]) == 6
+        assert parts[1]["question_count"] == 10
+        assert len(parts[1]["standalone_questions"]) == 10
 
         assert parts[3]["part_type"] == "grouped"
-        assert len(parts[3]["groups"]) == 13
-        # Every grouped question carries its 4 options.
+        assert len(parts[3]["groups"]) == 1
+        # Every grouped question carries its options.
         sample_q = parts[3]["groups"][0]["questions"][0]
         assert sample_q["options"] is not None
 
-        assert parts[7]["part_type"] == "subset_sum"
-        assert parts[7]["question_count"] == 54
+        assert parts[4]["part_type"] == "grouped"
+        assert parts[4]["question_count"] == 10
 
         # 4. Default view hides answers (exam = questions only).
         def all_questions(d):
@@ -95,7 +95,7 @@ def test_SPEC_EXAM_002_exam_lifecycle(db_session: Session, admin_auth_headers: d
     try:
         # 2. Insert mock exam directly in DB session to avoid slow generation
         db_exam = Exam(
-            title="Lifecycle TOEIC",
+            title="Lifecycle VSTEP B1",
             language="EN",
             exam_type="VSTEP_B1",
             duration_minutes=60,
@@ -406,29 +406,6 @@ def test_SPEC_GEN_008_exam_generation(db_session: Session, admin_auth_headers: d
             assert parts[p]["part_type"] == "standalone"
             assert parts[p]["question_count"] == 1
             assert parts[p]["standalone_questions"][0]["type"] == "speaking"
-
-        # 4. Non-regression: Generate TOEIC exam and verify it selects only TOEIC questions (which has 200 questions seeded in conftest)
-        resp_toeic = client.post(
-            "/api/v1/exams/generate",
-            json={"title": "TOEIC Non-Regression", "seed": 456, "exam_type": "TOEIC"},
-            headers=admin_auth_headers
-        )
-        assert resp_toeic.status_code == 200, resp_toeic.text
-        summary_toeic = resp_toeic.json()
-        assert summary_toeic["exam_type"] == "TOEIC"
-        assert summary_toeic["question_count"] == 200
-
-        # Retrieve detail of TOEIC exam and verify no VSTEP questions are present
-        resp_toeic_detail = client.get(f"/api/v1/exams/{summary_toeic['id']}", headers=admin_auth_headers)
-        assert resp_toeic_detail.status_code == 200
-        toeic_detail = resp_toeic_detail.json()
-        assert toeic_detail["total_questions"] == 200
-        for p in toeic_detail["parts"]:
-            for q in p["standalone_questions"]:
-                assert q["type"] not in ("writing", "speaking")
-            for g in p["groups"]:
-                for q in g["questions"]:
-                    assert q["type"] not in ("writing", "speaking")
 
     finally:
         fastapi_app.dependency_overrides.clear()

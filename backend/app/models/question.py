@@ -9,7 +9,7 @@ class Question(Base):
     id = Column(Integer, primary_key=True, index=True)
     exam_id = Column(Integer, ForeignKey("exams.id", ondelete="CASCADE"), nullable=True)
     group_id = Column(Integer, ForeignKey("question_groups.id", ondelete="SET NULL"), nullable=True)
-    part = Column(Integer, nullable=True)  # TOEIC part (1 to 7)
+    part = Column(Integer, nullable=True)  # VSTEP B1 part (1 to 11)
     type = Column(String, nullable=False, default="choice")  # "choice" | "writing" | "speaking"
     content = Column(Text, nullable=False)  # Question prompt
     audio_url = Column(Text, nullable=True)  # URL to audio prompts (listening/speaking)
