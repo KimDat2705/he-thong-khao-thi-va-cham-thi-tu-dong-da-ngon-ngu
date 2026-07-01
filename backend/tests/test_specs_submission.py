@@ -82,6 +82,13 @@ def test_SPEC_SUBMIT_001_exam_grading_flow(db_session: Session, admin_auth_heade
         assert sub_detail["status"] == "completed"
         assert sub_detail["total_score"] is not None
 
+        # Cross-user authorization (SPEC-SUBMIT-001): candidate2 must NOT read candidate1's
+        # submission (privacy of exam results); unauthenticated must be rejected.
+        resp = client.get(f"/api/v1/submissions/{sub_id}", headers=candidate2_headers)
+        assert resp.status_code == 403
+        resp = client.get(f"/api/v1/submissions/{sub_id}")
+        assert resp.status_code == 401
+
         # Retired exam -> 404
         exam.is_active = False
         db_session.commit()
@@ -168,18 +175,48 @@ def test_SPEC_SUBMIT_003_teacher_grade_override(db_session: Session):
 
 
 def test_SPEC_SUBMIT_002_submissions_listing(db_session: Session, admin_auth_headers: dict):
+    candidate_headers = {"Authorization": f"Bearer {create_access_token(data={'sub': 'testcandidate', 'role': 'candidate'})}"}
     fastapi_app.dependency_overrides[get_db] = lambda: db_session
     client = TestClient(fastapi_app)
     try:
         exam = Exam(title="List Exam B1", language="EN", exam_type="VSTEP_B1", duration_minutes=120, is_active=True)
         db_session.add(exam)
         db_session.commit()
+        db_session.refresh(exam)
+        q1 = Question(exam_id=exam.id, part=1, type="choice", content="Q1", reference_answer="A",
+                      options={"A": "a", "B": "b"}, status="approved")
+        db_session.add(q1)
+        db_session.commit()
+        db_session.refresh(q1)
 
-        # Call listings API
+        # A candidate submits so the listings have a row to verify against.
+        resp = client.post(f"/api/v1/exams/{exam.id}/submit",
+                           json={"answers": [{"question_id": q1.id, "answer": "A"}]}, headers=candidate_headers)
+        assert resp.status_code == 200
+
+        # --- Teacher/admin listing: GET /exams/{id}/submissions ---
         resp = client.get(f"/api/v1/exams/{exam.id}/submissions?limit=10", headers=admin_auth_headers)
         assert resp.status_code == 200
         data = resp.json()
-        assert isinstance(data, list)
+        assert isinstance(data, list) and len(data) >= 1
+        row = data[0]
+        for field in ("submission_id", "user_id", "username", "status", "exam_type"):
+            assert field in row, f"missing field {field}"
+        assert row["username"] == "testcandidate"
+        # Gating: candidate -> 403, guest -> 401, missing exam -> 404
+        assert client.get(f"/api/v1/exams/{exam.id}/submissions", headers=candidate_headers).status_code == 403
+        assert client.get(f"/api/v1/exams/{exam.id}/submissions").status_code == 401
+        assert client.get("/api/v1/exams/999999/submissions", headers=admin_auth_headers).status_code == 404
+
+        # --- Candidate history: GET /submissions/me ---
+        assert client.get("/api/v1/submissions/me").status_code == 401  # guest rejected
+        resp = client.get("/api/v1/submissions/me", headers=candidate_headers)
+        assert resp.status_code == 200
+        mine = resp.json()
+        assert isinstance(mine, list) and len(mine) >= 1
+        for field in ("submission_id", "exam_id", "exam_title", "status"):
+            assert field in mine[0], f"missing field {field}"
+        assert mine[0]["exam_id"] == exam.id
     finally:
         fastapi_app.dependency_overrides.clear()
 

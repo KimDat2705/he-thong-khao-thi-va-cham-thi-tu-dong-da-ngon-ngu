@@ -5,5 +5,4 @@ exclude = [".git", ".venv", "venv", "__pycache__"]
 "app/main.py" = ["F401"]
 "**/__init__.py" = ["F401"]
 # Phân hệ Chấm (đóng băng): bỏ qua lỗi unused import để tránh đụng sửa đổi file
-"app/services/toeic_grader.py" = ["F401"]
 "app/workers/tasks.py" = ["F401"]

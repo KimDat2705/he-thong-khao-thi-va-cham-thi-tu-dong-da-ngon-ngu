@@ -24,3 +24,10 @@ services:
       # Để trống/"*" thì CORS mở cho mọi nguồn (đủ cho demo).
       - key: ALLOWED_ORIGINS
         sync: false
+      # Tài khoản admin seed lúc bootstrap. PHẢI đặt giá trị mạnh ở Render dashboard
+      # (sync:false). Nếu KHÔNG đặt ADMIN_PASSWORD, bootstrap chỉ tạo admin mới với
+      # mật khẩu dev yếu + cảnh báo (KHÔNG dùng cho bản deploy thật).
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

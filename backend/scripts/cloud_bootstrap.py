@@ -114,31 +114,41 @@ def _seed_b1_bank_from_archive() -> None:
 
 
 def seed_admin_user(db) -> None:
-    """Seed the admin user for testing and local management.
-    Reads ADMIN_USERNAME/ADMIN_PASSWORD environment variables.
+    """Seed/sync the admin user from ADMIN_USERNAME/ADMIN_PASSWORD env vars.
+
+    On an EXISTING admin, the password is re-synced from env ONLY when ADMIN_PASSWORD
+    is explicitly set — so a redeploy never silently reverts a password (e.g. one
+    rotated via the app) to a weak hardcoded default. If ADMIN_PASSWORD is unset, a
+    brand-new admin is created with a dev-only default AND a loud warning; set
+    ADMIN_PASSWORD in the host env (Render dashboard) for any deployed instance.
     """
     from app.models.user import User
     from app.core.security import hash_password
 
     admin_username = os.environ.get("ADMIN_USERNAME", "admin")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "adminpassword")
+    env_password = os.environ.get("ADMIN_PASSWORD")  # None if unset — do NOT default here
 
     existing = db.query(User).filter(User.username == admin_username).first()
     if not existing:
+        if not env_password:
+            print("Bootstrap WARNING: ADMIN_PASSWORD not set — seeding admin with a WEAK dev-only "
+                  "default. Set ADMIN_PASSWORD in the host env for any deployed instance.")
         admin_user = User(
             username=admin_username,
-            hashed_password=hash_password(admin_password),
+            hashed_password=hash_password(env_password or "adminpassword"),
             full_name="Admin Demo",
             role="admin",
-            is_active=True
+            is_active=True,
         )
         db.add(admin_user)
         db.commit()
         print(f"Seeded admin user '{admin_username}' successfully.")
-    else:
-        existing.hashed_password = hash_password(admin_password)
+    elif env_password:
+        existing.hashed_password = hash_password(env_password)
         db.commit()
-        print(f"Updated password for admin user '{admin_username}' from environment.")
+        print(f"Synced password for admin user '{admin_username}' from ADMIN_PASSWORD env.")
+    else:
+        print(f"Admin user '{admin_username}' exists; ADMIN_PASSWORD not set — leaving password unchanged.")
 
 
 def _download(file_id: str, dest: str) -> None:

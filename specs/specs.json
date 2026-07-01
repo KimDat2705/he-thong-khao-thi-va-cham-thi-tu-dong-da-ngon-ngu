@@ -107,39 +107,40 @@
     {
       "id": "SPEC-PARSE-006",
       "domain": "PARSE",
-      "title": "Parse đề Nghe VSTEP B1 định dạng thật",
-      "statement": "Hệ thống hỗ trợ parse tệp đề Nghe VSTEP B1 định dạng thực tế (.docx chứa bảng biểu, ảnh và các câu hỏi), bóc tách chính xác set_id, các câu hỏi trắc nghiệm kèm tranh (Part 7) và câu hỏi điền từ theo đoạn (Part 8).",
+      "title": "Parse đề Nghe TOEIC định dạng thật",
+      "statement": "Hệ thống hỗ trợ parse tệp đề Nghe TOEIC định dạng thực tế (.docx chứa bảng biểu, ảnh và các lựa chọn trắc nghiệm), bóc tách chính xác set_id, các câu hỏi đơn lẻ (Part 1, 2) và câu hỏi nhóm (Part 3, 4) phân tách nhóm bằng dòng gạch ngang.",
       "acceptance_criteria": [
         "Trích xuất và chuẩn hóa set_id từ bảng chứa Mã đề thi (ví dụ: 'Mã đề thi LT.2601' -> 'LT2601')",
-        "Duyệt các phần tử XML theo thứ tự xuất hiện thực tế để xác định đúng ranh giới của các Part 7, 8",
-        "Part 7: Trích xuất đúng 5 câu hỏi, gán đúng chỉ mục (index) hình ảnh đi kèm",
-        "Part 8: Trích xuất đúng 10 câu hỏi điền từ, gom các câu hỏi thành nhóm, tự động ghép dòng khi câu hỏi hoặc đáp án bị xuống dòng"
+        "Duyệt các phần tử XML theo thứ tự xuất hiện thực tế để xác định đúng ranh giới của các Part 1, 2, 3, 4",
+        "Part 1: Trích xuất đúng 6 câu hỏi, gán đúng chỉ mục (index) hình ảnh đi kèm",
+        "Part 2: Trích xuất đúng 25 câu hỏi đơn lẻ, options để trống và nội dung chỉ dẫn mặc định",
+        "Part 3 và Part 4: Bóc tách các câu hỏi và các lựa chọn A/B/C/D từ cell của bảng, gom các câu hỏi thành nhóm phân tách bằng dòng gạch ngang, tự động ghép dòng khi câu hỏi hoặc đáp án bị xuống dòng, gán đúng hình ảnh nhóm (nếu có)"
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_parser.py::test_SPEC_PARSE_006_parse_real_listening_docx"
       ],
-      "notes": "Đang đạt: parser thực tế bóc tách thành công câu hỏi từ tệp đề Nghe Word table-based và trích xuất đúng set_id."
+      "notes": "Đang đạt: parser thực tế bóc tách thành công câu hỏi từ tệp đề Nghe Word table-based và trích xuất đúng set_id. [S45-fix] Spec mo ta parser Nghe TOEIC (parse_listening_docx) van con code+test. Khi HOAN TAT pivot (go han TOEIC parser) thi go luon spec+test nay; B1 Nghe da co PARSE-013 (parse_b1_listening_docx)."
     },
     {
       "id": "SPEC-PARSE-007",
       "domain": "PARSE",
-      "title": "Import đề nghe thực tế VSTEP B1",
-      "statement": "Hệ thống hỗ trợ nhập đề thi nghe VSTEP B1 định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
+      "title": "Import đề nghe thực tế và trộn đáp án",
+      "statement": "Hệ thống hỗ trợ nhập đề thi nghe TOEIC định dạng thực tế, đối chiếu và ghép đáp án từ tệp Excel tương ứng theo số câu hỏi, tiến hành kiểm tra hợp lệ toàn bộ câu hỏi trước khi ghi nhận vào ngân hàng câu hỏi ở trạng thái nháp.",
       "acceptance_criteria": [
         "Ghép chính xác đáp án từ tệp Excel vào câu hỏi tương ứng trong tệp Word theo số thứ tự câu hỏi",
-        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào, từ chối ghi nhận và trả về báo cáo lỗi",
+        "Tiến hành kiểm định lỗi (all-or-nothing): nếu thiếu bất kỳ đáp án câu hỏi nào hoặc đáp án không thuộc tập {A, B, C, D}, từ chối ghi nhận và trả về báo cáo lỗi",
         "Ghi nhận bản ghi tệp Word/Excel vào bảng ImportBatch để kiểm soát lịch sử",
         "Ghi nhận toàn bộ câu hỏi và nhóm câu hỏi ở trạng thái draft chờ duyệt",
-        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash)"
+        "Đảm bảo tính idempotent khi nạp lại cùng một tệp (không tạo trùng lặp nhóm và câu hỏi nhờ content_hash cải tiến chứa thông tin câu hỏi)"
       ],
       "verification": "pytest",
       "status": "active",
       "tests": [
         "tests/test_specs_parser.py::test_SPEC_PARSE_007_import_listening_set_success"
       ],
-      "notes": "Đang đạt: import_listening_set phối hợp thành công parser câu hỏi và parser đáp án, ghi nhận an toàn vào cơ sở dữ liệu."
+      "notes": "Đang đạt: import_listening_set phối hợp thành công parser câu hỏi và parser đáp án, ghi nhận an toàn vào cơ sở dữ liệu. [S45-fix] Spec mo ta parser Nghe TOEIC (parse_listening_docx) van con code+test. Khi HOAN TAT pivot (go han TOEIC parser) thi go luon spec+test nay; B1 Nghe da co PARSE-013 (parse_b1_listening_docx)."
     },
     {
       "id": "SPEC-PARSE-008",

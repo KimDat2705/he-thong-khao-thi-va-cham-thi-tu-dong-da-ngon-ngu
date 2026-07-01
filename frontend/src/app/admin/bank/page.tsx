@@ -299,7 +299,7 @@ export default function BankAdminPage() {
             >
               <option value="">Ngẫu nhiên</option>
               <option value="Bản thân">Bản thân</option>
-              <option value="Nhà cửa-gia định-môi trường">Nhà cửa - Gia đình - Môi trường</option>
+              <option value="Nhà cửa-gia đình-môi trường">Nhà cửa - Gia đình - Môi trường</option>
               <option value="Cuộc sống hằng ngày">Cuộc sống hằng ngày</option>
               <option value="Vui chơi-giải trí">Vui chơi - Giải trí</option>
               <option value="Đi lại-du lịch">Đi lại - Du lịch</option>

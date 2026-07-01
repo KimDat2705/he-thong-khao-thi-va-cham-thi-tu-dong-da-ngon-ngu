@@ -25,12 +25,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     # Gemini model id for grading. Configurable via env (SPEC-SCALE-001) so the
-    # model is swappable without code. Default = gemini-2.5-flash for the FREE
-    # MVP phase: measured 15/15 concurrent essays graded OK on free tier.
-    # gemini-3.5-flash (released 05-2026) is the better model BUT returns 503
-    # "high demand" on free even for 1 call — Google rations free capacity for
-    # brand-new flagships; it works on a PAID tier. Switch back to 3.5-flash
-    # (set GEMINI_MODEL=gemini-3.5-flash) when on paid. No code change needed.
+    # model is swappable without code. DEFAULT = gemini-3.5-flash (Đạt-directed:
+    # use Google's newest/best flagship). TRADE-OFF: on the FREE tier 3.5-flash can
+    # return 503 "high demand" under load (measured 25/06 — Google rations free
+    # capacity for brand-new flagships), so LIVE grading may fail intermittently
+    # unless on a PAID key. Fallback if free-tier 503s bite: set env
+    # GEMINI_MODEL=gemini-2.5-flash (measured 15/15 concurrent OK on free).
     GEMINI_MODEL: str = "gemini-3.5-flash"
     GEMINI_MAX_RETRIES: int = 4
     GEMINI_RETRY_BASE_DELAY: float = 1.5
