@@ -1,3 +1,13 @@
+# Session Handoff — CHỐT PHIÊN 02/07/2026 (S52: ĐIỀU CHỈNH ĐỊNH HƯỚNG — mở rộng bank cho pipeline của SẾP)
+
+> **🆕 S52 (Claude, 02/07) — NGHIÊN CỨU BÀN GIAO SẾP + ĐỔI HƯỚNG (đọc TRƯỚC · CHỈ nghiên cứu+kế hoạch, chưa code):**
+> - **BỐI CẢNH MỚI:** Sếp (`1980anhtuan@gmail.com`) đã dựng **HỆ RIÊNG hoàn chỉnh** cho B1 (KHÔNG dùng hệ demo của mình): web app Cloud Run `tdu-de-thi-b1-...run.app` + **ngân hàng là FILE JSON** (`bank_raw.json` Đọc-Viết · `pool_lis.json` Nghe · `pool_speak.json` Nói) + pipeline Python 5 bước (extract→build_db→trộn theo seed→render clone .docx→QC→GV ký). **Phân vai (sếp nhắn):** *"pipeline tạo đề từ ngân hàng là việc của anh, việc của em là MỞ RỘNG NGÂN HÀNG ĐỀ — bám sát bank đã có, hạn chế tối đa ảo giác, tốt nhất có GV tiếng Anh kiểm."*
+> - **PHÁT HIỆN then chốt:** hệ sếp triết lý **"TRỘN ĐỀ, KHÔNG bịa câu — AI KHÔNG tự sinh nội dung"**; bank làm giàu bằng **trích 30 đề THẬT (2601–2630)**. → Việc mình = **sinh câu grounded (paraphrase từ seed thật) + xuất ĐÚNG format JSON của sếp + GV duyệt** = đúng tinh thần **BANK-007** đã làm, chỉ đổi đầu vào/ra. **Phần web/generate/chấm của hệ mình TRÙNG hệ sếp → nhiều khả năng không bàn giao** (giữ làm sandbox).
+> - **SCHEMA đã nắm đủ 3 kỹ năng** (đọc trực tiếp qua Google Drive connector — gdown 404 vì cần auth): Đọc S1(R1 MCQ 4-opt, dict sạch)/S2(R2 3-opt)/S3(R3 đoạn+4-opt)/S4(R4 cloze hộp-từ) + W1(viết lại câu)/W2(thư ~100 từ); Nghe = 29 bài gắn mp3 (khó mở rộng); Nói = 30 thẻ chỉ `part2_topic` đổi (dễ). Bank KHÔNG có field độ khó/CLO/chủ đề per-item (gắn sau ở `phan_loai_do_kho.py`, quota 3 Dễ/5 TB/2 Khó).
+> - **📋 KẾ HOẠCH CHI TIẾT: [`docs/ke_hoach_mo_rong_bank_b1.md`](docs/ke_hoach_mo_rong_bank_b1.md)** — schema bàn giao đầy đủ + chiến lược "nhà máy sinh câu" + kế hoạch theo kỹ năng (P1 Đọc → P2 Viết → P3 Nói → P4 Nghe hoãn) + backlog 7 thành phần.
+> - **⚠️ VIỆC ĐANG CHỜ = CHỐT 5 QUYẾT ĐỊNH (mục 8 của plan) trước khi code:** D1 dừng phần web/generate/chấm trùng sếp? · **D2 (chặn chính, phải HỎI SẾP): render sếp clone từ .docx gốc — câu AI mới không có .docx → ghép nối kiểu gì?** · D3 Nghe hoãn hay TTS-PoC? · D4 GV nào ký + soát chéo đa-agent? · D5 sản lượng/part. → Sau khi chốt: làm slice mỏng P1-R1 (seed_loader→paraphrase→boss_exporter shape `s1`→qc→review) rồi nhân rộng.
+> - **KHÔNG đụng code demo hiện tại phiên này.** Demo LIVE (BANK-005/6/7 + UI) vẫn nguyên `main`=`28363b4`.
+
 # Session Handoff — CHỐT PHIÊN 01/07/2026 (S51: async enrich + hybrid seed/paraphrase + model 2.5-flash)
 
 > **🆕 S51b (Claude, 01/07) — SPEC-BANK-007 HYBRID SEED & PARAPHRASE + đổi model 2.5-flash (đọc TRƯỚC):**
