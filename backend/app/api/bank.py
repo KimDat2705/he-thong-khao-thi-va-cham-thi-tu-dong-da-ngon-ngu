@@ -6,8 +6,8 @@ import logging
 from app.core.database import get_db
 from app.core.deps import require_role
 from app.models.user import User
-from app.schemas.bank import QuestionRead, QuestionUpdate, ApproveRequest, ApproveResult, BankStats, QuestionListResponse, EnrichRequest, EnrichResult, EnrichAsyncResult, EnrichJobStatus
-from app.services import bank_admin, enrich_jobs
+from app.schemas.bank import QuestionRead, QuestionUpdate, ApproveRequest, ApproveResult, BankStats, QuestionListResponse, EnrichRequest, EnrichResult, EnrichAsyncResult, EnrichJobStatus, SeedCreate, ParaphraseRequest, ParaphraseResult
+from app.services import bank_admin, enrich_jobs, hybrid_seed
 
 router = APIRouter(prefix="/api/v1/bank", tags=["Bank Admin"])
 
@@ -133,4 +133,47 @@ def get_enrich_task(
     if job is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ sinh câu hỏi (job_id không tồn tại hoặc đã hết hạn).")
     return EnrichJobStatus(**job)
+
+
+@router.post("/seed", response_model=QuestionRead)
+def create_seed(
+    payload: SeedCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
+    """
+    SPEC-BANK-007 AC1: lưu câu Seed chuẩn (trắc nghiệm) làm tham chiếu học thuật
+    (status='seed'). Seed KHÔNG dùng trực tiếp trong đề — chỉ các biến thể paraphrase
+    (draft) mới được duyệt và dùng.
+    """
+    try:
+        return hybrid_seed.create_seed_question(
+            db, payload.part, payload.type, payload.content, payload.options,
+            payload.reference_answer, topic=payload.topic,
+            difficulty=payload.difficulty, image_url=payload.image_url,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/paraphrase", response_model=ParaphraseResult)
+def paraphrase_questions(
+    payload: ParaphraseRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
+    """
+    SPEC-BANK-007 AC2/3/4: paraphrase một câu Seed thành các biến thể nháp — viết lại
+    đề + tráo phương án, sinh ảnh mới cho câu tranh (tránh bản quyền), gán nhãn độ khó
+    theo CEFR B1. Mỗi biến thể liên kết seed qua source_question_id.
+    """
+    if payload.count < 1 or payload.count > 5:
+        raise HTTPException(status_code=400, detail="Số biến thể paraphrase mỗi lần từ 1 đến 5.")
+    try:
+        result = hybrid_seed.paraphrase_seed(db, payload.seed_question_id, payload.count)
+        return ParaphraseResult(**result)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 

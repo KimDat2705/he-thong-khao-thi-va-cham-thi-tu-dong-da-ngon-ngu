@@ -1,3 +1,4 @@
+import base64
 import json
 import inspect
 import logging
@@ -873,6 +874,167 @@ class B1QuestionGenerator:
         except Exception as e:
             logger.error(f"Gemini Image generation failed: {e}")
             raise e
+
+    # --- SPEC-BANK-007: Hybrid Seed & Paraphrase ---
+
+    # 1x1 transparent PNG used as a placeholder when regenerating images in mock mode.
+    _PLACEHOLDER_PNG = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    )
+
+    def paraphrase_from_seed(self, db: Session, seed: Question, count: int) -> int:
+        """SPEC-BANK-007: paraphrase a choice-type SEED question into `count` fresh draft
+        variants. Rewrites the stem, rewords every distractor (keeping the correct answer's
+        meaning), AI-labels difficulty against CEFR B1, and — for picture questions —
+        regenerates a NEW illustration so the original wording/image copyright is not
+        reproduced. Each variant links back to the seed via source_question_id."""
+        if seed.type != "choice" or not isinstance(seed.options, dict) or len(seed.options) < 2:
+            raise ValueError("Chỉ paraphrase được câu trắc nghiệm (choice) có sẵn phương án.")
+
+        option_keys = sorted(seed.options.keys())
+        is_picture = bool(seed.image_url)
+
+        if not self.client:
+            data = self._mock_paraphrase_data(seed, count, option_keys)
+        else:
+            system_instruction = (
+                "You are an expert VSTEP B1 (CEFR B1) English item writer. You are given a SEED "
+                "multiple-choice question. Produce fresh PARAPHRASED variants that test the SAME "
+                "language point at the SAME level but are NOT verbatim copies:\n"
+                "- Rewrite the question stem using different wording.\n"
+                f"- Reword EVERY option; keep exactly the same option keys ({', '.join(option_keys)}) "
+                "and keep the correct answer's MEANING.\n"
+                "- reference_answer must be one of the option keys, pointing to the option whose meaning "
+                "matches the seed's correct answer.\n"
+                "- Assess difficulty by comparing the vocabulary to the CEFR B1 wordlist: 'easy' if all "
+                "words are core A2-B1, 'medium' if it uses upper-B1 vocabulary, 'hard' if it contains "
+                "B2+ or low-frequency words. difficulty must be exactly one of: easy, medium, hard.\n"
+                + ("- Also return image_description: a NEW English scene description illustrating the "
+                   "correct answer so a fresh, copyright-free picture can be drawn (do NOT describe the "
+                   "original image).\n" if is_picture else "")
+                + "Return JSON: {\"variants\": [{\"content\": str, \"options\": object, "
+                "\"reference_answer\": str, \"difficulty\": str, \"explanation\": str"
+                + (", \"image_description\": str" if is_picture else "") + "}]}"
+            )
+            user_prompt = (
+                f"SEED question (topic: {seed.topic or 'general'}):\n"
+                f"Stem: {seed.content}\n"
+                f"Options: {json.dumps(seed.options, ensure_ascii=False)}\n"
+                f"Correct answer key: {seed.reference_answer}\n"
+                f"Generate {count} distinct paraphrased variants."
+            )
+            try:
+                data = json.loads(self._call_gemini(system_instruction, user_prompt))
+            except Exception as e:
+                logger.error(f"Paraphrase via Gemini failed: {e}. Falling back to mock.")
+                data = self._mock_paraphrase_data(seed, count, option_keys)
+
+        saved = 0
+        for var in data.get("variants", []):
+            try:
+                content = (var.get("content") or "").strip()
+                options = var.get("options") or {}
+                ref = var.get("reference_answer")
+                difficulty = (var.get("difficulty") or "medium").lower()
+                if difficulty not in ("easy", "medium", "hard"):
+                    difficulty = "medium"
+
+                # Validation gate
+                if not content or content == (seed.content or "").strip():
+                    logger.warning("Paraphrase rỗng hoặc trùng nguyên văn seed. Bỏ qua.")
+                    continue
+                if sorted(options.keys()) != option_keys:
+                    logger.warning("Paraphrase lệch bộ khóa phương án so với seed. Bỏ qua.")
+                    continue
+                if ref not in options:
+                    logger.warning("Paraphrase reference_answer không thuộc options. Bỏ qua.")
+                    continue
+
+                q_hash = calculate_question_hash({
+                    "set_id": "", "number": "", "part": seed.part, "type": "choice",
+                    "content": content, "options": options, "reference_answer": ref,
+                })
+                existing = db.query(Question).filter(
+                    Question.exam_id.is_(None), Question.content_hash == q_hash
+                ).first()
+                if existing:
+                    logger.info("Câu paraphrase đã tồn tại trong ngân hàng. Bỏ qua.")
+                    continue
+
+                # AC3: regenerate a fresh illustration for picture questions (copyright-safe).
+                # If regeneration fails, SKIP the variant rather than save a picture
+                # question with no image of its own.
+                new_image_url = None
+                if is_picture:
+                    new_image_url = self._render_paraphrase_image(
+                        var.get("image_description") or content, q_hash
+                    )
+                    if new_image_url is None:
+                        logger.warning("Sinh ảnh paraphrase thất bại cho câu tranh. Bỏ qua biến thể.")
+                        continue
+
+                new_q = Question(
+                    exam_id=None, group_id=None, part=seed.part, type="choice",
+                    content=content, options=options, reference_answer=ref,
+                    difficulty=difficulty, clo=seed.clo, topic=seed.topic,
+                    explanation=var.get("explanation"), status="draft",
+                    content_hash=q_hash, exam_type="VSTEP_B1", language="EN",
+                    source_question_id=seed.id, image_url=new_image_url,
+                )
+                db.add(new_q)
+                db.commit()
+                saved += 1
+            except Exception as val_err:
+                logger.warning(f"Biến thể paraphrase lỗi: {val_err}. Bỏ qua.")
+                db.rollback()
+
+        return saved
+
+    def _render_paraphrase_image(self, description: str, q_hash: str) -> Optional[str]:
+        """Generate (real) or write a placeholder (mock) illustration for a paraphrased
+        picture question. Returns the /static URL, or None on failure."""
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        fname = f"paraphrase_{q_hash[:16]}.png"
+        out_path = os.path.join(base_dir, "static", "img", fname)
+        try:
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            if self.client:
+                self._generate_image(
+                    "A simple, clear, copyright-free illustration for a B1 English picture "
+                    f"question: {description}",
+                    out_path,
+                )
+            else:
+                with open(out_path, "wb") as f:
+                    f.write(self._PLACEHOLDER_PNG)
+        except Exception as e:
+            logger.error(f"Paraphrase image generation failed: {e}")
+            return None
+        return f"/static/img/{fname}"
+
+    def _mock_paraphrase_data(self, seed: Question, count: int, option_keys: List[str]) -> dict:
+        """Deterministic mock paraphrase (no network): reword stem+options so content
+        differs from the seed (copyright-safe) and stays distinct per variant."""
+        diffs = ["easy", "medium", "hard"]
+        variants = []
+        for i in range(count):
+            # Deterministic stand-in reword: reorder the stem words so the output does
+            # NOT contain the seed verbatim (a real paraphrase rewrites; the mock only
+            # needs to prove the plumbing produces a genuinely different, seed-free stem).
+            reworded = " ".join(reversed((seed.content or "").split()))
+            var = {
+                "content": f"(Paraphrase {i + 1}) {reworded}",
+                "options": {k: f"{seed.options[k]} (variant {i + 1})" for k in option_keys},
+                "reference_answer": seed.reference_answer,
+                "difficulty": diffs[i % 3],
+                "explanation": f"Paraphrase từ seed #{seed.id}; đáp án đúng giữ nguyên nghĩa.",
+            }
+            if seed.image_url:
+                var["image_description"] = (
+                    f"New illustration for: {seed.options.get(seed.reference_answer, '')}"
+                )
+            variants.append(var)
+        return {"variants": variants}
 
     def generate_l1_questions(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate L1 (Part 7 Listening Picture Matching - 3 choices) questions and save to the bank."""

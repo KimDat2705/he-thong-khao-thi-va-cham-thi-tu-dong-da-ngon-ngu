@@ -500,3 +500,127 @@ def test_SPEC_BANK_006_async_enrich_thread_fallback(db_session: Session, monkeyp
         Question.topic == "Giáo dục",
     ).count()
     assert draft_count == gen
+
+
+def test_SPEC_BANK_007_hybrid_seed_and_paraphrase(db_session: Session, admin_auth_headers: dict, monkeypatch):
+    """SPEC-BANK-007: Hybrid Seed & Paraphrase.
+
+    AC1 lưu câu Seed chuẩn; AC2 paraphrase viết lại đề + reword phương án (KHÁC
+    verbatim → tránh bản quyền); AC3 sinh ẢNH MỚI cho câu tranh (không copy ảnh gốc);
+    AC4 gán nhãn độ khó CEFR B1. Mỗi biến thể link seed qua source_question_id.
+
+    Cô lập/tất định: ép generator về mock mode (GEMINI_API_KEY=None) — không gọi mạng.
+    """
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)  # generator -> mock mode
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    candidate_token = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+    candidate_headers = {"Authorization": f"Bearer {candidate_token}"}
+
+    try:
+        # AC1: lưu câu Seed trắc nghiệm 4 phương án (R1).
+        seed_body = {
+            "part": 1, "type": "choice",
+            "content": "She has lived in this city ______ 2010.",
+            "options": {"A": "since", "B": "for", "C": "in", "D": "at"},
+            "reference_answer": "A", "topic": "Giáo dục", "difficulty": "medium",
+        }
+        r = client.post("/api/v1/bank/seed", json=seed_body, headers=admin_auth_headers)
+        assert r.status_code == 200, r.text
+        seed = r.json()
+        assert seed["status"] == "seed"
+        assert seed["exam_type"] == "VSTEP_B1"
+        seed_id = seed["id"]
+
+        # AC2 + AC4: paraphrase thành 3 biến thể nháp.
+        r = client.post("/api/v1/bank/paraphrase",
+                        json={"seed_question_id": seed_id, "count": 3}, headers=admin_auth_headers)
+        assert r.status_code == 200, r.text
+        res = r.json()
+        assert res["generated_count"] == 3
+        assert res["seed_question_id"] == seed_id
+
+        variants = db_session.query(Question).filter(
+            Question.exam_id.is_(None),
+            Question.source_question_id == seed_id,
+            Question.status == "draft",
+        ).all()
+        assert len(variants) == 3
+        for v in variants:
+            assert v.content.strip() != seed_body["content"]           # AC2: KHÁC verbatim
+            assert seed_body["content"] not in v.content               # AC2: viết lại, không bọc nguyên văn
+            assert sorted(v.options.keys()) == ["A", "B", "C", "D"]     # giữ cấu trúc
+            assert v.reference_answer in v.options
+            assert v.difficulty in ("easy", "medium", "hard")          # AC4: nhãn độ khó
+            assert v.exam_type == "VSTEP_B1"
+            assert v.content_hash != seed["content_hash"]
+        # Mỗi biến thể là câu riêng biệt (không trùng nhau).
+        assert len({v.content_hash for v in variants}) == 3
+
+        # Idempotency: chạy lại -> mock tất định -> KHÔNG thêm biến thể trùng.
+        r = client.post("/api/v1/bank/paraphrase",
+                        json={"seed_question_id": seed_id, "count": 3}, headers=admin_auth_headers)
+        assert r.status_code == 200
+        db_session.expire_all()
+        again = db_session.query(Question).filter(
+            Question.exam_id.is_(None), Question.source_question_id == seed_id
+        ).count()
+        assert again == 3, f"paraphrase lặp phải idempotent (kỳ vọng 3, thực tế {again})"
+
+        # AC3: seed câu TRANH (có image_url) -> biến thể phải có ẢNH MỚI (url khác gốc).
+        pic = client.post("/api/v1/bank/seed", json={
+            "part": 7, "type": "choice",
+            "content": "Choose the picture that matches the description: a family having a picnic.",
+            "options": {"A": "Picture A", "B": "Picture B", "C": "Picture C"},
+            "reference_answer": "A", "topic": "Vui chơi-giải trí",
+            "image_url": "/static/img/original_seed_picture.png",
+        }, headers=admin_auth_headers)
+        assert pic.status_code == 200, pic.text
+        pic_id = pic.json()["id"]
+        r = client.post("/api/v1/bank/paraphrase",
+                        json={"seed_question_id": pic_id, "count": 1}, headers=admin_auth_headers)
+        assert r.status_code == 200 and r.json()["generated_count"] == 1
+        pv = db_session.query(Question).filter(
+            Question.exam_id.is_(None), Question.source_question_id == pic_id, Question.status == "draft"
+        ).first()
+        assert pv is not None
+        assert pv.image_url, "câu tranh paraphrase phải có ảnh minh họa"
+        assert pv.image_url != "/static/img/original_seed_picture.png"  # AC3: ảnh MỚI, không copy
+        # AC3: ảnh MỚI thật sự được ghi ra đĩa (không chỉ set URL).
+        import os as _os
+        from app.services import b1_question_gen as _gen
+        _base = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(_gen.__file__))))
+        _img_path = _os.path.join(_base, "static", "img", _os.path.basename(pv.image_url))
+        assert _os.path.exists(_img_path) and _os.path.getsize(_img_path) > 0
+
+        # Phân quyền: candidate 403, chưa đăng nhập 401 (cả seed lẫn paraphrase).
+        assert client.post("/api/v1/bank/seed", json=seed_body, headers=candidate_headers).status_code == 403
+        assert client.post("/api/v1/bank/paraphrase", json={"seed_question_id": seed_id, "count": 1},
+                           headers=candidate_headers).status_code == 403
+        assert client.post("/api/v1/bank/paraphrase", json={"seed_question_id": seed_id, "count": 1}).status_code == 401
+
+        # Teacher cũng được phép (không chỉ admin) — seed idempotent trả về câu đã có.
+        from app.core.security import hash_password
+        from app.models.user import User
+        db_session.add(User(username="testteacher", hashed_password=hash_password("x"),
+                            full_name="Test Teacher", role="teacher", is_active=True))
+        db_session.commit()
+        teacher_token = create_access_token(data={"sub": "testteacher", "role": "teacher"})
+        teacher_headers = {"Authorization": f"Bearer {teacher_token}"}
+        assert client.post("/api/v1/bank/seed", json=seed_body, headers=teacher_headers).status_code == 200
+
+        # Ràng buộc: seed lạ -> 404; count > 5 -> 400.
+        assert client.post("/api/v1/bank/paraphrase", json={"seed_question_id": 999999, "count": 1},
+                           headers=admin_auth_headers).status_code == 404
+        assert client.post("/api/v1/bank/paraphrase", json={"seed_question_id": seed_id, "count": 6},
+                           headers=admin_auth_headers).status_code == 400
+
+    finally:
+        fastapi_app.dependency_overrides.clear()

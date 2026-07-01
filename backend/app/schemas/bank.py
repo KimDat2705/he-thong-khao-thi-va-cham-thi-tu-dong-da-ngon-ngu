@@ -90,3 +90,24 @@ class EnrichJobStatus(BaseModel):
     generated_count: int
     error: Optional[str] = None
 
+class SeedCreate(BaseModel):
+    """SPEC-BANK-007 AC1: lưu câu Seed chuẩn (trắc nghiệm) làm tham chiếu học thuật."""
+    part: int
+    type: str = "choice"
+    content: str
+    options: Dict[str, str]
+    reference_answer: str
+    topic: Optional[str] = None
+    difficulty: Optional[str] = None
+    image_url: Optional[str] = None
+
+class ParaphraseRequest(BaseModel):
+    """SPEC-BANK-007 AC2/3/4: paraphrase một câu Seed thành các biến thể nháp."""
+    seed_question_id: int
+    count: int = 3
+
+class ParaphraseResult(BaseModel):
+    success: bool
+    generated_count: int
+    seed_question_id: int
+
