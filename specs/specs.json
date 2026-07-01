@@ -736,6 +736,25 @@
         "tests/test_specs_bank.py::test_SPEC_BANK_007_hybrid_seed_and_paraphrase"
       ],
       "notes": "POST /api/v1/bank/seed lưu câu Seed trắc nghiệm (status='seed', model đóng băng — không thêm bảng). POST /api/v1/bank/paraphrase sinh biến thể nháp từ seed: B1QuestionGenerator.paraphrase_from_seed viết lại đề + tráo/reword phương án (khác verbatim → bản quyền), gán nhãn độ khó theo CEFR B1, và với câu tranh sinh ảnh MỚI qua Imagen từ mô tả (không copy ảnh gốc); biến thể link seed qua source_question_id, idempotent qua content_hash, lưu status='draft'. Phạm vi paraphrase: câu trắc nghiệm standalone (R1/R2/L1). generated_count là số biến thể THỰC TẾ lưu (best-effort — có thể < count nếu trùng content_hash, validate trượt, hoặc sinh ảnh câu tranh lỗi → biến thể bị bỏ). Test pytest = mock generator tất định (biến thể KHÔNG chứa seed nguyên văn, mỗi biến thể hash riêng, đúng bộ khóa phương án, độ khó ∈ easy/medium/hard, ảnh mới GHI RA ĐĨA cho seed tranh, gating admin/teacher + teacher). Chất lượng paraphrase/ảnh Imagen/phân tích CEFR THẬT chỉ chạy ở real-mode Gemini (mock trong test như toàn suite)."
+    },
+    {
+      "id": "SPEC-FACTORY-001",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh câu R1 — xuất định dạng ngân hàng đối tác (bàn giao)",
+      "statement": "Hệ sinh biến thể câu Đọc phần 1 (R1) từ câu THẬT trong ngân hàng của đối tác làm seed (grounded, hạn chế ảo giác), xuất đúng shape s1 {stem, options{A-D}, answer} kèm nhãn độ khó (Dễ/TB/Khó) và truy vết seed, qua cổng QC, để bàn giao cho pipeline ghép đề của đối tác.",
+      "acceptance_criteria": [
+        "load_r1_seeds đọc bank_raw.json của đối tác trích đúng câu R1 (khóa s1) làm seed.",
+        "build_r1_variants sinh biến thể MỚI cùng điểm ngữ pháp, KHÁC nguyên văn seed (bản quyền), đúng shape s1 (stem, options A-D, answer thuộc options).",
+        "Mỗi item gắn nhãn độ khó Dễ/TB/Khó + truy vết nguồn seed (nguon_seed).",
+        "qc_r1 bắt lỗi item hỏng (thiếu phương án, đáp án không thuộc options, phương án trùng/rỗng, trùng nguyên văn seed).",
+        "export_bundle + review_sheet xuất gói bàn giao JSON (shape s1 + metadata) + bảng GV soát/ký."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_001_r1_variants_boss_format"
+      ],
+      "notes": "Slice P1-R1 của kế hoạch mở rộng ngân hàng (docs/ke_hoach_mo_rong_bank_b1.md, S52). Nhà máy sinh câu: seed = câu R1 thật trong bank_raw.json đối tác, output = shape s1 của đối tác + độ khó + review sheet cho GV ký. Test = mock tất định (không gọi mạng); chất lượng THẬT do Gemini 2.5-flash + GV duyệt. CHƯA chốt D2 (cách đối tác nhận .docx/JSON) — bàn giao hiện là JSON shape s1 + bảng GV."
     }
   ]
 }
