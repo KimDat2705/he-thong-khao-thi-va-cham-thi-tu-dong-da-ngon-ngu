@@ -76,3 +76,17 @@ class EnrichResult(BaseModel):
     success: bool
     generated_count: int
 
+class EnrichAsyncResult(BaseModel):
+    """Trả về ngay khi nhận yêu cầu sinh câu hỏi bất đồng bộ (SPEC-BANK-006)."""
+    job_id: str
+    status: str
+
+class EnrichJobStatus(BaseModel):
+    """Trạng thái tiến độ của một job sinh câu hỏi bất đồng bộ (SPEC-BANK-006)."""
+    job_id: str
+    status: str  # pending | running | completed | error
+    part: str
+    requested: int
+    generated_count: int
+    error: Optional[str] = None
+

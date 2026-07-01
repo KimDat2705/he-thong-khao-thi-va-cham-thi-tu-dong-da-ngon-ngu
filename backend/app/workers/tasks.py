@@ -15,6 +15,17 @@ def compare_fill_answer(candidate: str, reference: str) -> bool:
     return cand_norm in ref_parts
 
 
+@celery_app.task(name="app.workers.tasks.enrich_bank_task", bind=True)
+def enrich_bank_task(self, job_id: str, part: str, count: int, topic=None, difficulty=None):
+    """Background task (SPEC-BANK-006): sinh câu hỏi B1 cho một job bất đồng bộ.
+
+    Ủy thác cho enrich_jobs.run_enrich_job (mở session riêng + ghi tiến độ vào job
+    store) để cùng một đường chạy cho worker Celery lẫn thread dự phòng.
+    """
+    from app.services.enrich_jobs import run_enrich_job
+    run_enrich_job(job_id, part, count, topic, difficulty)
+
+
 @celery_app.task(name="app.workers.tasks.grade_submission_task", bind=True, max_retries=3)
 def grade_submission_task(self, submission_id: int):
     """

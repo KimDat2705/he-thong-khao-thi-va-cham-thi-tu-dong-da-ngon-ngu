@@ -706,15 +706,18 @@
       "title": "Sinh câu hỏi AI bất đồng bộ qua Celery/Redis",
       "statement": "Hệ thống hỗ trợ gửi yêu cầu AI sinh câu hỏi dạng bất đồng bộ qua Celery worker, lập tức phản hồi task_id và trạng thái pending cho client để tránh timeout HTTP và cho phép sinh số lượng lớn câu hỏi (> 5 câu).",
       "acceptance_criteria": [
-        "POST /api/v1/bank/enrich-async tiếp nhận tham số count, part, topic, difficulty và lập tức trả về task_id cùng trạng thái pending (< 1 giây).",
-        "Đẩy công việc sinh câu hỏi (gọi Gemini, sinh audio, Imagen vẽ tranh) vào Celery worker thực thi ngầm ở background.",
+        "POST /api/v1/bank/enrich-async tiếp nhận tham số count, part, topic, difficulty và lập tức trả về job_id cùng trạng thái (< 1 giây, không chặn request).",
+        "Đẩy công việc sinh câu hỏi (gọi Gemini, sinh audio, Imagen vẽ tranh) chạy ngầm ở background — qua Celery worker khi có broker, hoặc background thread nội tiến trình khi triển khai không có Redis/worker (Render free).",
         "Cung cấp GET /api/v1/bank/tasks/{task_id} để client kiểm tra tiến độ sinh câu hỏi.",
         "Hỗ trợ sinh hàng loạt với số lượng lên tới 50 câu/lần mà không bị timeout."
       ],
-      "verification": "manual",
-      "status": "planned",
-      "tests": [],
-      "notes": "Đã lên kế hoạch kiến trúc để giải quyết triệt để timeout khi sinh khối lượng lớn câu hỏi."
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_bank.py::test_SPEC_BANK_006_async_question_enrichment_api",
+        "tests/test_specs_bank.py::test_SPEC_BANK_006_async_enrich_thread_fallback"
+      ],
+      "notes": "POST /api/v1/bank/enrich-async nhận lô tới 50 câu, tạo job_id và chạy nền (Celery worker khi có broker; background thread khi Render free không Redis — cả eager env); GET /api/v1/bank/tasks/{job_id} trả tiến độ. Job store in-memory (giới hạn MVP 1 tiến trình — xem mvp-scaling-decision). Phạm vi test pytest: hợp đồng HTTP + phân quyền + giới hạn 50 + đường job (mock generator, cả nhánh inline lẫn thread-fallback tất định). KHÔNG auto-test: độ trễ <1s (bảo đảm bởi thiết kế — mọi nhánh dispatch trả ngay) và sinh Gemini/TTS/ảnh THẬT (mock trong test như toàn bộ suite)."
     },
     {
       "id": "SPEC-BANK-007",

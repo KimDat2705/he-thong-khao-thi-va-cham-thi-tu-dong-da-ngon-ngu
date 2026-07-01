@@ -9,7 +9,8 @@ import {
   listBankQuestions,
   approveBankQuestions,
   getBankStats,
-  enrichBankQuestions,
+  enrichBankQuestionsAsync,
+  getEnrichTask,
   getToken,
   clearToken,
   audioSrc,
@@ -49,6 +50,7 @@ export default function BankAdminPage() {
   const [enrichCount, setEnrichCount] = useState<number>(1);
   const [enrichDifficulty, setEnrichDifficulty] = useState<string>("");
   const [enriching, setEnriching] = useState<boolean>(false);
+  const [enrichProgress, setEnrichProgress] = useState<string>("");
 
   // Guard authentication
   useEffect(() => {
@@ -155,19 +157,46 @@ export default function BankAdminPage() {
     }
   }
 
-  // AI Enrichment handler
+  // AI Enrichment handler (SPEC-BANK-006): gửi job bất đồng bộ rồi poll tiến độ —
+  // cho phép sinh lô lớn (tới 50 câu) mà không bị timeout HTTP.
   async function handleEnrich() {
     setEnriching(true);
     setError(null);
     setSuccess(null);
+    setEnrichProgress("Đang gửi yêu cầu tới AI...");
     try {
-      const res = await enrichBankQuestions({
+      const { job_id } = await enrichBankQuestionsAsync({
         count: enrichCount,
         part: enrichPart,
         topic: enrichTopic === "" ? undefined : enrichTopic,
         difficulty: enrichDifficulty === "" ? undefined : enrichDifficulty,
       });
-      setSuccess(`AI đã sinh thành công ${res.generated_count} câu hỏi/nhóm câu hỏi VSTEP B1 dạng Nháp.`);
+
+      // Poll cho tới khi job xong (hoặc lỗi / quá thời gian chờ). Job vẫn chạy nền
+      // phía server nếu client bỏ đi — câu nháp sẽ xuất hiện khi hoàn tất.
+      const maxAttempts = 120; // 120 * 2.5s = 5 phút
+      let generated = 0;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        const task = await getEnrichTask(job_id);
+        if (task.status === "completed") {
+          generated = task.generated_count;
+          break;
+        }
+        if (task.status === "error") {
+          throw new Error(task.error || "AI sinh câu hỏi thất bại.");
+        }
+        setEnrichProgress(
+          `AI đang xử lý nền... (${task.status}, đã sinh ${task.generated_count}/${task.requested})`,
+        );
+        if (attempt === maxAttempts - 1) {
+          throw new Error(
+            "Quá thời gian chờ. Job vẫn đang chạy nền — kiểm tra lại danh sách Nháp sau ít phút.",
+          );
+        }
+      }
+
+      setSuccess(`AI đã sinh thành công ${generated} câu hỏi/nhóm câu hỏi VSTEP B1 dạng Nháp.`);
       setExamType("VSTEP_B1");
       setStatus("draft");
       setPage(1);
@@ -182,6 +211,7 @@ export default function BankAdminPage() {
       }
     } finally {
       setEnriching(false);
+      setEnrichProgress("");
     }
   }
 
@@ -316,13 +346,13 @@ export default function BankAdminPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase">Số lượng sinh (Tối đa 5)</label>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Số lượng sinh (Tối đa 50)</label>
             <input
               type="number"
               min={1}
-              max={5}
+              max={50}
               value={enrichCount}
-              onChange={(e) => setEnrichCount(Math.min(5, Math.max(1, Number(e.target.value))))}
+              onChange={(e) => setEnrichCount(Math.min(50, Math.max(1, Number(e.target.value))))}
               disabled={enriching}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
             />
@@ -365,7 +395,7 @@ export default function BankAdminPage() {
         </div>
         {enriching && (
           <p className="text-[11px] text-blue-600 mt-2 italic animate-pulse">
-            * AI đang làm việc (sinh văn bản, tạo ảnh Imagen & đọc phát âm TTS nếu là phần nghe). Quá trình này có thể tốn từ 10-30 giây tùy tốc độ mạng của API Gemini...
+            {enrichProgress || "* AI đang xử lý nền..."} Sinh lô lớn (tới 50 câu, kèm ảnh Imagen & phát âm TTS cho phần nghe) có thể mất vài phút; câu nháp sẽ xuất hiện khi hoàn tất.
           </p>
         )}
       </div>

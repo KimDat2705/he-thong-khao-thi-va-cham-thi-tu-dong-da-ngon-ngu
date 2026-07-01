@@ -320,6 +320,44 @@ export async function enrichBankQuestions(payload: {
   );
 }
 
+export interface EnrichJobStatus {
+  job_id: string;
+  status: string; // pending | running | completed | error
+  part: string;
+  requested: number;
+  generated_count: number;
+  error?: string | null;
+}
+
+// SPEC-BANK-006: submit an async enrichment job (up to 50) — returns immediately
+// with a job_id to poll via getEnrichTask().
+export async function enrichBankQuestionsAsync(payload: {
+  count: number;
+  part: string;
+  topic?: string;
+  difficulty?: string;
+}): Promise<{ job_id: string; status: string }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/bank/enrich-async`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export async function getEnrichTask(jobId: string): Promise<EnrichJobStatus> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/bank/tasks/${encodeURIComponent(jobId)}`, {
+      method: "GET",
+      headers: { ...authHeaders() },
+    }),
+  );
+}
+
 export interface SubmissionResult {
   submission_id: number;
   status: string;

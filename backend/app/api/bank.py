@@ -6,8 +6,8 @@ import logging
 from app.core.database import get_db
 from app.core.deps import require_role
 from app.models.user import User
-from app.schemas.bank import QuestionRead, QuestionUpdate, ApproveRequest, ApproveResult, BankStats, QuestionListResponse, EnrichRequest, EnrichResult
-from app.services import bank_admin
+from app.schemas.bank import QuestionRead, QuestionUpdate, ApproveRequest, ApproveResult, BankStats, QuestionListResponse, EnrichRequest, EnrichResult, EnrichAsyncResult, EnrichJobStatus
+from app.services import bank_admin, enrich_jobs
 
 router = APIRouter(prefix="/api/v1/bank", tags=["Bank Admin"])
 
@@ -75,51 +75,62 @@ def enrich_questions(
     current_user: User = Depends(require_role("admin", "teacher"))
 ):
     """
-    AI sinh câu hỏi nháp VSTEP B1 lưu vào ngân hàng câu hỏi.
+    AI sinh câu hỏi nháp VSTEP B1 (đồng bộ) lưu vào ngân hàng câu hỏi.
+    Giới hạn 5 câu/lần để tránh timeout HTTP — dùng /enrich-async cho lô lớn.
     """
+    if payload.count > 5:
+        raise HTTPException(status_code=400, detail="Mỗi lần sinh bằng AI trên Web tối đa là 5 câu để tránh timeout mạng.")
+    if payload.part not in enrich_jobs.VALID_PARTS:
+        raise HTTPException(status_code=400, detail="Vui lòng chọn cụ thể từng Part (1-11) để sinh trên giao diện.")
+
     from app.services.b1_question_gen import B1QuestionGenerator
-    generator = B1QuestionGenerator()
     try:
-        generated_count = 0
-        part = payload.part
-        count = payload.count
-        topic = payload.topic
-        difficulty = payload.difficulty
-
-        if count > 5:
-            raise HTTPException(status_code=400, detail="Mỗi lần sinh bằng AI trên Web tối đa là 5 câu để tránh timeout mạng.")
-
-        if part == "1":
-            generated_count = generator.generate_r1_questions(db, count, topic, req_difficulty=difficulty)
-        elif part == "2":
-            generated_count = generator.generate_r2_questions(db, count, topic, req_difficulty=difficulty)
-        elif part == "3":
-            generated_count = generator.generate_r3_groups(db, count, topic, req_difficulty=difficulty)
-        elif part == "4":
-            generated_count = generator.generate_r4_groups(db, count, topic, req_difficulty=difficulty)
-        elif part == "5":
-            generated_count = generator.generate_writing_questions(db, count, 5, topic, req_difficulty=difficulty)
-        elif part == "6":
-            generated_count = generator.generate_writing_questions(db, count, 6, topic, req_difficulty=difficulty)
-        elif part == "7":
-            generated_count = generator.generate_l1_questions(db, count, topic, req_difficulty=difficulty)
-        elif part == "8":
-            generated_count = generator.generate_l2_groups(db, count, topic, req_difficulty=difficulty)
-        elif part == "9":
-            generated_count = generator.generate_speaking_questions(db, count, 9, topic, req_difficulty=difficulty)
-        elif part == "10":
-            generated_count = generator.generate_speaking_questions(db, count, 10, topic, req_difficulty=difficulty)
-        elif part == "11":
-            generated_count = generator.generate_speaking_questions(db, count, 11, topic, req_difficulty=difficulty)
-        else:
-            raise HTTPException(status_code=400, detail="Vui lòng chọn cụ thể từng Part (1-11) để sinh trên giao diện.")
-
+        generator = B1QuestionGenerator()
+        generated_count = enrich_jobs.run_generator(
+            generator, db, payload.part, payload.count, payload.topic, payload.difficulty
+        )
         return EnrichResult(success=True, generated_count=generated_count)
+    except HTTPException:
+        raise
     except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error(f"AI Generation failed: {e}")
-        # Nếu exception là HTTPException thì ném lại
-        if isinstance(e, HTTPException):
-            raise e
+        logging.getLogger(__name__).error(f"AI Generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"AI Generation failed: {str(e)}")
+
+
+@router.post("/enrich-async", response_model=EnrichAsyncResult)
+def enrich_questions_async(
+    payload: EnrichRequest,
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
+    """
+    SPEC-BANK-006: AI sinh câu hỏi B1 BẤT ĐỒNG BỘ — chấp nhận lô lớn (tới 50 câu),
+    đẩy công việc chạy nền và trả về ngay job_id để client theo dõi tiến độ qua
+    GET /api/v1/bank/tasks/{job_id}, tránh timeout HTTP.
+    """
+    if payload.part not in enrich_jobs.VALID_PARTS:
+        raise HTTPException(status_code=400, detail="Vui lòng chọn cụ thể từng Part (1-11) để sinh trên giao diện.")
+    if payload.count < 1 or payload.count > enrich_jobs.MAX_ASYNC_COUNT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Số lượng sinh bất đồng bộ phải từ 1 đến {enrich_jobs.MAX_ASYNC_COUNT} câu/lần."
+        )
+
+    job_id = enrich_jobs.create_job(payload.part, payload.count)
+    enrich_jobs.dispatch_enrich_job(job_id, payload.part, payload.count, payload.topic, payload.difficulty)
+    job = enrich_jobs.get_job(job_id)
+    return EnrichAsyncResult(job_id=job_id, status=job["status"] if job else "pending")
+
+
+@router.get("/tasks/{task_id}", response_model=EnrichJobStatus)
+def get_enrich_task(
+    task_id: str,
+    current_user: User = Depends(require_role("admin", "teacher"))
+):
+    """
+    SPEC-BANK-006: kiểm tra tiến độ một job sinh câu hỏi bất đồng bộ.
+    """
+    job = enrich_jobs.get_job(task_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ sinh câu hỏi (job_id không tồn tại hoặc đã hết hạn).")
+    return EnrichJobStatus(**job)
 

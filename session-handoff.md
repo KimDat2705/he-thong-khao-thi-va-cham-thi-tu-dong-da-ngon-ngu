@@ -1,3 +1,12 @@
+# Session Handoff — CHỐT PHIÊN 01/07/2026 (S51: đồng bộ Dat + SPEC-BANK-006 async enrich)
+
+> **🆕 S51 (Claude, 01/07) — đồng bộ `origin/Dat` + SPEC-BANK-006 SINH CÂU BẤT ĐỒNG BỘ (đọc TRƯỚC):**
+> - **Housekeeping**: FF-push `main`→`origin/Dat` (`4c8c9f5`→`26c9bf3`) → `main`=`origin/main`=`origin/Dat`=`26c9bf3` một head (Dat từng tụt sau vì S50 commit thẳng main).
+> - **BANK-006 XONG (local, CHƯA commit/deploy — chờ Đạt):** endpoint sinh câu AI bất đồng bộ vượt giới hạn 5 câu/lần. **POST `/api/v1/bank/enrich-async`** (nhận ≤50 câu, trả `job_id` + status ngay, không chặn) + **GET `/api/v1/bank/tasks/{job_id}`** (poll tiến độ). Executor 3 nhánh: worker Celery khi có broker · **background thread** khi Render free không Redis (kể cả eager) → POST trả nhanh + lô 50 không timeout · `RUN_JOBS_INLINE` cho test tất định. Job store **in-memory** (model đóng băng → không thêm bảng; Render free 1 process nên POST-thread & GET chung store; giới hạn MVP multi-process ghi rõ [[mvp-scaling-decision]]). Sync `/enrich` (BANK-005) refactor tái dùng `run_generator`, **giữ nguyên hành vi**.
+> - **Nghiệm thu (workflow adversarial 3-chiều × verify)**: correctness 7/7 REFUTED; vá 3 finding CONFIRMED (thêm test nhánh-thread + assert topic + sửa AC2 trung thực "Celery HOẶC thread"). **pytest 61/0** (+2 test BANK-006), traceability 4/4, ruff/arch sạch. Spec **41 — 39 active/2 planned** (BANK-006 flip active; còn SCALE-003 + BANK-007). 6 file: `services/enrich_jobs.py`(mới) · `workers/tasks.py` · `api/bank.py` · `schemas/bank.py` · `specs/specs.json` · `tests/test_specs_bank.py`. `feature_list` +S51.
+> - **VIỆC ĐANG CHỜ**: (1) **quyết định của Đạt**: commit + deploy (push `main` → Render/Vercel; async endpoint mới phải deploy CÙNG frontend nếu wiring FE); (2) **frontend polling UI** (panel `/admin/bank` hiện gọi `/enrich` đồng bộ ≤5 — wiring async: submit→poll `/tasks`→reload + nâng max 50) — follow-up để cô sinh lô lớn qua web; (3) BANK-007 (hybrid seed+paraphrase, planned) · SCALE-003 (hoãn). KHÔNG còn việc TOEIC. CN/HSK hoãn.
+> - ⚠️ **Lưu ý deploy async trên Render free**: chạy qua **thread nội tiến trình** (không worker Celery thật). Đủ cho MVP nhưng job KHÔNG sống qua restart + chỉ đúng khi 1 uvicorn process (đang là vậy). Muốn async "thật" bền = Redis + `celery worker` (paid) — hoãn cùng SCALE-003.
+
 # Session Handoff — CHỐT PHIÊN 30/06/2026 (Dọn dẹp TOEIC & Chuẩn hóa VSTEP B1)
 
 > **🆕 S50 (Claude, 01/07) — AUDIT phiên Anti S46-49 + XÓA HẲN TOEIC + deploy LIVE (đọc TRƯỚC):**

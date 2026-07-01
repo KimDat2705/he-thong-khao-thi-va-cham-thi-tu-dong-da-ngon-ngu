@@ -308,3 +308,195 @@ def test_SPEC_BANK_005_question_enrichment_api(db_session: Session, admin_auth_h
 
     finally:
         fastapi_app.dependency_overrides.clear()
+
+
+def test_SPEC_BANK_006_async_question_enrichment_api(db_session: Session, admin_auth_headers: dict, monkeypatch):
+    """SPEC-BANK-006: API sinh câu hỏi AI BẤT ĐỒNG BỘ.
+
+    Xác minh:
+    - POST /enrich-async CHẤP NHẬN lô lớn (count=8 > 5) — đường đồng bộ /enrich sẽ
+      trả 400 với cùng count — và phản hồi ngay job_id + trạng thái.
+    - GET /tasks/{job_id} trả tiến độ; job hoàn tất, generated_count KHỚP số câu
+      nháp thực sự ghi vào DB (không tautology).
+    - Chặn count > 50, part không hợp lệ, job_id lạ (404), và phân quyền
+      admin/teacher (candidate 403, chưa đăng nhập 401) trên cả POST lẫn GET.
+
+    Cô lập, tất định: chạy job INLINE (RUN_JOBS_INLINE) + trỏ SessionLocal của job
+    runner về engine test + ép generator về mock mode (GEMINI_API_KEY=None) để không
+    gọi mạng và không phụ thuộc thời điểm của thread.
+    """
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.core.config import settings
+    import app.services.enrich_jobs as enrich_jobs
+
+    # Job runner mở session riêng -> trỏ về engine test để test thấy câu nháp.
+    test_engine = db_session.get_bind()
+    WorkerSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(enrich_jobs, "SessionLocal", WorkerSession)
+    # Chạy job đồng bộ trong tiến trình test (không thread, không broker) -> tất định.
+    monkeypatch.setattr(enrich_jobs, "RUN_JOBS_INLINE", True)
+    # Ép generator về mock mode (không gọi Gemini/mạng, không tốn quota).
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+
+    candidate_token = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+    candidate_headers = {"Authorization": f"Bearer {candidate_token}"}
+
+    try:
+        # 1. Lô lớn count=8 (> giới hạn đồng bộ 5) -> CHẤP NHẬN, trả job_id.
+        resp = client.post(
+            "/api/v1/bank/enrich-async",
+            json={"count": 8, "part": "1", "topic": "Giáo dục", "difficulty": "medium"},
+            headers=admin_auth_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        job_id = body["job_id"]
+        assert job_id
+        assert body["status"] in {"pending", "running", "completed"}
+
+        # Đối chứng: cùng count=8 trên đường ĐỒNG BỘ bị chặn 400 (khác biệt cốt lõi).
+        resp_sync = client.post(
+            "/api/v1/bank/enrich",
+            json={"count": 8, "part": "1"},
+            headers=admin_auth_headers,
+        )
+        assert resp_sync.status_code == 400
+        assert "tối đa là 5" in resp_sync.json()["detail"]
+
+        # 2. Poll tiến độ -> hoàn tất; generated_count khớp số câu nháp thật trong DB.
+        st = client.get(f"/api/v1/bank/tasks/{job_id}", headers=admin_auth_headers)
+        assert st.status_code == 200, st.text
+        status = st.json()
+        assert status["job_id"] == job_id
+        assert status["status"] == "completed"
+        assert status["requested"] == 8
+        gen = status["generated_count"]
+        assert gen >= 1
+
+        db_session.expire_all()
+        draft_count = db_session.query(Question).filter(
+            Question.exam_id.is_(None),
+            Question.part == 1,
+            Question.status == "draft",
+            Question.topic == "Giáo dục",
+        ).count()
+        assert draft_count == gen, f"generated_count={gen} nhưng DB có {draft_count} câu nháp"
+
+        # Generator phải gán ĐÚNG topic yêu cầu (không chỉ suy ra từ bộ lọc).
+        sample = db_session.query(Question).filter(
+            Question.exam_id.is_(None),
+            Question.part == 1,
+            Question.status == "draft",
+            Question.topic == "Giáo dục",
+        ).first()
+        assert sample is not None and sample.topic == "Giáo dục"
+
+        # 3. count > 50 -> 400.
+        r_over = client.post(
+            "/api/v1/bank/enrich-async",
+            json={"count": 51, "part": "1"},
+            headers=admin_auth_headers,
+        )
+        assert r_over.status_code == 400
+        assert "50" in r_over.json()["detail"]
+
+        # 4. Part không hợp lệ -> 400.
+        r_part = client.post(
+            "/api/v1/bank/enrich-async",
+            json={"count": 1, "part": "invalid_part"},
+            headers=admin_auth_headers,
+        )
+        assert r_part.status_code == 400
+        assert "chọn cụ thể" in r_part.json()["detail"]
+
+        # 5. job_id lạ -> 404.
+        r_404 = client.get("/api/v1/bank/tasks/khong-ton-tai", headers=admin_auth_headers)
+        assert r_404.status_code == 404
+
+        # 6. Candidate bị chặn 403 (POST + GET).
+        r_c_post = client.post(
+            "/api/v1/bank/enrich-async",
+            json={"count": 1, "part": "1"},
+            headers=candidate_headers,
+        )
+        assert r_c_post.status_code == 403
+        r_c_get = client.get(f"/api/v1/bank/tasks/{job_id}", headers=candidate_headers)
+        assert r_c_get.status_code == 403
+
+        # 7. Chưa đăng nhập bị chặn 401.
+        r_anon = client.post("/api/v1/bank/enrich-async", json={"count": 1, "part": "1"})
+        assert r_anon.status_code == 401
+
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
+def test_SPEC_BANK_006_async_enrich_thread_fallback(db_session: Session, monkeypatch):
+    """SPEC-BANK-006 — đường DỰ PHÒNG THREAD (Render free: không Redis/worker).
+
+    Khi Celery không eager và .delay() thất bại (broker không tới được),
+    dispatch_enrich_job PHẢI chạy job qua background thread. Test này kiểm chính
+    nhánh đó — điều mà test chính (RUN_JOBS_INLINE) bỏ qua. Dùng Thread giả chạy
+    đồng bộ để nhánh được thực thi tất định (không phụ thuộc lịch OS)."""
+    from sqlalchemy.orm import sessionmaker
+
+    from app.core.config import settings
+    from app.core.celery import celery_app
+    import app.services.enrich_jobs as enrich_jobs
+    import app.workers.tasks as tasks_module
+
+    test_engine = db_session.get_bind()
+    WorkerSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(enrich_jobs, "SessionLocal", WorkerSession)
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)  # generator -> mock mode
+    # KHÔNG inline, KHÔNG eager -> ép dispatch đi vào nhánh .delay() rồi fallback.
+    monkeypatch.setattr(enrich_jobs, "RUN_JOBS_INLINE", False)
+    monkeypatch.setattr(celery_app.conf, "task_always_eager", False)
+
+    # Broker không tới được -> .delay() raise (đúng như Render free).
+    def _boom(*args, **kwargs):
+        raise RuntimeError("broker unreachable")
+    monkeypatch.setattr(tasks_module.enrich_bank_task, "delay", _boom)
+
+    # Thread giả: chạy target đồng bộ ngay khi .start() để tất định (main thread).
+    started = {"count": 0}
+
+    class _SyncThread:
+        def __init__(self, target=None, args=(), daemon=None):
+            self._target = target
+            self._args = args
+
+        def start(self):
+            started["count"] += 1
+            self._target(*self._args)
+
+    monkeypatch.setattr(enrich_jobs.threading, "Thread", _SyncThread)
+
+    job_id = enrich_jobs.create_job("1", 3)
+    enrich_jobs.dispatch_enrich_job(job_id, "1", 3, "Giáo dục", "medium")
+
+    # Đã fallback sang thread (không phải eager/inline/worker).
+    assert started["count"] == 1, "dispatch phải fallback sang background thread khi broker chết"
+
+    job = enrich_jobs.get_job(job_id)
+    assert job is not None
+    assert job["status"] == "completed"
+    gen = job["generated_count"]
+    assert gen >= 1
+
+    db_session.expire_all()
+    draft_count = db_session.query(Question).filter(
+        Question.exam_id.is_(None),
+        Question.part == 1,
+        Question.status == "draft",
+        Question.topic == "Giáo dục",
+    ).count()
+    assert draft_count == gen
