@@ -169,3 +169,16 @@
 ### Mục tiêu tiếp theo
 - Triển khai luồng chấm thi tự động chi tiết hơn cho Writing và Speaking bằng Celery worker ngầm.
 - Phối hợp kiểm thử thực tế đầu-cuối trực tiếp trên giao diện Admin và Candidate.
+
+
+## Session Handoff -- 2026-07-01 (Session 49 - Kết thúc loạt phiên)
+
+### Trạng thái hiện tại
+1.  **Hệ thống VSTEP B1**: Hoạt động hoàn toàn ổn định. Giao diện quản trị viên cho phép sinh câu hỏi bằng AI theo từng Part, chủ đề và độ khó chỉ định thông qua Gemini 3.5 Flash.
+2.  **Độ ổn định CI**: Đã xanh 100%. Không còn bất kỳ lỗi lint hoặc kiểm thử tự động nào.
+3.  **Tệp Harness**: Các tệp `specs/specs.json`, `feature_list.json`, `claude-progress.md` và `session-handoff.md` đã được đồng bộ chuẩn xác và sạch sẽ.
+
+### Các hành động tiếp theo
+- Giáo viên có thể tiến hành tạo đề mẫu và kiểm thử sinh câu hỏi ngẫu nhiên ngay trên giao diện cloud.
+- Phát triển phân hệ sinh đề bất đồng bộ qua Celery/Redis theo đặc tả `SPEC-BANK-006` khi hệ thống cần sinh số lượng câu hỏi cực lớn (> 5 câu/lần) để tránh timeout gateway.
+- Cấu hình và bổ sung các nguồn đề thi chuẩn (Seed questions) để chạy cơ chế AI Paraphrase theo đặc tả `SPEC-BANK-007`.

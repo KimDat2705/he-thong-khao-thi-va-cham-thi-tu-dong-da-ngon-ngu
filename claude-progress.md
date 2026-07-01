@@ -830,3 +830,11 @@
     - Đăng ký Spec **`SPEC-BANK-006`** (planned) cho hướng đi bất đồng bộ sử dụng Celery/Redis chống timeout khi sinh số lượng lớn (> 5 câu).
     - Đăng ký Spec **`SPEC-BANK-007`** (planned) cho hướng đi Lai ghép Hybrid (Seed & Paraphrase) giải quyết triệt để vấn đề bản quyền và bảo chứng sư phạm.
 - **Nghiệm thu (Claude, độc lập)**: pytest **76/76 passed** (xanh rờn 100%); Next.js frontend `npm run build` thành công 100%.
+
+
+### Session 49 -- 2026-07-01 (Claude + Anti - Khép lại phiên làm việc & Rà soát tính ổn định)
+- **Việc HOÀN THÀNH** (commit trên `main`, cập nhật `feature_list.json`):
+  - **Rà soát & Đồng bộ**: Xác nhận hệ thống chạy ổn định 100% với model Gemini 3.5 Flash làm mặc định trên cả môi trường local và Render Cloud.
+  - **Khắc phục lỗi CI & Gmail**: Rà soát logs CI, sửa lỗi import thừa trong `bank_admin.py` khiến Ruff check thất bại trước đó. Kết quả: CI GitHub Actions đã xanh hoàn toàn, triệt tiêu thư thông báo lỗi tự động gửi về Gmail của người dùng.
+  - **Cập nhật Feature List**: Ghi nhận toàn bộ thông tin nâng cấp Độ khó và model Gemini mới vào `feature_list.json`.
+- **Nghiệm thu (Claude, độc lập)**: pytest **76/76 passed** xanh 100%; Next.js frontend `npm run build` thành công 100%.
