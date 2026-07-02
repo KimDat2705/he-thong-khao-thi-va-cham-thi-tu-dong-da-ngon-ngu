@@ -12,6 +12,7 @@ dùng `generator._call_gemini` khi có key; mock TẤT ĐỊNH khi không → te
 """
 import json
 import logging
+import re
 import unicodedata
 from typing import Optional
 
@@ -429,5 +430,232 @@ def speak_review_sheet(items: list) -> str:
         new_topic = (c.get("part2_topic") or "").replace("|", "/")[:60]
         rows.append(
             f"| {i} | {it['nguon_seed']} | {it['domain']} | {seed_topic} | {new_topic} | {it['do_kho']} | {qc} |  |"
+        )
+    return "\n".join(rows)
+
+
+# ======================================================================
+# SLICE R4 (Cloze điền-từ-hộp-từ, Đọc phần 4) — SPEC-FACTORY-003
+# ----------------------------------------------------------------------
+# Mở rộng ngân hàng cloze R4 của đối tác (khóa `s4` trong bank_raw.json). Cấu trúc THẬT:
+#   s4_raw = list block {kind:"p"|"tbl", text}: 2 block "p" (tiêu đề + hướng dẫn) → 1 block
+#   "tbl" = HỘP TỪ (các từ cách nhau space) → các block "p" = passage với chỗ trống "(21)…".
+#   s4_answers == key_cloze = dict {"21":"fact", ..., "30":"must"} (10 chỗ, khóa 21-30).
+# Đáp án đối tác có thể VIẾT HOA (vd "Both") trong khi hộp từ viết thường ("both") → cổng
+# kiểm-hộp-từ (kiem_hop_tu) so KHÔNG phân biệt hoa/thường. Song song pattern R1/Nói ở trên.
+
+R4_HEADER = "Section 4 Questions 21-30 (10 points)"
+R4_INSTRUCTION = "Read the text below and fill each of the blanks with ONE suitable word from the box."
+R4_BLANK_KEYS = [str(n) for n in range(21, 31)]   # 10 chỗ trống, đánh số 21..30
+# "(21)" THEO SAU bởi ô trống (___ / … / ...) → chỉ tính chỗ trống thật, bỏ qua số trong ngoặc
+# như năm "(1980)" (tránh báo thừa-blank oan).
+_BLANK_RE = re.compile(r"\(\s*(\d+)\s*\)\s*(?:_{2,}|…+|\.{3,})")
+
+
+def _norm_word(w) -> str:
+    """Chuẩn hoá 1 từ để so khớp hộp từ (không phân biệt hoa/thường + gọn khoảng trắng)."""
+    return " ".join(str(w or "").strip().lower().split())
+
+
+def load_r4_seeds(bank: list) -> list:
+    """Trích cloze R4 (khóa `s4`) từ bank_raw.json của đối tác: hộp từ + passage + đáp án."""
+    seeds = []
+    for rec in bank:
+        ma_de = rec.get("ma_de") or rec.get("file") or "?"
+        s4_raw = rec.get("s4_raw")
+        answers = rec.get("s4_answers") or rec.get("key_cloze") or {}
+        if not isinstance(s4_raw, list) or not answers:
+            continue
+        tbl_idx = next((i for i, b in enumerate(s4_raw)
+                        if isinstance(b, dict) and b.get("kind") == "tbl"), None)
+        if tbl_idx is None:
+            continue
+        box = str(s4_raw[tbl_idx].get("text") or "").split()   # hộp từ = block tbl
+        passage_blocks = [str(b.get("text")).strip() for b in s4_raw[tbl_idx + 1:]
+                          if isinstance(b, dict) and b.get("kind") == "p"
+                          and str(b.get("text") or "").strip()]
+        passage = "\n".join(passage_blocks)                    # tiêu đề + passage
+        if box and passage and answers:
+            seeds.append({
+                "ma_de": ma_de, "box": box, "passage": passage,
+                "answers": {str(k): v for k, v in answers.items()},
+            })
+    return seeds
+
+
+def _mock_r4_variant(seed: dict, idx: int) -> dict:
+    """Biến thể MOCK tất định (không gọi mạng) — stand-in cho test (song song _mock_variant R1).
+
+    Dùng lại hộp từ + đáp án của seed (đảm bảo đáp án ∈ hộp từ), sinh passage MỚI có đủ 10 chỗ
+    trống (21)..(30), khác nguyên văn seed. Chất lượng thật do Gemini lo."""
+    diff = ["easy", "medium", "hard"][idx % 3]
+    box = list(seed.get("box") or [])
+    seed_ans = {str(k): v for k, v in (seed.get("answers") or {}).items()}
+    answers = {n: seed_ans[n] for n in R4_BLANK_KEYS if n in seed_ans}
+    # bù đủ 10 chỗ bằng từ trong hộp (hiếm khi seed thiếu) — giữ đáp án ∈ hộp
+    used = {_norm_word(v) for v in answers.values()}
+    spare = [w for w in box if _norm_word(w) not in used]
+    for n in R4_BLANK_KEYS:
+        if n not in answers and spare:
+            answers[n] = spare.pop(0)
+    for v in answers.values():   # đảm bảo hộp chứa mọi đáp án
+        if _norm_word(v) not in {_norm_word(w) for w in box}:
+            box.append(v)
+    tag = seed.get("ma_de") or "seed"
+    # token DUY NHẤT theo (seed, idx, chỗ) trong MỖI câu → 2 seed / 2 idx (kể cả cùng hộp từ) đều
+    # khác set tokens → cổng khử near-dup KHÔNG loại nhầm biến thể mock hợp lệ (bài học slice Nói).
+    sents = [f"Câu {tag}-{idx + 1}-{n} ({n}) ______." for n in R4_BLANK_KEYS]
+    passage = f"Cloze mẫu {tag} phiên {idx + 1}\n" + " ".join(sents)
+    return {"title": f"Cloze mock {tag}/{idx + 1}", "passage": passage, "word_box": box,
+            "answers": answers, "difficulty": diff, "explanation": f"Cloze mock từ {tag}."}
+
+
+def _real_r4_variant(generator, seed: dict, idx: int) -> Optional[dict]:
+    """Sinh cloze R4 THẬT qua Gemini: passage MỚI + hộp từ, đáp án ∈ hộp, không sao chép seed."""
+    system = (
+        "You are a VSTEP B1 (CEFR B1) English item writer. Create ONE NEW gap-fill cloze task "
+        "(Reading Part 4 style): a SHORT original passage (~120-160 words) on a fresh everyday "
+        "topic with EXACTLY 10 numbered blanks written as '(21) ______' through '(30) ______'. "
+        "Provide a WORD BOX of 15 single lowercase words: the 10 correct answers PLUS 5 plausible "
+        "distractors; each answer fills exactly one blank and EVERY answer MUST appear in the box. "
+        "Do NOT copy the seed passage. Return ONLY JSON: {\"title\": str, \"passage\": "
+        "\"...text with (21)..(30) blanks...\", \"word_box\": [15 words], "
+        "\"answers\": {\"21\": word, ..., \"30\": word}, \"difficulty\": \"easy|medium|hard\", "
+        "\"explanation\": str}."
+    )
+    user = (
+        f"SEED cloze (write a NEW one at the SAME B1 level, do NOT copy it):\n"
+        f"Word box: {' '.join(seed['box'])}\n"
+        f"Passage: {seed['passage'][:900]}\n"
+        f"Answers: {json.dumps(seed['answers'], ensure_ascii=False)}\n"
+        f"Generate parallel variant #{idx + 1}."
+    )
+    raw = generator._call_gemini(system, user)
+    data = _loads_lenient(raw)
+    return data if isinstance(data, dict) else None
+
+
+def qc_r4(variant: dict, seed: dict) -> list:
+    """Cổng QC cho cloze R4 (bám cổng kiem_hop_tu của đối tác). Trả danh sách lỗi (rỗng = đạt)."""
+    issues = []
+    passage = str(variant.get("passage") or "").strip()
+    box = variant.get("word_box") or []
+    answers = {str(k): v for k, v in (variant.get("answers") or {}).items()}
+    if not passage:
+        issues.append("passage rỗng")
+    if not isinstance(box, list) or len(box) < 10:
+        issues.append(f"hộp từ phải ≥10 từ (đang {len(box) if isinstance(box, list) else 'N/A'})")
+    if set(answers.keys()) != set(R4_BLANK_KEYS):
+        issues.append(f"đáp án phải đủ 10 chỗ 21-30 (đang {sorted(answers.keys())})")
+    found = _BLANK_RE.findall(passage)   # dùng list (KHÔNG set) để bắt cả lặp/thừa chỗ trống
+    if sorted(found, key=lambda s: int(s)) != R4_BLANK_KEYS:
+        issues.append(f"passage phải đúng 10 chỗ trống 21-30, không thiếu/lặp/thừa (đang {sorted(found, key=lambda s: int(s))})")
+    box_norm = {_norm_word(w) for w in box} if isinstance(box, list) else set()
+    for k, v in answers.items():   # CỔNG kiem_hop_tu: đáp án ∈ hộp từ (không phân biệt hoa/thường)
+        if _norm_word(v) not in box_norm:
+            issues.append(f"đáp án ({k})={v!r} KHÔNG có trong hộp từ")
+    vals = [_norm_word(v) for v in answers.values()]
+    if len(set(vals)) < len(vals):
+        issues.append("có đáp án lặp lại (mỗi từ trong hộp chỉ dùng 1 lần)")
+    if passage and passage == str(seed.get("passage") or "").strip():
+        issues.append("trùng nguyên văn passage seed (bản quyền)")
+    return issues
+
+
+def _assemble_s4_raw(title, passage, word_box: list) -> list:
+    """Dựng lại block list s4_raw đúng cấu trúc đối tác (tiêu đề · hướng dẫn · hộp từ · passage)."""
+    blocks = [
+        {"kind": "p", "text": R4_HEADER},
+        {"kind": "p", "text": R4_INSTRUCTION},
+        {"kind": "tbl", "text": " ".join(str(w) for w in word_box)},
+    ]
+    if title:
+        blocks.append({"kind": "p", "text": str(title)})
+    for para in str(passage).split("\n"):
+        if para.strip():
+            blocks.append({"kind": "p", "text": para.strip()})
+    return blocks
+
+
+def build_r4_variants(seeds: list, per_seed: int = 1, generator=None, dup_threshold: float = 0.85) -> list:
+    """Sinh biến thể cloze R4 cho danh sách seed (song song build_r1_variants).
+
+    Mỗi item ra: `s4_item` = {s4_raw(block list) + s4_answers + key_cloze} đúng shape đối tác +
+    metadata sibling (độ khó/nguồn/QC). Phát hiện+gắn nhãn near-dup passage (KHÔNG im lặng xoá)."""
+    use_mock = generator is None or getattr(generator, "client", None) is None
+    accepted_passages = []
+    out = []
+    for seed in seeds:
+        for i in range(per_seed):
+            try:
+                v = _mock_r4_variant(seed, i) if use_mock else _real_r4_variant(generator, seed, i)
+            except Exception as e:   # sinh lỗi 1 cloze không làm hỏng cả lô
+                logger.warning(f"Sinh cloze R4 lỗi seed {seed['ma_de']}#{i}: {e}")
+                continue
+            if not v:
+                continue
+            diff_en = (v.get("difficulty") or "medium").lower()
+            if diff_en not in DIFF_MAP:
+                diff_en = "medium"
+            passage = str(v.get("passage") or "").strip()
+            box = [str(w) for w in (v.get("word_box") or [])]        # ép str: Gemini có thể trả số → tránh crash join cả lô
+            answers = {str(k): str(val) for k, val in (v.get("answers") or {}).items()}
+            issues = qc_r4({"passage": passage, "word_box": box, "answers": answers}, seed)
+            for prev in accepted_passages:
+                if _jaccard(passage, prev) >= dup_threshold:
+                    issues.append("near-duplicate passage (trùng lặp gần với cloze khác trong lô)")
+                    break
+            accepted_passages.append(passage)
+            out.append({
+                # s4 ĐÚNG shape đối tác — merge được vào bank_raw (s4_raw + s4_answers + key_cloze).
+                "s4_item": {
+                    "s4_raw": _assemble_s4_raw(v.get("title"), passage, box),
+                    "s4_answers": answers,
+                    "key_cloze": answers,
+                },
+                "do_kho": DIFF_MAP[diff_en],
+                "difficulty_en": diff_en,
+                "explanation": v.get("explanation"),
+                "nguon_seed": seed["ma_de"],
+                "seed_passage": seed["passage"],
+                "word_box": box,
+                "answers": answers,
+                "qc_issues": issues,
+                "qc_ok": len(issues) == 0,
+            })
+    return out
+
+
+def export_r4_bundle(items: list) -> dict:
+    """Gói bàn giao (JSON) cho đối tác: cloze shape s4 + metadata truy vết + độ khó."""
+    return {
+        "skill": "reading_s4_cloze",
+        "spec": "SPEC-FACTORY-003",
+        "note": (
+            "Cloze hộp-từ R4 sinh từ bank_raw.json của đối tác (passage MỚI + hộp từ, đáp án ∈ hộp, "
+            "không phân biệt hoa/thường); s4_item = s4_raw(blocks)+s4_answers+key_cloze để merge. "
+            "CẦN GV tiếng Anh duyệt+ký trước khi dùng."
+        ),
+        "count": len(items),
+        "count_qc_ok": sum(1 for it in items if it["qc_ok"]),
+        "items": items,
+    }
+
+
+def r4_review_sheet(items: list) -> str:
+    """Bảng GV soát/ký (Markdown) cho R4: seed | passage mới | hộp từ | đáp án | độ khó | QC | ô ký."""
+    header = (
+        "| # | Nguồn seed | Passage MỚI (rút gọn) | Hộp từ | Đáp án 21-30 | Độ khó | QC | GV duyệt (Đạt/Không + chữ ký) |\n"
+        "|---|---|---|---|---|---|---|---|"
+    )
+    rows = [header]
+    for i, it in enumerate(items, 1):
+        qc = "OK" if it["qc_ok"] else "⚠ " + "; ".join(it["qc_issues"])
+        ptext = " ".join(b["text"] for b in it["s4_item"]["s4_raw"]
+                         if b["kind"] == "p").replace("|", "/")[:70]
+        box = " ".join(str(w) for w in it["word_box"]).replace("|", "/")[:40]
+        ans = "; ".join(f"{k}:{it['answers'][k]}" for k in sorted(it["answers"], key=int)).replace("|", "/")[:60]
+        rows.append(
+            f"| {i} | {it['nguon_seed']} | {ptext} | {box} | {ans} | {it['do_kho']} | {qc} |  |"
         )
     return "\n".join(rows)

@@ -169,3 +169,132 @@ def test_SPEC_FACTORY_002_speak_variants_boss_format():
     sheet = boss_factory.speak_review_sheet(items)
     assert "GV duyệt" in sheet and "Domain" in sheet and "part2_topic" in sheet
     assert sheet.count("\n") >= 4
+
+
+def test_SPEC_FACTORY_003_r4_cloze_variants_boss_format():
+    # bank_raw.json thật: s4_raw = list block (tbl = HỘP TỪ) + s4_answers 21-30.
+    # (Đáp án "Both" viết hoa vs hộp từ "both" thường — quirk THẬT của đối tác.)
+    bank = [
+        {
+            "ma_de": "EB1.2601",
+            "s4_raw": [
+                {"kind": "p", "text": "Section 4 Questions 21-30 (10 points)"},
+                {"kind": "p", "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."},
+                {"kind": "tbl", "text": "frighten where must most search weigh left both spend fact all which waste have heavy"},
+                {"kind": "p", "text": "THE GORILLA"},
+                {"kind": "p", "text": "The gorilla is shy. In (21) ...... it wants to (22) ...... an enemy. It is the (23) ...... powerful ape and can (24) ...... a lot. (25) ...... sexes are strong; they (26) ...... days in a (27) ...... for food. Few are (28) ...... where (29) ...... they live, so we (30) ...... act now."},
+            ],
+            "s4_answers": {"21": "fact", "22": "frighten", "23": "most", "24": "weigh",
+                           "25": "Both", "26": "spend", "27": "search", "28": "left",
+                           "29": "which", "30": "must"},
+        },
+        {
+            "ma_de": "EB1.2602",
+            "s4_raw": [
+                {"kind": "p", "text": "Section 4 Questions 21-30 (10 points)"},
+                {"kind": "tbl", "text": "since because money learn friend often early water quiet plan visit help study rain travel"},
+                {"kind": "p", "text": "MY WEEK"},
+                {"kind": "p", "text": "I (21) ...... English (22) ...... I want to (23) ...... abroad. I (24) ...... start (25) ...... to save (26) ...... , (27) ...... a (28) ...... place to (29) ...... and (30) ...... hard."},
+            ],
+            "key_cloze": {"21": "learn", "22": "because", "23": "travel", "24": "often",
+                          "25": "early", "26": "money", "27": "visit", "28": "quiet",
+                          "29": "study", "30": "plan"},
+        },
+    ]
+
+    # AC1: trích seed R4 — hộp từ (từ block tbl) + passage + đáp án 21-30.
+    seeds = boss_factory.load_r4_seeds(bank)
+    assert len(seeds) == 2
+    assert len(seeds[0]["box"]) == 15 and "both" in seeds[0]["box"]
+    assert seeds[0]["answers"]["25"] == "Both"                             # giữ nguyên hoa/thường của đối tác
+    assert "THE GORILLA" in seeds[0]["passage"]
+    seeds_by_ma = {s["ma_de"]: s for s in seeds}
+
+    # AC2+AC3: sinh biến thể (mock tất định) — s4_item đúng shape đối tác + đáp án ∈ hộp.
+    items = boss_factory.build_r4_variants(seeds, per_seed=1, generator=None)
+    assert len(items) == 2
+    for it in items:
+        s4 = it["s4_item"]
+        assert set(s4.keys()) == {"s4_raw", "s4_answers", "key_cloze"}
+        assert s4["s4_answers"] == s4["key_cloze"]                         # 2 khóa đáp án khớp
+        assert set(s4["s4_answers"].keys()) == set(boss_factory.R4_BLANK_KEYS)  # đủ 21-30
+        assert any(b["kind"] == "tbl" for b in s4["s4_raw"])              # có block hộp từ
+        box_norm = {boss_factory._norm_word(w) for w in it["word_box"]}
+        assert all(boss_factory._norm_word(v) in box_norm for v in it["answers"].values())  # đáp án ∈ hộp
+        # passage sinh ra KHÁC nguyên văn passage seed (non-tautology, chống copy)
+        tbl_i = next(i for i, b in enumerate(s4["s4_raw"]) if b["kind"] == "tbl")
+        prod_passage = "\n".join(b["text"] for b in s4["s4_raw"][tbl_i + 1:] if b["kind"] == "p")
+        assert prod_passage.strip() != seeds_by_ma[it["nguon_seed"]]["passage"].strip()
+        assert it["nguon_seed"].startswith("EB1.26")                      # truy vết seed
+        assert it["do_kho"] in ("Dễ", "TB", "Khó")
+        assert it["qc_ok"] is True                                        # 2 seed khác → không near-dup oan
+
+    # AC4: qc_r4 bắt lỗi cloze hỏng.
+    good = seeds[0]
+    ok_variant = {"passage": " ".join(f"({n}) ______" for n in boss_factory.R4_BLANK_KEYS),
+                  "word_box": list(good["box"]), "answers": dict(good["answers"])}
+    assert boss_factory.qc_r4(ok_variant, good) == []                     # baseline hợp lệ
+    # (a) đáp án ngoài hộp từ (cổng kiem_hop_tu)
+    bad_box = {**ok_variant, "answers": {**good["answers"], "21": "zzznotinbox"}}
+    assert any("hộp từ" in i for i in boss_factory.qc_r4(bad_box, good))
+    # (b) passage thiếu chỗ trống
+    bad_blank = {**ok_variant, "passage": " ".join(f"({n}) ______" for n in boss_factory.R4_BLANK_KEYS[:-1])}
+    assert any("chỗ trống" in i for i in boss_factory.qc_r4(bad_blank, good))
+    # (c) thiếu/thừa đáp án
+    bad_count = {**ok_variant, "answers": {k: good["answers"][k] for k in boss_factory.R4_BLANK_KEYS[:9]}}
+    assert any("10 chỗ" in i for i in boss_factory.qc_r4(bad_count, good))
+    # (d) đáp án lặp
+    dup_ans = dict(good["answers"])
+    dup_ans["22"] = dup_ans["21"]
+    assert any("lặp lại" in i for i in boss_factory.qc_r4({**ok_variant, "answers": dup_ans}, good))
+    # (e) chỗ trống LẶP trong passage ((21) hai lần) — cổng dùng multiset, không phải set
+    dup_blank = {**ok_variant, "passage": "(21) ______ " + " ".join(f"({n}) ______" for n in boss_factory.R4_BLANK_KEYS)}
+    assert any("chỗ trống" in i for i in boss_factory.qc_r4(dup_blank, good))
+    # (f) chỗ trống THỪA ((31))
+    extra_blank = {**ok_variant, "passage": " ".join(f"({n}) ______" for n in boss_factory.R4_BLANK_KEYS) + " (31) ______"}
+    assert any("chỗ trống" in i for i in boss_factory.qc_r4(extra_blank, good))
+    # (g) trùng nguyên văn passage seed (bản quyền) — non-tautology cho nhánh copyright
+    dup_passage = {"passage": good["passage"], "word_box": list(good["box"]), "answers": dict(good["answers"])}
+    assert any("nguyên văn" in i for i in boss_factory.qc_r4(dup_passage, good))
+
+    # AC4b: cổng kiem_hop_tu KHÔNG phân biệt hoa/thường (quirk 'Both' vs 'both' của đối tác).
+    case_variant = {**ok_variant, "answers": {**good["answers"], "21": "Fact"}}  # box có 'fact'
+    assert not any("hộp từ" in i for i in boss_factory.qc_r4(case_variant, good))
+
+    # Regression (review): mock per_seed=2 CÙNG seed KHÔNG near-dup oan (token duy nhất theo idx).
+    multi = boss_factory.build_r4_variants(seeds[:1], per_seed=2, generator=None)
+    assert len(multi) == 2 and all(it["qc_ok"] for it in multi)
+    # Regression (review): 2 seed CÙNG hộp từ (per_seed=1) KHÔNG near-dup oan (token duy nhất theo seed).
+    shared_box = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi pi"
+    ans10 = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa"]
+    same_box_bank = [
+        {"ma_de": f"EB1.270{j}", "s4_raw": [
+            {"kind": "tbl", "text": shared_box},
+            {"kind": "p", "text": f"Đoạn {j} " + " ".join(f"({n}) ______" for n in boss_factory.R4_BLANK_KEYS)}],
+         "s4_answers": dict(zip(boss_factory.R4_BLANK_KEYS, ans10))}
+        for j in (1, 2)
+    ]
+    sb_seeds = boss_factory.load_r4_seeds(same_box_bank)
+    sb_items = boss_factory.build_r4_variants(sb_seeds, per_seed=1, generator=None)
+    assert len(sb_items) == 2 and all(it["qc_ok"] for it in sb_items)
+
+    # AC-dedup (non-tautology): nhánh REAL (_StubGen) trả CÙNG cloze 2 lần → cloze 2 near-dup.
+    stub_cloze = {
+        "title": "T",
+        "passage": "Intro " + " ".join(f"({n}) ______" for n in boss_factory.R4_BLANK_KEYS) + " end.",
+        "word_box": ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj", "kk", "ll"],
+        "answers": {n: w for n, w in zip(boss_factory.R4_BLANK_KEYS,
+                                         ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj"])},
+        "difficulty": "medium",
+    }
+    dupd = boss_factory.build_r4_variants(seeds[:1], per_seed=2, generator=_StubGen(stub_cloze))
+    assert len(dupd) == 2
+    assert dupd[0]["qc_ok"] is True
+    assert any("near-duplicate" in i for i in dupd[1]["qc_issues"])
+
+    # AC5: gói bàn giao + bảng GV soát/ký.
+    bundle = boss_factory.export_r4_bundle(items)
+    assert bundle["skill"] == "reading_s4_cloze" and bundle["count"] == 2
+    assert bundle["count_qc_ok"] == 2
+    sheet = boss_factory.r4_review_sheet(items)
+    assert "GV duyệt" in sheet and "Hộp từ" in sheet and "Đáp án" in sheet

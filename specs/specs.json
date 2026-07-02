@@ -774,6 +774,25 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_002_speak_variants_boss_format"
       ],
       "notes": "Slice P3-NÓI của kế hoạch mở rộng ngân hàng (docs/ke_hoach_mo_rong_bank_b1.md, S52; D2 chốt Option (a) = xuất JSON vào ngân hàng đối tác). Nhà máy sinh câu format thứ 2 (pool_speak là DICT, khác bank_raw là LIST): seed = thẻ Nói thật, output = shape pool_speak thuần + độ khó + review sheet GV. Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini 2.5-flash + GV duyệt. part1/part3 cố định (giữ từ seed), chỉ part2_topic đổi cùng domain (không bịa chủ đề)."
+    },
+    {
+      "id": "SPEC-FACTORY-003",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh cloze R4 (điền-từ-hộp-từ) — xuất định dạng s4 ngân hàng đối tác (bàn giao)",
+      "statement": "Hệ sinh biến thể cloze Đọc phần 4 (R4) từ cloze THẬT trong bank_raw.json của đối tác (khóa s4) làm seed (grounded, hạn chế ảo giác): sinh passage MỚI 10 chỗ trống (21-30) + hộp từ, MỌI đáp án ∈ hộp từ (cổng kiem_hop_tu, không phân biệt hoa/thường), xuất đúng shape s4 {s4_raw block list + s4_answers + key_cloze} kèm nhãn độ khó và truy vết seed, qua cổng QC, để bàn giao cho pipeline ghép đề của đối tác.",
+      "acceptance_criteria": [
+        "load_r4_seeds đọc bank_raw.json của đối tác trích cloze R4: hộp từ (từ block kind='tbl'), passage, đáp án 21-30 (s4_answers/key_cloze).",
+        "build_r4_variants sinh passage MỚI 10 chỗ trống (21-30) + hộp từ (≥10 từ) qua Gemini real/mock, KHÁC nguyên văn passage seed (bản quyền), MỌI đáp án thuộc hộp từ, mỗi từ dùng 1 lần.",
+        "Mỗi item xuất s4_item đúng shape đối tác (s4_raw block list header/hướng-dẫn/tbl-hộp-từ/passage + s4_answers == key_cloze 21-30) + nhãn độ khó Dễ/TB/Khó + truy vết nguon_seed.",
+        "qc_r4 (cổng kiem_hop_tu) bắt lỗi: đáp án ngoài hộp từ (không phân biệt hoa/thường), thiếu chỗ trống trong passage, thiếu/thừa đáp án 21-30, đáp án lặp, trùng nguyên văn passage seed; phát hiện + gắn nhãn near-dup passage toàn-lô bằng jaccard (không tự xoá).",
+        "export_r4_bundle + r4_review_sheet xuất gói bàn giao JSON (shape s4 + metadata) + bảng GV soát/ký."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_003_r4_cloze_variants_boss_format"
+      ],
+      "notes": "Slice R4 (cloze hộp-từ) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT của đối tác (đọc qua Google Drive connector): s4_raw = list block, hộp từ là block kind='tbl' (space-joined), passage các block kind='p' với chỗ trống '(21)…', s4_answers==key_cloze khóa 21-30. Đáp án đối tác có thể viết hoa (vd 'Both') trong khi hộp từ viết thường → cổng kiem_hop_tu so KHÔNG phân biệt hoa/thường. Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini + GV duyệt. Part có ẢNH (một số record s4_has_image) ngoài phạm vi slice text này."
     }
   ]
 }
