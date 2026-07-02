@@ -1339,3 +1339,212 @@ def w1_review_sheet(items: list) -> str:
             f"| {i} | {it['nguon_seed']} | {original} | {prompt} | {answer} | {it['do_kho']} | {qc} |  |"
         )
     return "\n".join(rows)
+
+
+# ======================================================================
+# SLICE W2 (Viết thư ~100 từ — Viết phần 2) — SPEC-FACTORY-007
+# ----------------------------------------------------------------------
+# Mở rộng ngân hàng W2 của đối tác (khóa `w2` trong bank_raw.json). Cấu trúc THẬT:
+#   w2_raw = list block "p": tiêu đề "Section 2 (20 points)" + VAI ("You are <tên>. This is part
+#   of a letter you have received from <bạn>, your English penfriend.") + BỐI CẢNH thư nhận (thông
+#   điệp + 2-3 ý/câu hỏi cần trả lời) + hướng dẫn "Now write a letter ... about 100 words." + "--- The end ---".
+#   W2 KHÔNG có đáp án (tự luận — chấm AI/GV). Đơn vị = 1 đề viết thư. Biến thể = đề thư MỚI theo
+#   14 chủ đề B1 (vai + bối cảnh + 2-3 ý mới). GV/AI chấm theo tiêu chí, không có key.
+
+W2_INSTRUCTION = "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+
+
+def load_w2_seeds(bank: list) -> list:
+    """Trích đề viết thư W2 (khóa `w2`) từ bank_raw.json của đối tác: vai + bối cảnh + hướng dẫn."""
+    seeds = []
+    for rec in bank:
+        ma_de = rec.get("ma_de") or rec.get("file") or "?"
+        w2_raw = rec.get("w2_raw")
+        if not isinstance(w2_raw, list):
+            continue
+        content = []
+        for b in w2_raw:
+            if not isinstance(b, dict) or b.get("kind") != "p":
+                continue
+            tx = str(b.get("text") or "").strip()
+            if not tx or tx.startswith("Section 2") or tx.startswith("---"):
+                continue
+            content.append(tx)
+        if not content:
+            continue
+        role = next((tx for tx in content if tx.lower().startswith("you are")), content[0])
+        instr = next((tx for tx in content if tx.lower().startswith("now write")), "")
+        ri = content.index(role)
+        ii = content.index(instr) if instr in content else len(content)
+        situation = "\n".join(content[ri + 1:ii])
+        if role and situation:
+            seeds.append({"ma_de": ma_de, "role": role, "situation": situation,
+                          "instruction": instr or W2_INSTRUCTION,
+                          "prompt_text": "\n".join(content)})
+    return seeds
+
+
+def _mock_w2_variant(seed: dict, idx: int) -> dict:
+    """Biến thể MOCK tất định (không gọi mạng) — stand-in cho test (song song _mock_variant R1)."""
+    diff = ["easy", "medium", "hard"][idx % 3]
+    domain = DOMAINS_14[idx % len(DOMAINS_14)]
+    tag = seed.get("ma_de") or "seed"
+    return {
+        "role": f"You are Minh. This is part of a letter from your penfriend about {domain} ({tag}/{idx + 1}).",
+        "situation": f"Bối cảnh mẫu {tag} phiên {idx + 1}: penfriend viết về chủ đề {domain}.",
+        "points": [f"Ý 1 về {domain} ({tag}/{idx + 1})", f"Ý 2 về {domain} ({tag}/{idx + 1})"],
+        "instruction": W2_INSTRUCTION,
+        "domain_guess": domain,
+        "difficulty": diff,
+        "explanation": f"Đề thư mock từ {tag} (chủ đề {domain}).",
+    }
+
+
+def _real_w2_variant(generator, seed: dict, idx: int) -> Optional[dict]:
+    """Sinh đề viết thư W2 THẬT qua Gemini: đề MỚI theo 1 trong 14 chủ đề B1, không copy seed."""
+    system = (
+        "You are a VSTEP B1 (CEFR B1) English item writer for Writing Part 2 (an informal letter "
+        "of about 100 words replying to a penfriend). Given a seed letter task, write ONE NEW, "
+        "parallel task at B1 level on a DIFFERENT everyday topic (choose ONE B1 topic): a role line "
+        "('You are <name>. This is part of a letter you have received from <penfriend>, your English "
+        "penfriend.'), a short SITUATION (the penfriend's message), and 2-3 POINTS the candidate "
+        "must address. Do NOT copy the seed. Return ONLY JSON: {\"role\": str, \"situation\": str, "
+        "\"points\": [str, str, ...], \"instruction\": str, \"domain_guess\": \"<one B1 topic>\", "
+        "\"difficulty\": \"easy|medium|hard\", \"explanation\": str}."
+    )
+    user = (
+        f"SEED letter task (write a NEW one on a DIFFERENT topic, do NOT copy it):\n"
+        f"{seed.get('prompt_text')}\n\n"
+        f"Valid B1 topics: {', '.join(DOMAINS_14)}\n"
+        f"Generate parallel variant #{idx + 1}."
+    )
+    raw = generator._call_gemini(system, user)
+    data = _loads_lenient(raw)
+    return data if isinstance(data, dict) else None
+
+
+def qc_w2(variant: dict, seed: dict) -> list:
+    """Cổng QC cho đề viết thư W2 (không có đáp án — chấm tự luận). Trả danh sách lỗi (rỗng = đạt)."""
+    issues = []
+    role = str(variant.get("role") or "").strip()
+    situation = str(variant.get("situation") or "").strip()
+    points = variant.get("points") or []
+    instruction = str(variant.get("instruction") or "").strip()
+    domain = variant.get("domain_guess")
+    if not role:
+        issues.append("vai (role) rỗng")
+    if not situation:
+        issues.append("bối cảnh thư (situation) rỗng")
+    if not isinstance(points, list) or len(points) < 2:
+        issues.append(f"cần >=2 ý phải trả lời (đang {len(points) if isinstance(points, list) else 'N/A'})")
+    elif any(not str(p).strip() for p in points):
+        issues.append("có ý cần trả lời bị rỗng")
+    if not instruction:
+        issues.append("hướng dẫn (instruction) rỗng")
+    if domain is not None and _norm_domain(domain) not in _DOMAINS_14_NORM:
+        issues.append(f"domain_guess ngoài 14 chủ đề B1 ({domain!r})")
+    if situation and _norm_topic(situation) == _norm_topic(seed.get("situation")):
+        issues.append("trùng nguyên văn bối cảnh seed (bản quyền)")
+    return issues
+
+
+def _assemble_w2_raw(item: dict) -> list:
+    """Dựng lại block list w2_raw đúng cấu trúc đối tác (tiêu đề · vai · bối cảnh · các ý · hướng dẫn · end)."""
+    blocks = [
+        {"kind": "p", "text": "Section 2 (20 points)"},
+        {"kind": "p", "text": str(item.get("role") or "")},
+    ]
+    for para in str(item.get("situation") or "").split("\n"):
+        if para.strip():
+            blocks.append({"kind": "p", "text": para.strip()})
+    for p in (item.get("points") or []):
+        if str(p).strip():
+            blocks.append({"kind": "p", "text": str(p).strip()})
+    blocks.append({"kind": "p", "text": str(item.get("instruction") or W2_INSTRUCTION)})
+    blocks.append({"kind": "p", "text": "--- The end ---"})
+    return blocks
+
+
+def build_w2_variants(seeds: list, per_seed: int = 1, generator=None, dup_threshold: float = 0.85) -> list:
+    """Sinh biến thể đề viết thư W2 (song song build_r1_variants). Output w2_item (KHÔNG có đáp án)."""
+    use_mock = generator is None or getattr(generator, "client", None) is None
+    accepted = []
+    out = []
+    for seed in seeds:
+        for i in range(per_seed):
+            try:
+                v = _mock_w2_variant(seed, i) if use_mock else _real_w2_variant(generator, seed, i)
+            except Exception as e:
+                logger.warning(f"Sinh đề W2 lỗi seed {seed['ma_de']}#{i}: {e}")
+                continue
+            if not v:
+                continue
+            diff_en = (v.get("difficulty") or "medium").lower()
+            if diff_en not in DIFF_MAP:
+                diff_en = "medium"
+            # type-gate iteration (Gemini có thể trả points là số → tránh crash cả lô) + chỉ nhận ý là
+            # CHUỖI không-rỗng (loại junk [None,None]/[1,2] khỏi lọt QC).
+            pts = v.get("points")
+            points = [str(p).strip() for p in pts if isinstance(p, str) and p.strip()] if isinstance(pts, list) else []
+            w2_item = {
+                "role": str(v.get("role") or "").strip(),
+                "situation": str(v.get("situation") or "").strip(),
+                "points": points,
+                "instruction": str(v.get("instruction") or W2_INSTRUCTION).strip(),
+                "domain_guess": v.get("domain_guess"),
+            }
+            issues = qc_w2(w2_item, seed)
+            # chống copy near-verbatim bối cảnh seed (qc_w2 chỉ bắt trùng NGUYÊN VĂN)
+            if w2_item["situation"] and _jaccard(w2_item["situation"], seed.get("situation")) >= dup_threshold:
+                issues.append("near-duplicate situation seed (bản quyền)")
+            for prev in accepted:
+                if _jaccard(w2_item["situation"], prev) >= dup_threshold:
+                    issues.append("near-duplicate situation (trùng lặp gần với đề khác trong lô)")
+                    break
+            accepted.append(w2_item["situation"])
+            out.append({
+                "w2_item": w2_item,
+                "w2_raw": _assemble_w2_raw(w2_item),
+                "do_kho": DIFF_MAP[diff_en],
+                "difficulty_en": diff_en,
+                "explanation": v.get("explanation"),
+                "nguon_seed": seed["ma_de"],
+                "seed_situation": seed.get("situation"),
+                "qc_issues": issues,
+                "qc_ok": len(issues) == 0,
+            })
+    return out
+
+
+def export_w2_bundle(items: list) -> dict:
+    """Gói bàn giao (JSON) cho đối tác: đề viết thư W2 (KHÔNG có đáp án — tự luận) + metadata."""
+    return {
+        "skill": "writing_w2_letter",
+        "spec": "SPEC-FACTORY-007",
+        "note": (
+            "Đề viết thư W2 (~100 từ, KHÔNG có đáp án — tự luận chấm AI/GV) sinh từ bank_raw.json của "
+            "đối tác; w2_item {role, situation, points, instruction, domain_guess} + w2_raw(blocks) để "
+            "merge. CẦN GV tiếng Anh duyệt+ký (đề phù hợp B1, rõ ràng, đúng chủ đề)."
+        ),
+        "count": len(items),
+        "count_qc_ok": sum(1 for it in items if it["qc_ok"]),
+        "items": items,
+    }
+
+
+def w2_review_sheet(items: list) -> str:
+    """Bảng GV soát/ký (Markdown) cho W2: seed | vai | bối cảnh (rút gọn) | số ý | chủ đề | độ khó | QC | ô ký."""
+    header = (
+        "| # | Nguồn seed | Vai (role) | Bối cảnh MỚI (rút gọn) | Số ý | Chủ đề | Độ khó | QC | GV duyệt (Đạt/Không + chữ ký) |\n"
+        "|---|---|---|---|---|---|---|---|---|"
+    )
+    rows = [header]
+    for i, it in enumerate(items, 1):
+        w = it["w2_item"]
+        qc = "OK" if it["qc_ok"] else "⚠ " + "; ".join(it["qc_issues"])
+        role = (w.get("role") or "").replace("|", "/").replace("\n", " ")[:35]
+        situation = (w.get("situation") or "").replace("|", "/").replace("\n", " ")[:50]
+        rows.append(
+            f"| {i} | {it['nguon_seed']} | {role} | {situation} | {len(w.get('points') or [])} | {w.get('domain_guess')} | {it['do_kho']} | {qc} |  |"
+        )
+    return "\n".join(rows)

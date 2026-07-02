@@ -1,6 +1,12 @@
-# Session Handoff — CHỐT PHIÊN 02/07/2026 (S53: D2 + NÓI + R4 + R2 + R3 + W1)
+# Session Handoff — CHỐT PHIÊN 02/07/2026 (S53: D2 + NÓI + R4 + R2 + R3 + W1 + W2 → XONG 7/7 dạng)
 
-> **🆕 S53f (Claude, 02/07) — SLICE W1 VIẾT-LẠI CÂU (SPEC-FACTORY-006) (đọc TRƯỚC):**
+> **🆕 S53g (Claude, 02/07) — SLICE W2 VIẾT THƯ (SPEC-FACTORY-007) → HOÀN TẤT 7/7 DẠNG (đọc TRƯỚC):**
+> - **✅ SLICE W2 XONG** — nhà máy sinh câu **FORMAT THỨ 7**, **KHÔNG có đáp án** (tự luận, chấm AI/GV). GROUND trên w2 THẬT: `w2_raw` = vai "You are..." + bối cảnh thư nhận (thông điệp + 2-3 ý) + "write ~100 words". `load_w2_seeds` + `build_w2_variants` (đề thư mới theo 14 chủ đề B1, `w2_item` {role,situation,points,instruction,domain_guess} + `w2_raw`, KHÔNG key) + `qc_w2` + CLI + test.
+> - **Nghiệm thu**: pytest **69/0** (×2), ruff/arch/traceability sạch; **verify Gemini THẬT** (thư "flu" → đề "nấu ăn" Thực phẩm-đồ uống 2-3 ý). **Review đối kháng 4-lăng-kính (8 agent) bắt+vá 3 defect** (points scalar crash cả lô → type-gate; junk points lọt QC → chỉ nhận string; thiếu near-dup vs seed → thêm). Spec **48 — 47 active / 1 planned**.
+> - 🎉 **HOÀN TẤT 7/7 DẠNG BÀN GIAO**: R1/R2/R3/R4 (Đọc) + W1/W2 (Viết) + Nói (P3) — nhà máy sinh câu phủ 7 format khác nhau, mỗi slice ground trên bank_raw THẬT + verify Gemini THẬT + review đối kháng đa-agent. **CÒN**: Nghe (P4, hoãn — cần audio/TTS, chốt D3) + helper render-từ-JSON + chốt D3/D4/D5 với sếp.
+> - **⚠️ CHƯA COMMIT W2** (đang chốt). Đã commit: Nói `e0dd3e6` · R4 `40af932` · R2 `2acdd4f` · R3 `4d49fc0` · W1 `21f65df`.
+
+> **🆕 S53f (Claude, 02/07) — SLICE W1 VIẾT-LẠI CÂU (SPEC-FACTORY-006):**
 > - **✅ SLICE W1 XONG** — nhà máy sinh câu **FORMAT THỨ 6**. GROUND trên w1 THẬT: `w1_raw` = cặp block (câu gốc + câu viết-lại có chỗ trống "……"); `key_w1` = câu mẫu {1..5}; dạng bị động/tường thuật/điều kiện/nominalization/câu hỏi. `load_w1_seeds` (ghép cặp NGHIÊM NGẶT 2-block, BỎ record nếu lệch) + `build_w1_variants` (câu mới cùng kiểu, `w1_item` {original,prompt,answer}, câu mẫu bắt đầu bằng phần đầu) + `qc_w1` (`_w1_prefix_ok` token-based) + CLI + test.
 > - **Nghiệm thu**: pytest **68/0** (×2), ruff/arch/traceability sạch; **verify Gemini THẬT** (5 câu: câu hỏi/bị động/tường thuật/điều kiện/nominalization đúng kiểu, QC OK). **Review đối kháng 4-lăng-kính (16 agent) bắt+vá 10 defect** — nhiều nhất: (A) prefix check `startswith` false-reject (dấu phẩy/nháy) + false-pass ("If"→"Iffy") → `_w1_prefix_ok` token-based; (B) **[HIGH]** ghép cặp lệch key khi prompt hụt blank → ghép nghiêm ngặt + bỏ record lệch + regex nhận "..."; (C) qc thiếu kiểm prompt-có-blank & lead-rỗng. Spec **47 — 46 active / 1 planned**.
 > - **⚠️ CHƯA COMMIT W1** (đang chốt). Nói `e0dd3e6` + R4 `40af932` + R2 `2acdd4f` + R3 `4d49fc0` đã commit. **▶ VIỆC TIẾP**: W2 (đề thư ~100 từ, KHÔNG key — tự luận, chấm AI/GV); Nghe hoãn (D3); helper render-từ-JSON. Sau W2 → XONG 6/6 dạng Đọc-Viết + Nói (chỉ còn Nghe hoãn).

@@ -663,3 +663,100 @@ def test_SPEC_FACTORY_006_w1_rewrite_variants_boss_format():
     assert bundle["count_qc_ok"] == 5
     sheet = boss_factory.w1_review_sheet(items)
     assert "GV duyệt" in sheet and "Câu mẫu" in sheet and "Phần đầu" in sheet
+
+
+def test_SPEC_FACTORY_007_w2_letter_variants_boss_format():
+    # bank_raw.json thật: w2_raw = block "p" (vai + bối cảnh thư + 2-3 ý + "write ~100 words").
+    # W2 KHÔNG có đáp án (tự luận).
+    bank = [{
+        "ma_de": "EB1.2601",
+        "w2_raw": [
+            {"kind": "p", "text": "Section 2 (20 points)"},
+            {"kind": "p", "text": "You are Hoa Tran. This is part of a letter you have received from Dylan, your English penfriend."},
+            {"kind": "p", "text": ""},
+            {"kind": "p", "text": "I've got flu. I feel terrible and I'm bored because I have to stay in bed."},
+            {"kind": "p", "text": "What can I do to make myself feel more cheerful?"},
+            {"kind": "p", "text": "Tell me about the last time you were ill."},
+            {"kind": "p", "text": ""},
+            {"kind": "p", "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."},
+            {"kind": "p", "text": "--- The end ---"},
+        ],
+    }]
+
+    # AC1: trích đề viết thư — vai + bối cảnh + hướng dẫn.
+    seeds = boss_factory.load_w2_seeds(bank)
+    assert len(seeds) == 1
+    seed = seeds[0]
+    assert seed["role"].startswith("You are Hoa Tran")
+    assert "flu" in seed["situation"] and "Section 2" not in seed["situation"]  # bối cảnh sạch
+    assert "100 words" in seed["instruction"]
+
+    # AC2+AC3: sinh biến thể (mock tất định) — w2_item (KHÔNG có đáp án/key).
+    items = boss_factory.build_w2_variants(seeds, per_seed=1, generator=None)
+    assert len(items) == 1
+    it = items[0]
+    w = it["w2_item"]
+    assert set(w.keys()) == {"role", "situation", "points", "instruction", "domain_guess"}
+    assert w["role"] and w["situation"] and w["instruction"]
+    assert isinstance(w["points"], list) and len(w["points"]) >= 2                # >=2 ý cần viết
+    assert w["domain_guess"] in boss_factory.DOMAINS_14
+    assert w["situation"] != it["seed_situation"]                                # KHÁC nguyên văn seed
+    assert any(b["text"] == "--- The end ---" for b in it["w2_raw"])            # w2_raw đủ khối kết
+    assert "w2_answers" not in it and "key_w2" not in it                        # W2 KHÔNG có đáp án (tự luận)
+    assert it["do_kho"] in ("Dễ", "TB", "Khó") and it["qc_ok"] is True
+
+    # AC4: qc_w2 bắt lỗi đề hỏng.
+    base = dict(w)
+    assert any("role) rỗng" in i for i in boss_factory.qc_w2({**base, "role": ""}, seed))
+    assert any("situation) rỗng" in i for i in boss_factory.qc_w2({**base, "situation": ""}, seed))
+    assert any(">=2 ý" in i for i in boss_factory.qc_w2({**base, "points": ["only one"]}, seed))
+    assert any("14 chủ đề" in i for i in boss_factory.qc_w2({**base, "domain_guess": "XYZ"}, seed))
+    copy = {**base, "situation": seed["situation"]}
+    assert any("nguyên văn" in i for i in boss_factory.qc_w2(copy, seed))
+
+    # AC-dedup (non-tautology): nhánh REAL (_StubGen) trả CÙNG situation 2 lần → đề 2 near-dup.
+    stub = _StubGen({"role": "You are Nam. A letter from your penfriend.",
+                     "situation": "My penfriend asked about my hobbies and weekend plans.",
+                     "points": ["What hobbies do you have?", "What are your weekend plans?"],
+                     "instruction": "Now write a letter. About 100 words.",
+                     "domain_guess": "Vui chơi-giải trí", "difficulty": "easy"})
+    dupd = boss_factory.build_w2_variants(seeds[:1], per_seed=2, generator=stub)
+    assert len(dupd) == 2
+    assert dupd[0]["qc_ok"] is True
+    assert any("near-duplicate" in i for i in dupd[1]["qc_issues"])
+
+    # Regression: mock per_seed=2 CÙNG seed KHÔNG near-dup oan (chủ đề/token khác theo idx).
+    multi = boss_factory.build_w2_variants(seeds[:1], per_seed=2, generator=None)
+    assert len(multi) == 2 and all(m["qc_ok"] for m in multi)
+
+    # Regression (review): Gemini trả points là SỐ (scalar) KHÔNG crash cả lô — item bị QC loại.
+    scalar_pts = _StubGen({"role": "You are Lan. A letter from a penfriend.",
+                           "situation": "My penfriend wrote about their new pet dog and daily walks.",
+                           "points": 3, "instruction": "Now write a letter. About 100 words.",
+                           "domain_guess": "Bản thân", "difficulty": "easy"})
+    sp = boss_factory.build_w2_variants(seeds[:1], per_seed=1, generator=scalar_pts)
+    assert len(sp) == 1 and sp[0]["qc_ok"] is False                        # không crash; points [] → QC loại
+
+    # Regression (review): junk points [None, None] → lọc thành [] → QC loại (không lọt 'None').
+    junk_pts = _StubGen({"role": "You are Lan. A letter from a penfriend.",
+                         "situation": "My penfriend wrote about their favourite music and concerts.",
+                         "points": [None, None], "instruction": "Now write. About 100 words.",
+                         "domain_guess": "Vui chơi-giải trí", "difficulty": "easy"})
+    jp = boss_factory.build_w2_variants(seeds[:1], per_seed=1, generator=junk_pts)
+    assert jp[0]["qc_ok"] is False and jp[0]["w2_item"]["points"] == []
+
+    # Regression (review): near-copy bối cảnh seed (thêm 1 câu) → gắn near-dup (chống copy).
+    near = _StubGen({"role": "You are Lan. A letter from Dylan.",
+                     "situation": seed["situation"] + " Please reply soon.",
+                     "points": ["What can I do?", "Tell me about your illness."],
+                     "instruction": "Now write. About 100 words.",
+                     "domain_guess": "Sức khỏe", "difficulty": "easy"})
+    ncr = boss_factory.build_w2_variants([dict(seed)], per_seed=1, generator=near)
+    assert any("near-duplicate" in i for i in ncr[0]["qc_issues"])
+
+    # AC5: gói bàn giao + bảng GV soát/ký.
+    bundle = boss_factory.export_w2_bundle(items)
+    assert bundle["skill"] == "writing_w2_letter" and bundle["count"] == 1
+    assert bundle["count_qc_ok"] == 1
+    sheet = boss_factory.w2_review_sheet(items)
+    assert "GV duyệt" in sheet and "Vai" in sheet and "Chủ đề" in sheet

@@ -849,7 +849,26 @@
       "tests": [
         "tests/test_specs_factory.py::test_SPEC_FACTORY_006_w1_rewrite_variants_boss_format"
       ],
-      "notes": "Slice W1 (viết lại câu) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): w1_raw = block 'p' tiêu đề/hướng dẫn/Example/Answer → các CẶP (câu gốc + câu viết-lại có chỗ trống '……'); key_w1 == w1_answers = {1..5: câu mẫu}. Đơn vị = 1 câu biến đổi ngữ pháp; ghép cặp bằng phát hiện chỗ trống. Cổng QC kiểm câu mẫu bắt đầu bằng phần đầu cho sẵn (đặc trưng W1). Test = mock tất định + _StubGen nhánh real (không gọi mạng); GV BẮT BUỘC soát tính đúng ngữ pháp câu mẫu."
+      "notes": "Slice W1 (viết lại câu) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): w1_raw = block 'p' tiêu đề/hướng dẫn/Example/Answer → các CẶP (câu gốc + câu viết-lại có chỗ trống '……'); key_w1 == w1_answers = {1..5: câu mẫu}. Đơn vị = 1 câu biến đổi ngữ pháp; ghép cặp NGHIÊM NGẶT cửa sổ 2-block, BỎ record nếu lệch (tránh gán nhầm câu mẫu). Cổng QC kiểm câu mẫu bắt đầu bằng phần đầu cho sẵn theo TOKEN (_w1_prefix_ok, chịu dấu câu) + prompt có chỗ trống. Test = mock tất định + _StubGen nhánh real (không gọi mạng); GV BẮT BUỘC soát tính đúng ngữ pháp câu mẫu."
+    },
+    {
+      "id": "SPEC-FACTORY-007",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh đề Viết W2 (viết thư ~100 từ, tự luận) — xuất định dạng w2 bank đối tác",
+      "statement": "Hệ sinh biến thể đề Viết phần 2 (W2: viết thư không trang trọng ~100 từ trả lời penfriend, KHÔNG có đáp án — tự luận) từ đề THẬT trong bank_raw.json của đối tác (khóa w2) làm seed (grounded, hạn chế ảo giác): sinh đề MỚI theo 1 trong 14 chủ đề B1 gồm vai + bối cảnh thư + 2-3 ý phải trả lời + hướng dẫn ~100 từ, xuất w2_item {role, situation, points, instruction, domain_guess} + w2_raw(block list), kèm nhãn độ khó và truy vết seed, qua cổng QC, để bàn giao cho pipeline ghép đề của đối tác (GV/AI chấm theo tiêu chí).",
+      "acceptance_criteria": [
+        "load_w2_seeds đọc bank_raw.json của đối tác: tách vai (role), bối cảnh thư (situation), hướng dẫn (instruction) từ w2_raw.",
+        "build_w2_variants sinh đề thư MỚI theo 1 chủ đề B1 qua Gemini real/mock, KHÁC nguyên văn bối cảnh seed (bản quyền), có vai + bối cảnh + >=2 ý phải trả lời + hướng dẫn.",
+        "Mỗi item xuất w2_item {role, situation, points, instruction, domain_guess} + w2_raw(block list) + nhãn độ khó Dễ/TB/Khó + truy vết nguon_seed; KHÔNG có đáp án (tự luận).",
+        "qc_w2 bắt lỗi đề hỏng (vai/bối cảnh/hướng dẫn rỗng, <2 ý phải trả lời hoặc ý rỗng, domain_guess ngoài 14 chủ đề, trùng nguyên văn bối cảnh seed); phát hiện + gắn nhãn near-dup situation toàn-lô bằng jaccard (không tự xoá).",
+        "export_w2_bundle + w2_review_sheet xuất gói bàn giao JSON (w2_item + metadata, không đáp án) + bảng GV soát/ký."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_007_w2_letter_variants_boss_format"
+      ],
+      "notes": "Slice W2 (viết thư) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): w2_raw = block 'p' tiêu đề 'Section 2 (20 points)' + vai 'You are <tên>...' + bối cảnh thư nhận (thông điệp + 2-3 ý) + 'Now write... about 100 words.' + '--- The end ---'. W2 KHÔNG có đáp án (tự luận — chấm AI/GV theo tiêu chí). Đơn vị = 1 đề viết thư; biến thể theo 14 chủ đề B1. Test = mock tất định + _StubGen nhánh real (không gọi mạng); GV/AI chấm, GV duyệt đề phù hợp B1."
     }
   ]
 }
