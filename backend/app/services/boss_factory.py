@@ -882,3 +882,253 @@ def r2_review_sheet(items: list) -> str:
             f"| {i} | {it['nguon_seed']} | {seed_notice} | {new_stem} | {s.get('answer')} | {it['do_kho']} | {qc} |  |"
         )
     return "\n".join(rows)
+
+
+# ======================================================================
+# SLICE R3 (Đọc-hiểu đoạn văn — Đọc phần 3) — SPEC-FACTORY-005
+# ----------------------------------------------------------------------
+# Mở rộng ngân hàng R3 của đối tác (khóa `s3` trong bank_raw.json). Cấu trúc THẬT:
+#   s3_raw = list block "p": 2 block tiêu đề/hướng dẫn → các block PASSAGE (đoạn văn, nhiều p) →
+#   rồi từng CÂU HỎI: 1 block "16. <stem>" + 4 block option "A. .." "B. .." "C. .." "D. ..",
+#   lặp cho câu 16-20. s3_answers = {"16":"D", ..., "20":"C"} (5 câu, 4 lựa chọn A-D).
+# Đơn vị = CẢ NHÓM (1 đoạn văn + 5 câu hỏi hiểu). Biến thể = đoạn văn MỚI cùng chủ đề/độ khó +
+# 5 câu hỏi hiểu MỚI (4 lựa chọn). ĐÂY LÀ SLICE NGỮ-NGHĨA-NẶNG → GV BẮT BUỘC soát kỹ đáp án.
+
+R3_Q_NUMS = ["16", "17", "18", "19", "20"]
+R3_OPTION_KEYS = ["A", "B", "C", "D"]
+# (?!\d) sau dấu chấm → KHÔNG nhầm số thập phân trong passage ("16.2 million tonnes") thành câu hỏi.
+_R3_QSTEM_RE = re.compile(r"^(1[6-9]|20)\.(?!\d)\s*(.*)$", re.DOTALL)
+_R3_OPT_RE = re.compile(r"^([A-D])\.\s*(.*)$", re.DOTALL)
+
+
+def load_r3_seeds(bank: list) -> list:
+    """Trích nhóm đọc-hiểu R3 (khóa `s3`) từ bank_raw.json của đối tác: đoạn văn + câu hỏi + đáp án."""
+    seeds = []
+    for rec in bank:
+        ma_de = rec.get("ma_de") or rec.get("file") or "?"
+        s3_raw = rec.get("s3_raw")
+        answers = rec.get("s3_answers") or {}
+        if not answers:   # fallback: subset 16-20 của key_reading gộp
+            kr = rec.get("key_reading") or {}
+            answers = {k: kr[k] for k in R3_Q_NUMS if k in kr}
+        if not isinstance(s3_raw, list) or not answers:
+            continue
+        blocks = [str(b.get("text") or "").strip() for b in s3_raw
+                  if isinstance(b, dict) and b.get("kind") == "p"]
+        q_positions = [i for i, tx in enumerate(blocks) if _R3_QSTEM_RE.match(tx)]
+        if not q_positions:
+            continue
+        # đoạn văn = block không rỗng TRƯỚC câu hỏi đầu, bỏ tiêu đề/hướng dẫn
+        passage_blocks = [tx for tx in blocks[:q_positions[0]]
+                          if tx and not tx.startswith("Section 3") and not tx.startswith("Read the text")]
+        passage = "\n".join(passage_blocks)
+        questions = []
+        for qi in q_positions:
+            qm = _R3_QSTEM_RE.match(blocks[qi])
+            num, stem = qm.group(1), qm.group(2).strip()
+            opts = {}
+            j = qi + 1
+            while j < len(blocks):
+                if not blocks[j]:      # bỏ block rỗng
+                    j += 1
+                    continue
+                om = _R3_OPT_RE.match(blocks[j])
+                if not om:             # gặp câu hỏi kế / block khác → hết options
+                    break
+                opts[om.group(1)] = om.group(2).strip()
+                j += 1
+            ans = answers.get(num)
+            if stem and sorted(opts.keys()) == R3_OPTION_KEYS and ans in R3_OPTION_KEYS:
+                questions.append({"num": num, "stem": stem, "options": opts, "answer": ans})
+        if len(questions) != len(answers):   # cảnh báo (như R2) nếu tách hụt so với số đáp án
+            logger.warning(f"R3 {ma_de}: tách được {len(questions)}/{len(answers)} câu hỏi (s3_raw không chuẩn?).")
+        if passage and questions:
+            seeds.append({"ma_de": ma_de, "passage": passage, "questions": questions})
+    return seeds
+
+
+def _mock_r3_variant(seed: dict, idx: int) -> dict:
+    """Biến thể MOCK tất định (không gọi mạng) — stand-in cho test (song song _mock_variant R1).
+
+    Đoạn văn + N câu hỏi (N = số câu của seed) MỚI, token duy nhất theo (seed, idx) → không near-dup."""
+    diff = ["easy", "medium", "hard"][idx % 3]
+    tag = seed.get("ma_de") or "seed"
+    n = len(seed.get("questions") or []) or 5
+    passage = (f"Đoạn đọc mẫu {tag} phiên {idx + 1}. "
+               + " ".join(f"Ý số {tag}-{idx + 1}-{k}." for k in range(1, n + 1)))
+    questions = []
+    for k in range(n):
+        questions.append({
+            "stem": f"Câu hỏi hiểu {tag}-{idx + 1}-{k + 1}?",
+            "options": {L: f"Phương án {L} của {tag}/{idx + 1}/{k + 1}" for L in R3_OPTION_KEYS},
+            "answer": R3_OPTION_KEYS[k % 4],
+        })
+    return {"passage": passage, "questions": questions, "difficulty": diff,
+            "explanation": f"Nhóm đọc-hiểu mock từ {tag}."}
+
+
+def _real_r3_variant(generator, seed: dict, idx: int) -> Optional[dict]:
+    """Sinh nhóm đọc-hiểu R3 THẬT qua Gemini: đoạn văn MỚI + N câu hỏi hiểu (4 lựa chọn), không copy."""
+    qs = seed.get("questions") or []
+    n = len(qs) or 5
+    seed_qs = "\n".join(
+        f"Q{q.get('num')}: {q.get('stem')} "
+        f"[A:{q.get('options', {}).get('A', '')} | B:{q.get('options', {}).get('B', '')} | "
+        f"C:{q.get('options', {}).get('C', '')} | D:{q.get('options', {}).get('D', '')}] ans={q.get('answer')}"
+        for q in qs
+    )
+    system = (
+        "You are a VSTEP B1 (CEFR B1) English item writer for Reading Part 3 (a short text + "
+        "multiple-choice comprehension questions). Given a seed passage with its questions, write "
+        f"ONE NEW, parallel item at the SAME B1 level: a FRESH passage (~180-230 words, NOT a copy) "
+        f"on a similar everyday topic, plus EXACTLY {n} comprehension questions, each with 4 options "
+        "A, B, C, D and exactly one correct answer clearly supported by YOUR passage. Return ONLY "
+        "JSON: {\"passage\": str, \"questions\": [{\"stem\": str, \"options\": {\"A\": str, \"B\": "
+        "str, \"C\": str, \"D\": str}, \"answer\": \"A|B|C|D\"}], \"difficulty\": "
+        "\"easy|medium|hard\", \"explanation\": str}."
+    )
+    user = (
+        f"SEED passage (write a NEW one on a similar topic, do NOT copy it):\n{seed.get('passage')}\n\n"
+        f"SEED questions:\n{seed_qs}\n\nGenerate parallel variant #{idx + 1}."
+    )
+    raw = generator._call_gemini(system, user)
+    data = _loads_lenient(raw)
+    return data if isinstance(data, dict) else None
+
+
+def qc_r3(variant: dict, seed: dict) -> list:
+    """Cổng QC cho nhóm đọc-hiểu R3. Trả danh sách lỗi (rỗng = đạt). GV vẫn PHẢI soát ngữ nghĩa."""
+    issues = []
+    passage = str(variant.get("passage") or "").strip()
+    questions = variant.get("questions") or []
+    if not passage:
+        issues.append("passage rỗng")
+    n_seed = len(seed.get("questions") or []) or 5
+    if len(questions) != n_seed:
+        issues.append(f"phải đúng {n_seed} câu hỏi (đang {len(questions)})")
+    for qi, q in enumerate(questions, 1):
+        stem = str((q or {}).get("stem") or "").strip()
+        options = (q or {}).get("options") or {}
+        answer = (q or {}).get("answer")
+        if not stem:
+            issues.append(f"câu {qi}: stem rỗng")
+        if sorted(options.keys()) != R3_OPTION_KEYS:
+            issues.append(f"câu {qi}: options phải đủ A,B,C,D (đang {sorted(options.keys())})")
+        else:
+            vals = [str(v).strip().lower() for v in options.values()]
+            if len(set(vals)) < len(vals):
+                issues.append(f"câu {qi}: có phương án trùng nội dung")
+            if any(not str(v).strip() for v in options.values()):
+                issues.append(f"câu {qi}: có phương án rỗng")
+        if answer not in options:
+            issues.append(f"câu {qi}: answer không thuộc options")
+    if passage and _norm_topic(passage) == _norm_topic(seed.get("passage")):
+        issues.append("trùng nguyên văn passage seed (bản quyền)")
+    return issues
+
+
+def _assemble_s3_raw(passage, questions: list) -> list:
+    """Dựng lại block list s3_raw đúng cấu trúc đối tác (tiêu đề · hướng dẫn · passage · câu 16-20 + options)."""
+    blocks = [
+        {"kind": "p", "text": "Section 3 Questions 16-20 (5 points)"},
+        {"kind": "p", "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)"},
+    ]
+    for para in str(passage).split("\n"):
+        if para.strip():
+            blocks.append({"kind": "p", "text": para.strip()})
+    for k, q in enumerate(questions):
+        num = str(16 + k)
+        blocks.append({"kind": "p", "text": f"{num}. {q.get('stem', '')}"})
+        for opt in R3_OPTION_KEYS:
+            blocks.append({"kind": "p", "text": f"{opt}. {q.get('options', {}).get(opt, '')}"})
+    return blocks
+
+
+def build_r3_variants(seeds: list, per_seed: int = 1, generator=None, dup_threshold: float = 0.85) -> list:
+    """Sinh biến thể nhóm đọc-hiểu R3 (song song build_r1_variants, đơn vị = nhóm passage+câu hỏi).
+
+    Mỗi item ra: `s3_item` {passage, questions:[{stem,options{A-D},answer}]} + `s3_raw`(block list) +
+    `s3_answers` (16-20) đúng shape đối tác + metadata. Phát hiện+gắn nhãn near-dup passage toàn-lô."""
+    use_mock = generator is None or getattr(generator, "client", None) is None
+    accepted_passages = []
+    out = []
+    for seed in seeds:
+        for i in range(per_seed):
+            try:
+                v = _mock_r3_variant(seed, i) if use_mock else _real_r3_variant(generator, seed, i)
+            except Exception as e:   # sinh lỗi 1 nhóm không làm hỏng cả lô
+                logger.warning(f"Sinh nhóm R3 lỗi seed {seed['ma_de']}#{i}: {e}")
+                continue
+            if not v:
+                continue
+            diff_en = (v.get("difficulty") or "medium").lower()
+            if diff_en not in DIFF_MAP:
+                diff_en = "medium"
+            passage = str(v.get("passage") or "").strip()
+            questions = []
+            qs_src = v.get("questions")
+            for q in (qs_src if isinstance(qs_src, list) else []):   # phòng thủ: Gemini có thể trả shape méo
+                q = q if isinstance(q, dict) else {}
+                opts_src = q.get("options")
+                opts = opts_src if isinstance(opts_src, dict) else {}
+                questions.append({
+                    "stem": str(q.get("stem") or "").strip(),
+                    "options": {k: str(val) for k, val in opts.items()},
+                    "answer": q.get("answer"),
+                })
+            issues = qc_r3({"passage": passage, "questions": questions}, seed)
+            # chống copy near-verbatim đoạn văn seed (gate qc_r3 chỉ bắt trùng NGUYÊN VĂN)
+            if passage and _jaccard(passage, seed.get("passage")) >= dup_threshold:
+                issues.append("near-duplicate passage seed (bản quyền)")
+            for prev in accepted_passages:
+                if _jaccard(passage, prev) >= dup_threshold:
+                    issues.append("near-duplicate passage (trùng lặp gần với nhóm khác trong lô)")
+                    break
+            accepted_passages.append(passage)
+            s3_answers = {str(16 + k): q["answer"] for k, q in enumerate(questions)}
+            out.append({
+                "s3_item": {"passage": passage, "questions": questions},
+                "s3_raw": _assemble_s3_raw(passage, questions),
+                "s3_answers": s3_answers,
+                "do_kho": DIFF_MAP[diff_en],
+                "difficulty_en": diff_en,
+                "explanation": v.get("explanation"),
+                "nguon_seed": seed["ma_de"],
+                "seed_passage": seed["passage"],
+                "qc_issues": issues,
+                "qc_ok": len(issues) == 0,
+            })
+    return out
+
+
+def export_r3_bundle(items: list) -> dict:
+    """Gói bàn giao (JSON) cho đối tác: nhóm đọc-hiểu R3 (passage + câu hỏi) + metadata + độ khó."""
+    return {
+        "skill": "reading_s3_comprehension",
+        "spec": "SPEC-FACTORY-005",
+        "note": (
+            "Nhóm đọc-hiểu R3 (đoạn văn + câu hỏi 4 lựa chọn) sinh từ bank_raw.json của đối tác; "
+            "s3_item {passage, questions} + s3_raw(blocks) + s3_answers (16-20) để merge. "
+            "SLICE NGỮ-NGHĨA-NẶNG — GV tiếng Anh BẮT BUỘC soát kỹ đáp án đọc-hiểu trước khi dùng."
+        ),
+        "count": len(items),
+        "count_qc_ok": sum(1 for it in items if it["qc_ok"]),
+        "items": items,
+    }
+
+
+def r3_review_sheet(items: list) -> str:
+    """Bảng GV soát/ký (Markdown) cho R3: seed | đoạn mới (rút gọn) | số câu | đáp án | độ khó | QC | ô ký."""
+    header = (
+        "| # | Nguồn seed | Đoạn văn MỚI (rút gọn) | Số câu | Đáp án | Độ khó | QC | GV duyệt (Đạt/Không + chữ ký) |\n"
+        "|---|---|---|---|---|---|---|---|"
+    )
+    rows = [header]
+    for i, it in enumerate(items, 1):
+        qc = "OK" if it["qc_ok"] else "⚠ " + "; ".join(it["qc_issues"])
+        passage = (it["s3_item"]["passage"] or "").replace("|", "/").replace("\n", " ")[:70]
+        ans = "; ".join(f"{k}:{it['s3_answers'][k]}" for k in sorted(it["s3_answers"], key=int)).replace("|", "/")
+        rows.append(
+            f"| {i} | {it['nguon_seed']} | {passage} | {len(it['s3_item']['questions'])} | {ans} | {it['do_kho']} | {qc} |  |"
+        )
+    return "\n".join(rows)

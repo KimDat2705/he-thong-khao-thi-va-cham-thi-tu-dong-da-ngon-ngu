@@ -420,3 +420,128 @@ def test_SPEC_FACTORY_004_r2_notice_variants_boss_format():
     assert bundle["count_qc_ok"] == 3
     sheet = boss_factory.r2_review_sheet(items)
     assert "GV duyệt" in sheet and "Thông báo" in sheet and "Đáp án" in sheet
+
+
+def test_SPEC_FACTORY_005_r3_comprehension_variants_boss_format():
+    # bank_raw.json thật: s3_raw = block "p" RIÊNG (passage + từng câu 16-20 + 4 option A-D).
+    bank = [{
+        "ma_de": "EB1.2601",
+        "s3_raw": [
+            {"kind": "p", "text": "Section 3 Questions 16-20 (5 points)"},
+            {"kind": "p", "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)"},
+            {"kind": "p", "text": ""},
+            {"kind": "p", "text": "I am sure I am not the only person my age who hates going to the dentist. Channel 4's documentary Open Wide last Tuesday was excellent, but none of my school friends watched it because it did not appear in the TV Guide."},
+            {"kind": "p", "text": "The programme showed how methods for treating toothache have developed over the centuries, and it completely changed my attitude to looking after my teeth."},
+            {"kind": "p", "text": ""},
+            {"kind": "p", "text": "Sophia Ashley, Oxford."},
+            {"kind": "p", "text": ""},
+            {"kind": "p", "text": "16. Why has Sophia written this text?"},
+            {"kind": "p", "text": "A. to complain about the time a programme was shown."},
+            {"kind": "p", "text": "B. to ask for more programmes for school children."},
+            {"kind": "p", "text": "C. to advise people to watch a particular programme."},
+            {"kind": "p", "text": "D. to persuade a television company to show a programme again."},
+            {"kind": "p", "text": ""},
+            {"kind": "p", "text": "17. Why did not Sophia's school friends see Open Wide?"},
+            {"kind": "p", "text": "A. They did not know it was on."},
+            {"kind": "p", "text": "B. They do not enjoy that type of programme."},
+            {"kind": "p", "text": "C. Their parents would not let them."},
+            {"kind": "p", "text": "D. It was not shown on a channel they can receive."},
+        ],
+        "s3_answers": {"16": "D", "17": "A"},
+    }]
+
+    # AC1: trích nhóm đọc-hiểu — đoạn văn + câu hỏi (mỗi câu 4 option A-D) + đáp án.
+    seeds = boss_factory.load_r3_seeds(bank)
+    assert len(seeds) == 1
+    seed = seeds[0]
+    assert "dentist" in seed["passage"] and "Section 3" not in seed["passage"]  # passage sạch (bỏ header)
+    assert len(seed["questions"]) == 2
+    assert seed["questions"][0]["num"] == "16" and seed["questions"][0]["answer"] == "D"
+    assert sorted(seed["questions"][0]["options"].keys()) == ["A", "B", "C", "D"]
+    assert seed["questions"][1]["num"] == "17" and seed["questions"][1]["answer"] == "A"
+
+    # AC2+AC3: sinh biến thể (mock tất định) — s3_item {passage, questions} + s3_raw + s3_answers.
+    items = boss_factory.build_r3_variants(seeds, per_seed=1, generator=None)
+    assert len(items) == 1
+    it = items[0]
+    s3 = it["s3_item"]
+    assert set(s3.keys()) == {"passage", "questions"}
+    assert len(s3["questions"]) == 2                                       # đúng số câu của seed
+    assert s3["passage"] and s3["passage"] != it["seed_passage"]          # KHÁC nguyên văn seed
+    for q in s3["questions"]:
+        assert sorted(q["options"].keys()) == ["A", "B", "C", "D"]        # 4 lựa chọn
+        assert q["answer"] in q["options"]
+    assert set(it["s3_answers"].keys()) == {"16", "17"}                    # đáp án key 16.. theo vị trí
+    assert any(b["kind"] == "p" and b["text"].startswith("16.") for b in it["s3_raw"])
+    assert it["do_kho"] in ("Dễ", "TB", "Khó") and it["qc_ok"] is True
+
+    # AC4: qc_r3 bắt lỗi nhóm hỏng.
+    good_qs = s3["questions"]
+    assert any("passage rỗng" in i for i in boss_factory.qc_r3({"passage": "", "questions": good_qs}, seed))
+    assert any("câu hỏi" in i for i in boss_factory.qc_r3({"passage": "P", "questions": good_qs[:1]}, seed))  # sai số câu
+    miss_d = {**good_qs[0], "options": {"A": "a", "B": "b", "C": "c"}}
+    assert any("A,B,C,D" in i for i in boss_factory.qc_r3({"passage": "P", "questions": [miss_d, good_qs[1]]}, seed))
+    bad_ans = {**good_qs[0], "answer": "Z"}
+    assert any("answer" in i for i in boss_factory.qc_r3({"passage": "P", "questions": [bad_ans, good_qs[1]]}, seed))
+    assert any("nguyên văn" in i
+               for i in boss_factory.qc_r3({"passage": seed["passage"], "questions": good_qs}, seed))
+
+    # AC-dedup (non-tautology): nhánh REAL (_StubGen) trả CÙNG passage 2 lần → nhóm 2 near-dup.
+    stub = _StubGen({
+        "passage": "A short new passage about cooking simple meals at home for beginners.",
+        "questions": [
+            {"stem": "What is the text about?", "options": {"A": "cooking", "B": "driving", "C": "sleeping", "D": "singing"}, "answer": "A"},
+            {"stem": "Who is it for?", "options": {"A": "experts", "B": "beginners", "C": "children", "D": "chefs"}, "answer": "B"},
+        ], "difficulty": "easy"})
+    dupd = boss_factory.build_r3_variants(seeds[:1], per_seed=2, generator=stub)
+    assert len(dupd) == 2
+    assert dupd[0]["qc_ok"] is True
+    assert any("near-duplicate" in i for i in dupd[1]["qc_issues"])
+
+    # Regression: mock per_seed=2 CÙNG seed KHÔNG near-dup oan (token duy nhất theo idx).
+    multi = boss_factory.build_r3_variants(seeds[:1], per_seed=2, generator=None)
+    assert len(multi) == 2 and all(m["qc_ok"] for m in multi)
+
+    # Regression (review): số THẬP PHÂN "16.2" trong passage KHÔNG bị nhầm thành câu hỏi (cắt cụt passage).
+    decimal_bank = [{
+        "ma_de": "EB1.2690",
+        "s3_raw": [
+            {"kind": "p", "text": "Recycling has become a major issue in many cities around the world today."},
+            {"kind": "p", "text": "16.2 million tonnes of household waste were recycled last year across the region."},
+            {"kind": "p", "text": "Experts say the figure will keep rising as more families join local schemes."},
+            {"kind": "p", "text": "16. What is the text mainly about?"},
+            {"kind": "p", "text": "A. cooking"}, {"kind": "p", "text": "B. recycling"},
+            {"kind": "p", "text": "C. driving"}, {"kind": "p", "text": "D. sleeping"},
+            {"kind": "p", "text": "17. How much waste was recycled last year?"},
+            {"kind": "p", "text": "A. 16.2 million tonnes"}, {"kind": "p", "text": "B. none"},
+            {"kind": "p", "text": "C. a little"}, {"kind": "p", "text": "D. unknown"},
+        ],
+        "s3_answers": {"16": "B", "17": "A"},
+    }]
+    dec = boss_factory.load_r3_seeds(decimal_bank)
+    assert len(dec) == 1
+    assert "16.2 million tonnes" in dec[0]["passage"]                     # KHÔNG cắt trước số thập phân
+    assert "Experts say" in dec[0]["passage"]                            # đoạn sau số thập phân còn nguyên
+    assert len(dec[0]["questions"]) == 2                                  # vẫn parse đúng câu 16,17
+
+    # Regression (review): Gemini trả group MÉO (options là list) KHÔNG crash cả lô — item bị QC loại.
+    malformed = _StubGen({"passage": "Some new passage about gardening in spring for beginners.",
+                          "questions": [{"stem": "Q?", "options": ["a", "b", "c", "d"], "answer": "A"},
+                                        {"stem": "Q2?", "options": {"A": "1", "B": "2", "C": "3", "D": "4"}, "answer": "B"}],
+                          "difficulty": "easy"})
+    mf = boss_factory.build_r3_variants(seeds[:1], per_seed=1, generator=malformed)
+    assert len(mf) == 1 and mf[0]["qc_ok"] is False                       # không crash; câu options-list bị bắt lỗi
+
+    # Regression (review): near-copy đoạn văn seed (thêm 1 câu) bị gắn near-dup (chống copy near-verbatim).
+    nc = _StubGen({"passage": seed["passage"] + " Extra sentence.",
+                   "questions": [{"stem": q["stem"], "options": q["options"], "answer": q["answer"]}
+                                 for q in seed["questions"]], "difficulty": "medium"})
+    ncr = boss_factory.build_r3_variants([dict(seed)], per_seed=1, generator=nc)
+    assert any("near-duplicate" in i for i in ncr[0]["qc_issues"])
+
+    # AC5: gói bàn giao + bảng GV soát/ký.
+    bundle = boss_factory.export_r3_bundle(items)
+    assert bundle["skill"] == "reading_s3_comprehension" and bundle["count"] == 1
+    assert bundle["count_qc_ok"] == 1
+    sheet = boss_factory.r3_review_sheet(items)
+    assert "GV duyệt" in sheet and "Đoạn văn" in sheet and "Số câu" in sheet

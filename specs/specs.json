@@ -811,7 +811,26 @@
       "tests": [
         "tests/test_specs_factory.py::test_SPEC_FACTORY_004_r2_notice_variants_boss_format"
       ],
-      "notes": "Slice R2 (thông báo/biển báo) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): s2_raw = 2 block 'p' (tiêu đề/hướng dẫn) + 1 block 'tbl' GỘP 5 thông báo dạng 'NN. <notice> A. .. B. .. C. .. NN+1. ...'; s2_answers = {11..15: A/B/C}. Đơn vị = 1 thông báo + 3 phương án; tách theo mốc 11-15 (regex, best-effort — notice có thể chứa dấu chấm nên cắt phần thông báo trước ' A. '). Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini + GV duyệt. Thông báo dạng ẢNH (s2_has_image ~18/30) NGOÀI phạm vi slice text này."
+      "notes": "Slice R2 (thông báo/biển báo) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): s2_raw = 2 block 'p' (tiêu đề/hướng dẫn) + 1 block 'tbl' GỘP 5 thông báo dạng 'NN. <notice> A. .. B. .. C. .. NN+1. ...'; s2_answers = {11..15: A/B/C}. Đơn vị = 1 thông báo + 3 phương án. Parser ROBUST (verify trên 30 đề thật): tìm mốc câu 11-15 theo THỨ TỰ TĂNG trái→phải (số 11-15 trong thân câu sau không nhầm — lỗi thật EB1.2605) + tách phương án bằng ' A. ' hợp lệ CUỐI (chịu ' A. ' nội dung). Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini + GV duyệt. Thông báo dạng ẢNH (s2_has_image ~18/30) tự bị loại (text rỗng không tách đủ 3 phương án)."
+    },
+    {
+      "id": "SPEC-FACTORY-005",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh nhóm đọc-hiểu R3 (đoạn văn + câu hỏi 4 đáp án) — xuất định dạng s3 bank đối tác",
+      "statement": "Hệ sinh biến thể nhóm Đọc phần 3 (R3: 1 đoạn văn + câu hỏi hiểu 4 lựa chọn A-D) từ nhóm THẬT trong bank_raw.json của đối tác (khóa s3) làm seed (grounded, hạn chế ảo giác): sinh đoạn văn MỚI cùng chủ đề/độ khó + N câu hỏi hiểu MỚI có đáp án được đoạn văn hỗ trợ, xuất s3_item {passage, questions[{stem, options{A-D}, answer}]} + s3_raw(block list) + s3_answers (16-20), kèm nhãn độ khó và truy vết seed, qua cổng QC, để bàn giao cho pipeline ghép đề của đối tác (GV BẮT BUỘC soát kỹ ngữ nghĩa đáp án).",
+      "acceptance_criteria": [
+        "load_r3_seeds đọc bank_raw.json của đối tác: tách block 'p' của s3 thành đoạn văn (trước câu hỏi đầu) + từng câu hỏi 16-20 (stem + 4 option A-D) ghép đáp án (s3_answers, fallback subset 16-20 của key_reading).",
+        "build_r3_variants sinh đoạn văn MỚI cùng chủ đề + N câu hỏi hiểu (N = số câu seed) qua Gemini real/mock, KHÁC nguyên văn đoạn văn seed (bản quyền), mỗi câu đúng 4 lựa chọn A-D và answer thuộc options.",
+        "Mỗi item xuất s3_item {passage, questions} + s3_raw(block list tiêu đề/hướng-dẫn/passage/câu-16-20+options) + s3_answers (16..) + nhãn độ khó Dễ/TB/Khó + truy vết nguon_seed.",
+        "qc_r3 bắt lỗi nhóm hỏng (passage rỗng, sai số câu, câu thiếu/thừa lựa chọn A-D, phương án trùng/rỗng, answer không thuộc options, trùng nguyên văn passage seed); phát hiện + gắn nhãn near-dup passage toàn-lô bằng jaccard (không tự xoá).",
+        "export_r3_bundle + r3_review_sheet xuất gói bàn giao JSON (s3_item + metadata) + bảng GV soát/ký."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_005_r3_comprehension_variants_boss_format"
+      ],
+      "notes": "Slice R3 (đọc-hiểu đoạn văn) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): s3_raw = list block 'p' (tiêu đề/hướng dẫn → passage nhiều p → từng câu '16. <stem>' + 4 option 'A. ..' 'B. ..' 'C. ..' 'D. ..' cho câu 16-20); s3_answers = {16..20: A-D}. Đơn vị = CẢ NHÓM (paraphrase đoạn + viết lại câu hỏi giữ độ khó). SLICE NGỮ-NGHĨA-NẶNG: máy KHÔNG tự kiểm đúng/sai ngữ nghĩa đáp án đọc-hiểu → GV tiếng Anh BẮT BUỘC soát+ký. Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini + GV duyệt. Đoạn văn có ẢNH (s3_has_image) ngoài phạm vi slice text này."
     }
   ]
 }
