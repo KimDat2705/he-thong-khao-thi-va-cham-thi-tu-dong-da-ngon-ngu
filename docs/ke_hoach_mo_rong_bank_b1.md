@@ -173,11 +173,12 @@ Tái dùng **engine Gemini + paraphrase/enrichment** mình đã có (`b1_questio
 3. ✅ **D2 CHỐT (a)** (02/07 S53) — xem mục 8. Bàn giao = pure-JSON đúng schema đối tác + (sẽ có) helper render-từ-JSON tham chiếu. KHÔNG chặn tiến độ mình.
 4. ✅ **SLICE P3-NÓI XONG** (02/07 S53, SPEC-FACTORY-002): `boss_factory.py` mở rộng (load_speak_seeds đọc `pool_speak.json` DICT → build_speak_variants sinh `part2_topic` MỚI cùng domain, giữ part1/part3, shape pool_speak 7 field + metadata + code `SB1.90-<seed>-<n>` ổn định/truy vết + qc_speak khớp domain khoan dung định dạng + phát hiện/gắn nhãn near-dup jaccard → export_speak_bundle → speak_review_sheet) + CLI `make_speak_variants.py` + test. **Chứng minh factory tổng quát sang FORMAT THỨ 2** (pool_speak DICT ≠ bank_raw LIST). pytest 64/0, ruff/arch/traceability sạch. Verify Gemini THẬT: 3 thẻ Nói chất lượng cùng domain, QC OK, card 7 field thuần + metadata sibling. Review đối kháng 4-lăng-kính (14 agent) → vá 6 defect trước khi chốt.
 5. ✅ **SLICE R4 (cloze hộp-từ) XONG** (02/07 S53, SPEC-FACTORY-003): **FORMAT THỨ 3**, GROUND trên `bank_raw.json` THẬT (đọc qua Google Drive connector — xác nhận `s4_raw` list block, hộp từ = block `kind:"tbl"`, `s4_answers`==`key_cloze` 21-30, đáp án có thể viết hoa vs hộp thường). `load_r4_seeds`/`build_r4_variants` (passage mới 10 chỗ + hộp từ, MỌI đáp án ∈ hộp — cổng `kiem_hop_tu` không phân biệt hoa/thường + blank multiset chính xác)/`qc_r4`/`export_r4_bundle`/`r4_review_sheet` + CLI + test. pytest 64→**65/0**, verify Gemini THẬT (gorilla 2601 → cloze "Benefits of Cycling"). Review đối kháng 4-lăng-kính (12 agent) → vá 4 defect.
-6. **THỨ TỰ TIẾP** (đúng logic + tối ưu):
-   - **R2** (thông báo/biển báo 3-đáp-án; lưu ý ảnh 18/30 → phần text trước, ảnh tách sau theo D2 de-risk) → **R3** (đoạn+câu hiểu, GV soát ngữ nghĩa kỹ) → **W1** (viết lại câu) → **W2** (đề thư, không key).
-   - **Nghe (P4): hoãn** tới khi chốt D3 (cần audio; sếp bảo audio là việc trung tâm).
+6. ✅ **SLICE R2 (thông báo/biển báo) XONG** (02/07 S53, SPEC-FACTORY-004): **FORMAT THỨ 4** (3 đáp án A/B/C). GROUND trên s2 THẬT (`s2_raw` = block `tbl` GỘP 5 thông báo "NN. <notice> A. .. B. .. C. .."; `s2_answers` 11-15). `load_r2_seeds` **parser ROBUST** (mốc câu tăng dần trái→phải — số embedded ở câu sau không nhầm; tách options bằng " A. " hợp lệ CUỐI — chịu " A. " nội dung) + `build_r2_variants` (`s2_item` clean + `s2_raw_fragment`) + `qc_r2` + CLI + test. pytest 65→**66/0**; verify Gemini THẬT (3 thông báo 2601). Review đối kháng 12 agent **verify trên 30 đề THẬT** → parser cũ vỡ EB1.2605 (số "12." trong thân câu 15) → thiết kế lại; **verify FIX EB1.2605 THẬT đúng 5 seed**.
+7. **THỨ TỰ TIẾP** (đúng logic + tối ưu):
+   - **R3** (đoạn văn + 5 câu hiểu, 4 đáp án A-D; GV soát ngữ nghĩa kỹ) → **W1** (viết lại câu) → **W2** (đề thư, không key).
+   - **Nghe (P4): hoãn** tới khi chốt D3 (cần audio; sếp bảo audio là việc trung tâm). Ảnh R2/R3 (s2/s3_has_image) tách sau (D2 de-risk).
    - **Helper render-từ-JSON tham chiếu** (de-risk D2 điểm 2) — làm khi có nhịp, không chặn.
-7. Mỗi slice: spec `SPEC-FACTORY-00N` + test (mock tất định) + verify dữ liệu thật + review đối kháng + cập nhật harness (như quy trình BANK-005/6/7).
+8. Mỗi slice: spec `SPEC-FACTORY-00N` + test (mock tất định) + verify dữ liệu thật + review đối kháng + cập nhật harness (như quy trình BANK-005/6/7).
 
 ---
 

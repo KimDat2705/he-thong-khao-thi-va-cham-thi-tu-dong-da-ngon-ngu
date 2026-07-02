@@ -659,3 +659,226 @@ def r4_review_sheet(items: list) -> str:
             f"| {i} | {it['nguon_seed']} | {ptext} | {box} | {ans} | {it['do_kho']} | {qc} |  |"
         )
     return "\n".join(rows)
+
+
+# ======================================================================
+# SLICE R2 (Đọc thông báo/biển báo — Đọc phần 2) — SPEC-FACTORY-004
+# ----------------------------------------------------------------------
+# Mở rộng ngân hàng R2 của đối tác (khóa `s2` trong bank_raw.json). Cấu trúc THẬT:
+#   s2_raw = list block: 2 block "p" (tiêu đề + hướng dẫn) → 1 block "tbl" gộp CẢ 5 thông báo
+#   (câu 11-15) + phương án dạng chuỗi: "11. <thông báo> A. <a> B. <b> C. <c> 12. <...> ...".
+#   s2_answers = {"11":"A", ..., "15":"C"} (5 câu, ĐÁP ÁN 3 lựa chọn A/B/C). key_reading là key
+#   GỘP cả Đọc 1-20 → lấy subset 11-15 nếu thiếu s2_answers.
+# Đơn vị = MỘT thông báo (notice/sign/label/note/ad) + 3 phương án A/B/C. Song song pattern R1
+# (khác: 3 phương án A/B/C, stem = thông báo). Parser ROBUST cho dữ liệu THẬT (best-effort):
+#   - Tìm mốc câu 11-15 theo THỨ TỰ TĂNG, trái→phải → số 11-15 nằm TRONG thân thông báo ở câu SAU
+#     không bị nhầm thành mốc (bắt được lỗi thật EB1.2605: "...at 12. C. Jane..." trong câu 15).
+#   - Tách 3 phương án bằng cụm ' A. ' HỢP LỆ CUỐI (có ' B. '+' C. ' sau) → chịu ' A. ' trong thân
+#     thông báo (vd 'grade A.', 'Dear A. Smith').
+#   - Notice dạng ẢNH (text rỗng, s2_has_image ~18/30) TỰ bị loại vì không tách đủ 3 phương án.
+
+R2_OPTION_KEYS = ["A", "B", "C"]
+_R2_EXPECTED_NUMS = ["11", "12", "13", "14", "15"]
+
+
+def _r2_split_options(body: str):
+    """Tách 'body' = '<thông báo> A. <a> B. <b> C. <c>' → (notice, {A,B,C}) hoặc None.
+
+    Dùng cụm ' A. ' hợp lệ CUỐI CÙNG (có ' B. ' và ' C. ' theo sau) làm mốc phương án A."""
+    best = None
+    for am in re.finditer(r"(?:(?<=\s)|^)A\.\s", body):
+        tail = body[am.end():]
+        om = re.match(r"(.*?)(?:(?<=\s)|^)B\.\s(.*?)(?:(?<=\s)|^)C\.\s(.+)$", tail, re.DOTALL)
+        if om:
+            best = (
+                body[:am.start()].strip(),
+                {"A": om.group(1).strip(), "B": om.group(2).strip(), "C": om.group(3).strip()},
+            )
+    return best
+
+
+def load_r2_seeds(bank: list) -> list:
+    """Trích thông báo R2 (khóa `s2`) từ bank_raw.json của đối tác: từng notice + 3 phương án + đáp án."""
+    seeds = []
+    for rec in bank:
+        ma_de = rec.get("ma_de") or rec.get("file") or "?"
+        s2_raw = rec.get("s2_raw")
+        answers = rec.get("s2_answers") or {}
+        if not answers:   # fallback: subset 11-15 của key_reading gộp
+            kr = rec.get("key_reading") or {}
+            answers = {k: kr[k] for k in _R2_EXPECTED_NUMS if k in kr}
+        if not isinstance(s2_raw, list) or not answers:
+            continue
+        tbl_text = " ".join(str(b.get("text") or "") for b in s2_raw
+                            if isinstance(b, dict) and b.get("kind") == "tbl").strip()
+        if not tbl_text:
+            continue
+        nums = [n for n in _R2_EXPECTED_NUMS if answers.get(n) in R2_OPTION_KEYS]
+        # định vị mốc từng câu theo thứ tự TĂNG, tìm trái→phải (bỏ qua số embedded ở câu sau)
+        marks = []
+        frm = 0
+        for num in nums:
+            mm = re.search(r"(?:(?<=\s)|^)" + num + r"\.\s", tbl_text[frm:])
+            if not mm:
+                continue
+            start = frm + mm.start()
+            marks.append((num, start))
+            frm = frm + mm.end()
+        parsed = 0
+        for i, (num, start) in enumerate(marks):
+            end = marks[i + 1][1] if i + 1 < len(marks) else len(tbl_text)
+            block = tbl_text[start:end].strip()
+            body = re.sub(r"^" + num + r"\.\s*", "", block).strip()
+            split = _r2_split_options(body)
+            if not split:
+                continue
+            notice, options = split
+            if notice and answers.get(num) in R2_OPTION_KEYS:
+                seeds.append({
+                    "ma_de": ma_de, "num": num, "notice": notice,
+                    "notice_raw": block, "options": options, "answer": answers[num],
+                })
+                parsed += 1
+        if parsed != len(nums):
+            logger.warning(f"R2 {ma_de}: tách được {parsed}/{len(nums)} thông báo (tbl s2 không chuẩn?).")
+    return seeds
+
+
+def _mock_r2_variant(seed: dict, idx: int) -> dict:
+    """Biến thể MOCK tất định (không gọi mạng) — stand-in cho test (song song _mock_variant R1).
+
+    Notice + 3 phương án MỚI, khác nguyên văn seed, token duy nhất theo (seed, idx) → không near-dup."""
+    diff = ["easy", "medium", "hard"][idx % 3]
+    ans = seed.get("answer") if seed.get("answer") in R2_OPTION_KEYS else "A"
+    tag = f"{seed.get('ma_de')}#{seed.get('num')}"
+    stem = f"THÔNG BÁO {tag} phiên {idx + 1}: Please follow notice {tag} rule {idx + 1}."
+    options = {k: f"Diễn giải {k} của {tag}/{idx + 1}" for k in R2_OPTION_KEYS}
+    return {"stem": stem, "options": options, "answer": ans, "difficulty": diff,
+            "explanation": f"Biến thể thông báo từ {tag} (cùng dạng đọc-hiểu)."}
+
+
+def _real_r2_variant(generator, seed: dict, idx: int) -> Optional[dict]:
+    """Sinh thông báo R2 THẬT qua Gemini: notice MỚI cùng dạng + 3 phương án A/B/C, không copy seed."""
+    system = (
+        "You are a VSTEP B1 (CEFR B1) English item writer for Reading Part 2 (short public texts: "
+        "signs, labels, notices, notes, adverts). Given a seed notice with three interpretation "
+        "options, write ONE NEW, parallel item of the SAME text-type and SAME B1 level: a FRESH "
+        "short realistic notice (NOT a copy) plus exactly 3 options A, B, C where exactly ONE is "
+        "the correct interpretation and the other two are plausible misreadings. Return ONLY JSON: "
+        "{\"stem\": \"<the notice text>\", \"options\": {\"A\": str, \"B\": str, \"C\": str}, "
+        "\"answer\": \"A|B|C\", \"difficulty\": \"easy|medium|hard\", \"explanation\": str}."
+    )
+    seed_opts = seed.get("options") or {}
+    user = (
+        f"SEED notice (write a NEW one of the same text-type, do NOT copy it):\n"
+        f"Notice: {seed.get('notice')}\n"
+        f"A. {seed_opts.get('A', '')}\nB. {seed_opts.get('B', '')}\nC. {seed_opts.get('C', '')}\n"
+        f"Correct answer key: {seed['answer']}\n"
+        f"Generate parallel variant #{idx + 1}."
+    )
+    raw = generator._call_gemini(system, user)
+    data = _loads_lenient(raw)
+    return data if isinstance(data, dict) else None
+
+
+def qc_r2(variant: dict, seed: dict) -> list:
+    """Cổng QC cho thông báo R2 (bám cổng của đối tác, 3 phương án). Trả danh sách lỗi (rỗng = đạt)."""
+    issues = []
+    stem = (variant.get("stem") or "").strip()
+    options = variant.get("options") or {}
+    answer = variant.get("answer")
+    if not stem:
+        issues.append("stem (thông báo) rỗng")
+    if sorted(options.keys()) != R2_OPTION_KEYS:
+        issues.append(f"options phải đủ A,B,C (đang {sorted(options.keys())})")
+    else:
+        vals = [str(v).strip().lower() for v in options.values()]
+        if len(set(vals)) < len(vals):
+            issues.append("có phương án trùng nội dung")
+        if any(not str(v).strip() for v in options.values()):
+            issues.append("có phương án rỗng")
+    if answer not in options:
+        issues.append("answer không thuộc options")
+    if stem and _norm_topic(stem) == _norm_topic(seed.get("notice")):
+        issues.append("trùng nguyên văn seed (bản quyền)")
+    return issues
+
+
+def build_r2_variants(seeds: list, per_seed: int = 1, generator=None, dup_threshold: float = 0.85) -> list:
+    """Sinh biến thể thông báo R2 cho danh sách seed (song song build_r1_variants, 3 phương án).
+
+    Mỗi item ra: `s2_item` {stem, options{A,B,C}, answer} (clean, D2 Option (a) — đối tác render từ
+    JSON) + `s2_raw_fragment` (chuỗi "NN. stem A. .. B. .. C. ..") tiện merge vào tbl s2 + metadata.
+    Phát hiện + gắn nhãn near-dup stem toàn-lô (KHÔNG im lặng xoá)."""
+    use_mock = generator is None or getattr(generator, "client", None) is None
+    accepted_stems = []
+    out = []
+    for seed in seeds:
+        for i in range(per_seed):
+            try:
+                v = _mock_r2_variant(seed, i) if use_mock else _real_r2_variant(generator, seed, i)
+            except Exception as e:   # sinh lỗi 1 thông báo không làm hỏng cả lô
+                logger.warning(f"Sinh thông báo R2 lỗi seed {seed['ma_de']}#{seed.get('num')}#{i}: {e}")
+                continue
+            if not v:
+                continue
+            diff_en = (v.get("difficulty") or "medium").lower()
+            if diff_en not in DIFF_MAP:
+                diff_en = "medium"
+            stem = str(v.get("stem") or "").strip()
+            options = {k: str(val) for k, val in (v.get("options") or {}).items()}
+            answer = v.get("answer")
+            issues = qc_r2({"stem": stem, "options": options, "answer": answer}, seed)
+            for prev in accepted_stems:
+                if _jaccard(stem, prev) >= dup_threshold:
+                    issues.append("near-duplicate stem (trùng lặp gần với thông báo khác trong lô)")
+                    break
+            accepted_stems.append(stem)
+            frag_opts = " ".join(f"{k}. {options.get(k, '')}" for k in R2_OPTION_KEYS)
+            out.append({
+                # Clean per-notice (D2 Option a — đối tác render từ JSON); s1-style nhưng 3 phương án.
+                "s2_item": {"stem": stem, "options": options, "answer": answer},
+                "s2_raw_fragment": f"{seed.get('num', '11')}. {stem} {frag_opts}".strip(),
+                "do_kho": DIFF_MAP[diff_en],
+                "difficulty_en": diff_en,
+                "explanation": v.get("explanation"),
+                "nguon_seed": f"{seed['ma_de']}#{seed.get('num')}",
+                "seed_notice": seed.get("notice"),
+                "qc_issues": issues,
+                "qc_ok": len(issues) == 0,
+            })
+    return out
+
+
+def export_r2_bundle(items: list) -> dict:
+    """Gói bàn giao (JSON) cho đối tác: thông báo R2 (3 phương án) + metadata truy vết + độ khó."""
+    return {
+        "skill": "reading_s2_notice",
+        "spec": "SPEC-FACTORY-004",
+        "note": (
+            "Thông báo/biển báo R2 (3 phương án A/B/C) paraphrase từ bank_raw.json của đối tác; "
+            "s2_item {stem, options{A-C}, answer} clean + s2_raw_fragment tiện merge vào tbl s2. "
+            "Chỉ phần TEXT (thông báo dạng ảnh s2_has_image ngoài phạm vi). CẦN GV tiếng Anh duyệt+ký."
+        ),
+        "count": len(items),
+        "count_qc_ok": sum(1 for it in items if it["qc_ok"]),
+        "items": items,
+    }
+
+
+def r2_review_sheet(items: list) -> str:
+    """Bảng GV soát/ký (Markdown) cho R2: seed | thông báo gốc | thông báo mới | đáp án | độ khó | QC | ô ký."""
+    header = (
+        "| # | Nguồn seed | Thông báo gốc (seed) | Thông báo MỚI (stem) | Đáp án | Độ khó | QC | GV duyệt (Đạt/Không + chữ ký) |\n"
+        "|---|---|---|---|---|---|---|---|"
+    )
+    rows = [header]
+    for i, it in enumerate(items, 1):
+        s = it["s2_item"]
+        qc = "OK" if it["qc_ok"] else "⚠ " + "; ".join(it["qc_issues"])
+        seed_notice = (it["seed_notice"] or "").replace("|", "/")[:50]
+        new_stem = (s.get("stem") or "").replace("|", "/")[:60]
+        rows.append(
+            f"| {i} | {it['nguon_seed']} | {seed_notice} | {new_stem} | {s.get('answer')} | {it['do_kho']} | {qc} |  |"
+        )
+    return "\n".join(rows)

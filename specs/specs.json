@@ -793,6 +793,25 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_003_r4_cloze_variants_boss_format"
       ],
       "notes": "Slice R4 (cloze hộp-từ) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT của đối tác (đọc qua Google Drive connector): s4_raw = list block, hộp từ là block kind='tbl' (space-joined), passage các block kind='p' với chỗ trống '(21)…', s4_answers==key_cloze khóa 21-30. Đáp án đối tác có thể viết hoa (vd 'Both') trong khi hộp từ viết thường → cổng kiem_hop_tu so KHÔNG phân biệt hoa/thường. Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini + GV duyệt. Part có ẢNH (một số record s4_has_image) ngoài phạm vi slice text này."
+    },
+    {
+      "id": "SPEC-FACTORY-004",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh câu R2 (đọc thông báo/biển báo, 3 đáp án) — xuất định dạng s2 bank đối tác",
+      "statement": "Hệ sinh biến thể câu Đọc phần 2 (R2, thông báo/biển báo, 3 lựa chọn A/B/C) từ thông báo THẬT trong bank_raw.json của đối tác (khóa s2) làm seed (grounded, hạn chế ảo giác): tách theo mốc câu 11-15, paraphrase thành thông báo MỚI cùng dạng + 3 phương án, xuất s2_item {stem, options{A-C}, answer} (clean, D2 Option (a)) + s2_raw_fragment tiện merge, kèm nhãn độ khó và truy vết seed, qua cổng QC, để bàn giao cho pipeline ghép đề của đối tác.",
+      "acceptance_criteria": [
+        "load_r2_seeds đọc bank_raw.json của đối tác: tách block tbl s2 theo mốc câu 11-15 thành từng thông báo, ghép đáp án A/B/C (s2_answers, fallback subset 11-15 của key_reading).",
+        "build_r2_variants sinh thông báo MỚI cùng dạng + 3 phương án A/B/C qua Gemini real/mock, KHÁC nguyên văn thông báo seed (bản quyền), đúng shape s2_item (stem, options A-C, answer thuộc options).",
+        "Mỗi item gắn nhãn độ khó Dễ/TB/Khó + truy vết nguồn seed (nguon_seed theo câu) + s2_raw_fragment ('NN. stem A. .. B. .. C. ..') tiện merge vào tbl s2.",
+        "qc_r2 bắt lỗi thông báo hỏng (thiếu phương án A/B/C, đáp án không thuộc options, phương án trùng/rỗng, trùng nguyên văn thông báo seed); phát hiện + gắn nhãn near-dup stem toàn-lô bằng jaccard (không tự xoá).",
+        "export_r2_bundle + r2_review_sheet xuất gói bàn giao JSON (s2_item + metadata) + bảng GV soát/ký."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_004_r2_notice_variants_boss_format"
+      ],
+      "notes": "Slice R2 (thông báo/biển báo) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): s2_raw = 2 block 'p' (tiêu đề/hướng dẫn) + 1 block 'tbl' GỘP 5 thông báo dạng 'NN. <notice> A. .. B. .. C. .. NN+1. ...'; s2_answers = {11..15: A/B/C}. Đơn vị = 1 thông báo + 3 phương án; tách theo mốc 11-15 (regex, best-effort — notice có thể chứa dấu chấm nên cắt phần thông báo trước ' A. '). Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini + GV duyệt. Thông báo dạng ẢNH (s2_has_image ~18/30) NGOÀI phạm vi slice text này."
     }
   ]
 }

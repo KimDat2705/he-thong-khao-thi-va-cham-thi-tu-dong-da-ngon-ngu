@@ -298,3 +298,125 @@ def test_SPEC_FACTORY_003_r4_cloze_variants_boss_format():
     assert bundle["count_qc_ok"] == 2
     sheet = boss_factory.r4_review_sheet(items)
     assert "GV duyệt" in sheet and "Hộp từ" in sheet and "Đáp án" in sheet
+
+
+# tbl s2 THẬT của EB1.2601 (3 thông báo 11-13) — dạng gộp "NN. <notice> A. .. B. .. C. .." của đối tác.
+_R2_REAL_TBL = (
+    "11. Wash dark colors separately at 40oC. Dry flat away from direct sunlight "
+    "A. This must not be washed in water hotter than 40oC or hung up to dry. "
+    "B. This can safely be washed with white things and dried outside in the sun. "
+    "C. This should be dry cleaned and not washed even at a temperature of 40oC. "
+    "12. Karen, This book is due back at the library today but if you want to read it, "
+    "I will get it out for another week. Tracy. "
+    "A. Tracy is asking Karen if she can borrow her library book. "
+    "B. Tracy is telling Karen to take her book back to the library. "
+    "C. Tracy is offering to let Karen read her library book. "
+    "13. POSTCARD My time spent studying Greek has been well worth it! Everyone here in this "
+    "Greek village understands me although they often talk too fast for me to understand Jessica "
+    "A. Jessica is disappointed the Greek people cannot understand her. "
+    "B. Jessica feels she did not spend enough time studying Greek. "
+    "C. Jessica is pleased with her success in speaking Greek."
+)
+
+
+def test_SPEC_FACTORY_004_r2_notice_variants_boss_format():
+    # bank_raw.json thật: s2_raw = block "tbl" gộp 5 thông báo; s2_answers = 3 lựa chọn A/B/C.
+    bank = [{
+        "ma_de": "EB1.2601",
+        "s2_raw": [
+            {"kind": "p", "text": "Section 2 Questions 11-15 (5 points)"},
+            {"kind": "p", "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."},
+            {"kind": "tbl", "text": _R2_REAL_TBL},
+        ],
+        "s2_answers": {"11": "A", "12": "C", "13": "C"},
+        "s2_has_image": False,
+    }]
+
+    # AC1: trích seed R2 — tách theo mốc 11-13, từng notice + đáp án A/B/C.
+    seeds = boss_factory.load_r2_seeds(bank)
+    assert len(seeds) == 3
+    assert [s["num"] for s in seeds] == ["11", "12", "13"]
+    assert seeds[0]["answer"] == "A" and seeds[1]["answer"] == "C"
+    assert "Wash dark colors" in seeds[0]["notice"]                     # phần thông báo (trước A.)
+    assert "A." not in seeds[0]["notice"]                               # đã cắt trước phương án A
+
+    # AC2+AC3: sinh biến thể (mock tất định) — s2_item clean {stem, options{A,B,C}, answer}.
+    items = boss_factory.build_r2_variants(seeds, per_seed=1, generator=None)
+    assert len(items) == 3
+    for it in items:
+        s = it["s2_item"]
+        assert set(s.keys()) == {"stem", "options", "answer"}
+        assert sorted(s["options"].keys()) == ["A", "B", "C"]          # ĐÚNG 3 phương án
+        assert s["answer"] in s["options"]
+        assert s["stem"] and s["stem"] != it["seed_notice"]            # KHÁC nguyên văn seed
+        assert it["nguon_seed"].startswith("EB1.2601#")               # truy vết seed (theo câu)
+        assert it["do_kho"] in ("Dễ", "TB", "Khó")
+        assert it["qc_ok"] is True                                     # notice khác nhau → 0 near-dup oan
+        assert it["s2_raw_fragment"].startswith(it["nguon_seed"].split("#")[1] + ".")  # "11." đầu fragment
+        assert " A. " in it["s2_raw_fragment"] and " B. " in it["s2_raw_fragment"]
+
+    # AC4: qc_r2 bắt lỗi thông báo hỏng.
+    good = seeds[0]
+    base = items[0]["s2_item"]
+    assert any("A,B,C" in i for i in boss_factory.qc_r2({**base, "options": {"A": "x", "B": "y"}}, good))  # thiếu C
+    assert any("answer" in i for i in boss_factory.qc_r2({**base, "answer": "D"}, good))                    # answer ngoài
+    dupopt = {**base, "options": {"A": "same", "B": "same", "C": "diff"}, "answer": "A"}
+    assert any("trùng nội dung" in i for i in boss_factory.qc_r2(dupopt, good))
+    copy = {"stem": good["notice"], "options": {"A": "a", "B": "b", "C": "c"}, "answer": "A"}
+    assert any("nguyên văn" in i for i in boss_factory.qc_r2(copy, good))
+
+    # AC-dedup (non-tautology): nhánh REAL (_StubGen) trả CÙNG stem 2 lần → thông báo 2 near-dup.
+    stub = _StubGen({"stem": "No parking at any time on this street.",
+                     "options": {"A": "You can park briefly.", "B": "Parking is never allowed here.",
+                                 "C": "Parking costs money."}, "answer": "B", "difficulty": "easy"})
+    dupd = boss_factory.build_r2_variants(seeds[:1], per_seed=2, generator=stub)
+    assert len(dupd) == 2
+    assert dupd[0]["qc_ok"] is True
+    assert any("near-duplicate" in i for i in dupd[1]["qc_issues"])
+
+    # Regression: mock per_seed=2 CÙNG seed KHÔNG near-dup oan (token duy nhất theo idx).
+    multi = boss_factory.build_r2_variants(seeds[:1], per_seed=2, generator=None)
+    assert len(multi) == 2 and all(it["qc_ok"] for it in multi)
+
+    # Regression (review, verify data thật EB1.2605): số 11-15 trong THÂN câu SAU KHÔNG tách nhầm.
+    embedded = [{
+        "ma_de": "EB1.2605",
+        "s2_raw": [{"kind": "tbl", "text":
+            "11. No entry after 6 pm. A. Do not enter in the evening. B. Enter only after 6. C. Entry is free. "
+            "12. Meeting moved to room 5. A. The room changed. B. The time changed. C. The meeting is off. "
+            "13. Riding classes will no longer take place at 12. A. Classes stop at noon now. "
+            "B. Classes moved earlier. C. Jane would be the only rider at 12, so she should come later."}],
+        "s2_answers": {"11": "A", "12": "A", "13": "A"},
+    }]
+    emb = boss_factory.load_r2_seeds(embedded)
+    assert [s["num"] for s in emb] == ["11", "12", "13"]                    # KHÔNG có seed rác num='12' từ "at 12."
+    assert "Riding classes" in emb[2]["notice"]                             # câu 13 nguyên vẹn
+
+    # Regression (review): ' A. ' trong THÂN thông báo (vd 'grade A.') KHÔNG cắt cụt notice.
+    internal_a = [{
+        "ma_de": "EB1.2699",
+        "s2_raw": [{"kind": "tbl", "text":
+            "11. You got grade A. This means you passed the exam. "
+            "A. The student failed. B. The student passed. C. The exam was cancelled."}],
+        "s2_answers": {"11": "B"},
+    }]
+    ia = boss_factory.load_r2_seeds(internal_a)
+    assert len(ia) == 1 and "This means you passed the exam" in ia[0]["notice"]
+    assert ia[0]["options"]["B"] == "The student passed."
+
+    # Regression (review): fallback key_reading khi thiếu s2_answers — subset 11-15, bỏ key ngoài dải.
+    kr_rec = [{
+        "ma_de": "EB1.2698",
+        "s2_raw": [{"kind": "tbl", "text":
+            "11. Closed on Sunday. A. Open all week. B. Shut on Sundays. C. Open Sundays only."}],
+        "key_reading": {"1": "A", "11": "B", "21": "fact"},
+    }]
+    kr = boss_factory.load_r2_seeds(kr_rec)
+    assert len(kr) == 1 and kr[0]["num"] == "11" and kr[0]["answer"] == "B"
+
+    # AC5: gói bàn giao + bảng GV soát/ký.
+    bundle = boss_factory.export_r2_bundle(items)
+    assert bundle["skill"] == "reading_s2_notice" and bundle["count"] == 3
+    assert bundle["count_qc_ok"] == 3
+    sheet = boss_factory.r2_review_sheet(items)
+    assert "GV duyệt" in sheet and "Thông báo" in sheet and "Đáp án" in sheet
