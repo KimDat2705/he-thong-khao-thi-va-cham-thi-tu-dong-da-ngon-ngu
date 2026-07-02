@@ -1132,3 +1132,210 @@ def r3_review_sheet(items: list) -> str:
             f"| {i} | {it['nguon_seed']} | {passage} | {len(it['s3_item']['questions'])} | {ans} | {it['do_kho']} | {qc} |  |"
         )
     return "\n".join(rows)
+
+
+# ======================================================================
+# SLICE W1 (Viết lại câu giữ nghĩa — Viết phần 1) — SPEC-FACTORY-006
+# ----------------------------------------------------------------------
+# Mở rộng ngân hàng W1 của đối tác (khóa `w1` trong bank_raw.json). Cấu trúc THẬT:
+#   w1_raw = list block "p": tiêu đề/hướng dẫn + Example/Answer → các CẶP (câu GỐC + câu VIẾT-LẠI
+#   có chỗ trống '……' cho sẵn phần đầu). key_w1 == w1_answers = {"1": <câu mẫu hoàn chỉnh>, ...} (5 câu).
+# Đơn vị = 1 câu biến đổi ngữ pháp (bị động/tường thuật/điều kiện/nominalization...). Biến thể =
+# câu MỚI cùng KIỂU biến đổi + phần đầu cho sẵn + câu mẫu. Song song pattern R1 (khác: có 'prompt').
+
+_W1_BLANK_RE = re.compile(r"…|_{2,}|\.{3,}")   # chỗ trống '……'/'____'/'...' trong câu viết-lại
+
+
+def load_w1_seeds(bank: list) -> list:
+    """Trích câu viết-lại W1 (khóa `w1`) từ bank_raw.json của đối tác: câu gốc + phần đầu + câu mẫu."""
+    seeds = []
+    for rec in bank:
+        ma_de = rec.get("ma_de") or rec.get("file") or "?"
+        w1_raw = rec.get("w1_raw")
+        answers = rec.get("w1_answers") or rec.get("key_w1") or {}
+        if not isinstance(w1_raw, list) or not answers:
+            continue
+        content = []
+        for b in w1_raw:
+            if not isinstance(b, dict) or b.get("kind") != "p":
+                continue
+            tx = str(b.get("text") or "").strip()
+            if not tx or tx.startswith("Section 1") or tx.startswith("Finish each") \
+                    or tx.startswith("Example:") or tx.startswith("Answer:"):
+                continue
+            content.append(tx)
+        # ghép cặp NGHIÊM NGẶT theo cửa sổ 2 block: (câu GỐC không-chỗ-trống + câu VIẾT-LẠI có-chỗ-trống).
+        # Cấu trúc lệch (block lẻ / gốc có chỗ trống / prompt thiếu chỗ trống / số cặp != số đáp án) →
+        # BỎ CẢ RECORD, KHÔNG emit seed lệch key (tránh gán nhầm câu mẫu — bài học review đối kháng).
+        pairs, structural_ok = [], (len(content) % 2 == 0)
+        if structural_ok:
+            for j in range(0, len(content), 2):
+                original, prompt = content[j], content[j + 1]
+                if _W1_BLANK_RE.search(original) or not _W1_BLANK_RE.search(prompt):
+                    structural_ok = False
+                    break
+                pairs.append((original, prompt))
+        if not structural_ok or len(pairs) != len(answers):
+            logger.warning(f"W1 {ma_de}: cấu trúc w1_raw lệch (ghép {len(pairs)} cặp / {len(answers)} đáp án) → BỎ record.")
+            continue
+        for k, (original, prompt) in enumerate(pairs, 1):
+            ans = answers.get(str(k))
+            if original and prompt and ans:
+                seeds.append({"ma_de": ma_de, "num": str(k), "original": original,
+                              "prompt": prompt, "answer": str(ans)})
+    return seeds
+
+
+def _w1_lead(prompt: str) -> str:
+    """Phần ĐẦU cho sẵn của câu viết-lại (trước chỗ trống) — câu mẫu phải bắt đầu bằng phần này."""
+    return _W1_BLANK_RE.split(str(prompt or ""))[0].strip().rstrip(".,:;")
+
+
+def _w1_prefix_ok(answer, lead) -> bool:
+    """Câu mẫu có bắt đầu bằng phần đầu cho sẵn KHÔNG — so theo TOKEN (bỏ dấu câu, không phân biệt hoa/thường).
+
+    So token tránh: (a) false-reject do dấu phẩy/nháy nội dung ('At the moment, Mr. Lazylion's...'),
+    (b) false-pass do khớp giữa-từ ('If' khớp 'Iffy')."""
+    def toks(s):
+        return re.sub(r"[^0-9a-z ]", " ", _norm_topic(s)).split()
+    a, lead_t = toks(answer), toks(lead)
+    return bool(lead_t) and a[: len(lead_t)] == lead_t
+
+
+def _mock_w1_variant(seed: dict, idx: int) -> dict:
+    """Biến thể MOCK tất định (không gọi mạng) — stand-in cho test (song song _mock_variant R1)."""
+    diff = ["easy", "medium", "hard"][idx % 3]
+    tag = f"{seed.get('ma_de')}#{seed.get('num')}"
+    lead = f"Rewrite {tag} v{idx + 1}"
+    return {
+        "original": f"Original sentence {tag} version {idx + 1}.",
+        "prompt": f"{lead} ______.",
+        "answer": f"{lead} means the same thing here.",
+        "difficulty": diff,
+        "explanation": f"Biến thể viết-lại từ {tag} (cùng kiểu biến đổi).",
+    }
+
+
+def _real_w1_variant(generator, seed: dict, idx: int) -> Optional[dict]:
+    """Sinh câu viết-lại W1 THẬT qua Gemini: câu MỚI cùng KIỂU biến đổi + phần đầu + câu mẫu."""
+    system = (
+        "You are a VSTEP B1 (CEFR B1) English item writer for Writing Part 1 (sentence "
+        "transformation: rewrite a sentence so it keeps the same meaning, given the start). Given a "
+        "seed (original sentence, the given start, and the model answer), infer the grammar point "
+        "being tested (e.g. passive, reported speech, conditional, comparative, nominalisation) and "
+        "write ONE NEW, parallel item testing the SAME grammar point at B1 level: a FRESH original "
+        "sentence (NOT a copy), a given start ending with a blank '______', and the full model "
+        "answer that begins with that given start. Return ONLY JSON: {\"original\": str, "
+        "\"prompt\": \"<start> ______.\", \"answer\": \"<full rewritten sentence>\", "
+        "\"difficulty\": \"easy|medium|hard\", \"explanation\": str}."
+    )
+    user = (
+        f"SEED (write a NEW one testing the SAME grammar point, do NOT copy it):\n"
+        f"Original: {seed.get('original')}\n"
+        f"Given start: {seed.get('prompt')}\n"
+        f"Model answer: {seed.get('answer')}\n"
+        f"Generate parallel variant #{idx + 1}."
+    )
+    raw = generator._call_gemini(system, user)
+    data = _loads_lenient(raw)
+    return data if isinstance(data, dict) else None
+
+
+def qc_w1(variant: dict, seed: dict) -> list:
+    """Cổng QC cho câu viết-lại W1. Trả danh sách lỗi (rỗng = đạt)."""
+    issues = []
+    original = str(variant.get("original") or "").strip()
+    prompt = str(variant.get("prompt") or "").strip()
+    answer = str(variant.get("answer") or "").strip()
+    if not original:
+        issues.append("câu gốc rỗng")
+    if not prompt:
+        issues.append("phần đầu (prompt) rỗng")
+    elif not _W1_BLANK_RE.search(prompt):
+        issues.append("phần đầu (prompt) thiếu chỗ trống")
+    if not answer:
+        issues.append("câu mẫu (answer) rỗng")
+    if original and answer and _norm_topic(original) == _norm_topic(answer):
+        issues.append("câu mẫu trùng câu gốc (chưa biến đổi)")
+    lead = _w1_lead(prompt)
+    if prompt and _W1_BLANK_RE.search(prompt) and not lead:
+        issues.append("prompt thiếu phần đầu trước chỗ trống")
+    elif lead and answer and not _w1_prefix_ok(answer, lead):
+        issues.append("câu mẫu KHÔNG bắt đầu bằng phần đầu cho sẵn")
+    if answer and _norm_topic(answer) == _norm_topic(seed.get("answer")):
+        issues.append("trùng nguyên văn câu mẫu seed (bản quyền)")
+    return issues
+
+
+def build_w1_variants(seeds: list, per_seed: int = 1, generator=None, dup_threshold: float = 0.85) -> list:
+    """Sinh biến thể câu viết-lại W1 (song song build_r1_variants). Output w1_item {original,prompt,answer}."""
+    use_mock = generator is None or getattr(generator, "client", None) is None
+    accepted_answers = []
+    out = []
+    for seed in seeds:
+        for i in range(per_seed):
+            try:
+                v = _mock_w1_variant(seed, i) if use_mock else _real_w1_variant(generator, seed, i)
+            except Exception as e:
+                logger.warning(f"Sinh câu W1 lỗi seed {seed['ma_de']}#{seed.get('num')}#{i}: {e}")
+                continue
+            if not v:
+                continue
+            diff_en = (v.get("difficulty") or "medium").lower()
+            if diff_en not in DIFF_MAP:
+                diff_en = "medium"
+            original = str(v.get("original") or "").strip()
+            prompt = str(v.get("prompt") or "").strip()
+            answer = str(v.get("answer") or "").strip()
+            issues = qc_w1({"original": original, "prompt": prompt, "answer": answer}, seed)
+            for prev in accepted_answers:
+                if _jaccard(answer, prev) >= dup_threshold:
+                    issues.append("near-duplicate answer (trùng lặp gần với câu khác trong lô)")
+                    break
+            accepted_answers.append(answer)
+            out.append({
+                "w1_item": {"original": original, "prompt": prompt, "answer": answer},
+                "do_kho": DIFF_MAP[diff_en],
+                "difficulty_en": diff_en,
+                "explanation": v.get("explanation"),
+                "nguon_seed": f"{seed['ma_de']}#{seed.get('num')}",
+                "seed_answer": seed.get("answer"),
+                "qc_issues": issues,
+                "qc_ok": len(issues) == 0,
+            })
+    return out
+
+
+def export_w1_bundle(items: list) -> dict:
+    """Gói bàn giao (JSON) cho đối tác: câu viết-lại W1 (gốc + phần đầu + câu mẫu) + metadata."""
+    return {
+        "skill": "writing_w1_rewrite",
+        "spec": "SPEC-FACTORY-006",
+        "note": (
+            "Câu viết-lại W1 (giữ nghĩa) paraphrase từ bank_raw.json của đối tác; w1_item {original, "
+            "prompt (phần đầu + chỗ trống), answer (câu mẫu)} — merge vào w1_raw (cặp block) + key_w1. "
+            "CẦN GV tiếng Anh duyệt+ký (đặc biệt tính đúng ngữ pháp của câu mẫu)."
+        ),
+        "count": len(items),
+        "count_qc_ok": sum(1 for it in items if it["qc_ok"]),
+        "items": items,
+    }
+
+
+def w1_review_sheet(items: list) -> str:
+    """Bảng GV soát/ký (Markdown) cho W1: seed | câu gốc | phần đầu | câu mẫu | độ khó | QC | ô ký."""
+    header = (
+        "| # | Nguồn seed | Câu gốc (mới) | Phần đầu cho sẵn | Câu mẫu (answer) | Độ khó | QC | GV duyệt (Đạt/Không + chữ ký) |\n"
+        "|---|---|---|---|---|---|---|---|"
+    )
+    rows = [header]
+    for i, it in enumerate(items, 1):
+        w = it["w1_item"]
+        qc = "OK" if it["qc_ok"] else "⚠ " + "; ".join(it["qc_issues"])
+        original = (w.get("original") or "").replace("|", "/")[:45]
+        prompt = (w.get("prompt") or "").replace("|", "/")[:35]
+        answer = (w.get("answer") or "").replace("|", "/")[:55]
+        rows.append(
+            f"| {i} | {it['nguon_seed']} | {original} | {prompt} | {answer} | {it['do_kho']} | {qc} |  |"
+        )
+    return "\n".join(rows)

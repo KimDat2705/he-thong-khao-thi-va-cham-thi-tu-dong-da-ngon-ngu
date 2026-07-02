@@ -831,6 +831,25 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_005_r3_comprehension_variants_boss_format"
       ],
       "notes": "Slice R3 (đọc-hiểu đoạn văn) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): s3_raw = list block 'p' (tiêu đề/hướng dẫn → passage nhiều p → từng câu '16. <stem>' + 4 option 'A. ..' 'B. ..' 'C. ..' 'D. ..' cho câu 16-20); s3_answers = {16..20: A-D}. Đơn vị = CẢ NHÓM (paraphrase đoạn + viết lại câu hỏi giữ độ khó). SLICE NGỮ-NGHĨA-NẶNG: máy KHÔNG tự kiểm đúng/sai ngữ nghĩa đáp án đọc-hiểu → GV tiếng Anh BẮT BUỘC soát+ký. Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini + GV duyệt. Đoạn văn có ẢNH (s3_has_image) ngoài phạm vi slice text này."
+    },
+    {
+      "id": "SPEC-FACTORY-006",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh câu Viết W1 (viết lại câu giữ nghĩa) — xuất định dạng w1 bank đối tác",
+      "statement": "Hệ sinh biến thể câu Viết phần 1 (W1: viết lại câu giữ nguyên nghĩa, cho sẵn phần đầu) từ câu THẬT trong bank_raw.json của đối tác (khóa w1) làm seed (grounded, hạn chế ảo giác): nhận diện KIỂU biến đổi ngữ pháp (bị động/tường thuật/điều kiện/nominalization...) rồi sinh câu MỚI cùng kiểu + phần đầu cho sẵn + câu mẫu hoàn chỉnh, xuất w1_item {original, prompt, answer}, kèm nhãn độ khó và truy vết seed, qua cổng QC, để bàn giao cho pipeline ghép đề của đối tác.",
+      "acceptance_criteria": [
+        "load_w1_seeds đọc bank_raw.json của đối tác: ghép cặp câu gốc + câu viết-lại có chỗ trống (w1_raw), ghép câu mẫu (w1_answers/key_w1) theo thứ tự 1..N.",
+        "build_w1_variants sinh câu MỚI cùng kiểu biến đổi qua Gemini real/mock, KHÁC nguyên văn câu mẫu seed (bản quyền), câu mẫu (answer) đã biến đổi (khác câu gốc) và bắt đầu bằng phần đầu cho sẵn (prompt).",
+        "Mỗi item xuất w1_item {original, prompt, answer} + nhãn độ khó Dễ/TB/Khó + truy vết nguon_seed (theo câu).",
+        "qc_w1 bắt lỗi câu hỏng (gốc/prompt/answer rỗng, câu mẫu trùng câu gốc chưa biến đổi, câu mẫu không bắt đầu bằng phần đầu, trùng nguyên văn câu mẫu seed); phát hiện + gắn nhãn near-dup answer toàn-lô bằng jaccard (không tự xoá).",
+        "export_w1_bundle + w1_review_sheet xuất gói bàn giao JSON (w1_item + metadata) + bảng GV soát/ký."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_006_w1_rewrite_variants_boss_format"
+      ],
+      "notes": "Slice W1 (viết lại câu) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): w1_raw = block 'p' tiêu đề/hướng dẫn/Example/Answer → các CẶP (câu gốc + câu viết-lại có chỗ trống '……'); key_w1 == w1_answers = {1..5: câu mẫu}. Đơn vị = 1 câu biến đổi ngữ pháp; ghép cặp bằng phát hiện chỗ trống. Cổng QC kiểm câu mẫu bắt đầu bằng phần đầu cho sẵn (đặc trưng W1). Test = mock tất định + _StubGen nhánh real (không gọi mạng); GV BẮT BUỘC soát tính đúng ngữ pháp câu mẫu."
     }
   ]
 }

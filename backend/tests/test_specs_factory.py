@@ -545,3 +545,121 @@ def test_SPEC_FACTORY_005_r3_comprehension_variants_boss_format():
     assert bundle["count_qc_ok"] == 1
     sheet = boss_factory.r3_review_sheet(items)
     assert "GV duyệt" in sheet and "Đoạn văn" in sheet and "Số câu" in sheet
+
+
+def test_SPEC_FACTORY_006_w1_rewrite_variants_boss_format():
+    # bank_raw.json thật: w1_raw = block "p" theo CẶP (câu gốc + câu viết-lại có chỗ trống);
+    # key_w1/w1_answers = câu mẫu hoàn chỉnh (5 câu). (Fixture dùng '______' thay '……'.)
+    bank = [{
+        "ma_de": "EB1.2601",
+        "w1_raw": [
+            {"kind": "p", "text": "Section 1 (10 points)"},
+            {"kind": "p", "text": "Finish each of the following sentences in such a way that it means exactly the same as the sentence printed before it."},
+            {"kind": "p", "text": ""},
+            {"kind": "p", "text": "Example: I have not enjoyed myself so much for years"},
+            {"kind": "p", "text": "Answer: It is years since I enjoyed myself so much"},
+            {"kind": "p", "text": ""},
+            {"kind": "p", "text": "How is your surname spelt?"},
+            {"kind": "p", "text": "How do ______?"},
+            {"kind": "p", "text": "At the moment, they are cleaning Mr. Lazylion's car."},
+            {"kind": "p", "text": "At the moment Mr. Lazylion ______"},
+            {"kind": "p", "text": "'I will sleep well tonight!' said Arnie"},
+            {"kind": "p", "text": "Arnie said ______"},
+            {"kind": "p", "text": "I did not bring my umbrella so I got wet."},
+            {"kind": "p", "text": "If ______"},
+            {"kind": "p", "text": "They cancelled the flight because the weather was bad."},
+            {"kind": "p", "text": "They cancelled the flight because of ______"},
+        ],
+        "w1_answers": {
+            "1": "How do you spell your surname?",
+            "2": "At the moment, Mr. Lazylion's car is being cleaned.",
+            "3": "Arnie said that he would sleep well that night.",
+            "4": "If I had brought my umbrella, I would not have got wet.",
+            "5": "They cancelled the flight because of the bad weather.",
+        },
+    }]
+
+    # AC1: trích câu viết-lại — ghép cặp (câu gốc + phần đầu) + câu mẫu.
+    seeds = boss_factory.load_w1_seeds(bank)
+    assert len(seeds) == 5
+    assert seeds[0]["original"] == "How is your surname spelt?"
+    assert seeds[0]["answer"] == "How do you spell your surname?"
+    assert "______" in seeds[0]["prompt"]                                  # phần đầu có chỗ trống
+    assert seeds[1]["answer"].endswith("is being cleaned.")               # bị động
+    assert boss_factory._w1_lead(seeds[3]["prompt"]) == "If"              # phần đầu câu điều kiện
+
+    # AC2+AC3: sinh biến thể (mock tất định) — w1_item {original, prompt, answer}.
+    items = boss_factory.build_w1_variants(seeds, per_seed=1, generator=None)
+    assert len(items) == 5
+    for it in items:
+        w = it["w1_item"]
+        assert set(w.keys()) == {"original", "prompt", "answer"}
+        assert w["original"] and w["prompt"] and w["answer"]
+        lead = boss_factory._w1_lead(w["prompt"])
+        assert boss_factory._w1_prefix_ok(w["answer"], lead)                # câu mẫu bắt đầu bằng phần đầu (token)
+        assert boss_factory._norm_topic(w["answer"]) != boss_factory._norm_topic(w["original"])  # đã biến đổi
+        assert it["nguon_seed"].startswith("EB1.2601#")
+        assert it["do_kho"] in ("Dễ", "TB", "Khó") and it["qc_ok"] is True
+
+    # AC4: qc_w1 bắt lỗi câu hỏng.
+    s0 = seeds[0]
+    base = items[0]["w1_item"]
+    assert any("answer) rỗng" in i for i in boss_factory.qc_w1({**base, "answer": ""}, s0))
+    same = {"original": "The same text here.", "prompt": "P ______", "answer": "The same text here."}
+    assert any("trùng câu gốc" in i for i in boss_factory.qc_w1(same, s0))
+    off_lead = {"original": "o", "prompt": "How do ______?", "answer": "What time is it now?"}
+    assert any("phần đầu" in i for i in boss_factory.qc_w1(off_lead, s0))
+    copy = {"original": "A brand new original sentence.", "prompt": s0["prompt"], "answer": s0["answer"]}
+    assert any("nguyên văn" in i for i in boss_factory.qc_w1(copy, s0))
+    # (review) prefix check KHÔNG false-reject câu bị động thật (dấu phẩy/nháy: seed #2)
+    s1 = seeds[1]
+    faithful = {"original": "Right now, they are cleaning the office.", "prompt": s1["prompt"],
+                "answer": "At the moment, Mr. Lazylion's new car is being cleaned carefully."}
+    assert not any("bắt đầu bằng phần đầu" in i for i in boss_factory.qc_w1(faithful, s1))
+    # (review) prefix check bắt false-pass khớp giữa-từ ('If' vs 'Iffy')
+    iffy = {"original": "The weather was strange.", "prompt": "If ______", "answer": "Iffy weather ruined the trip."}
+    assert any("bắt đầu bằng phần đầu" in i for i in boss_factory.qc_w1(iffy, seeds[3]))
+    # (review) prompt KHÔNG có chỗ trống → bắt lỗi (item không giải được)
+    no_blank = {"original": "o", "prompt": "The mouse was chased.", "answer": "The mouse was chased by the cat."}
+    assert any("thiếu chỗ trống" in i for i in boss_factory.qc_w1(no_blank, s0))
+    # (review) prompt chỗ-trống-ở-đầu (không có phần đầu) → bắt lỗi
+    lead_blank = {"original": "o", "prompt": "______ is being cleaned.", "answer": "TOTALLY unrelated answer."}
+    assert any("phần đầu trước chỗ trống" in i for i in boss_factory.qc_w1(lead_blank, s0))
+
+    # AC-dedup (non-tautology): nhánh REAL (_StubGen) trả CÙNG answer 2 lần → câu 2 near-dup.
+    stub = _StubGen({"original": "The cat chased the mouse quickly.",
+                     "prompt": "The mouse ______", "answer": "The mouse was chased quickly by the cat.",
+                     "difficulty": "medium"})
+    dupd = boss_factory.build_w1_variants(seeds[:1], per_seed=2, generator=stub)
+    assert len(dupd) == 2
+    assert dupd[0]["qc_ok"] is True
+    assert any("near-duplicate" in i for i in dupd[1]["qc_issues"])
+
+    # Regression: mock per_seed=2 CÙNG seed KHÔNG near-dup oan (token duy nhất theo idx).
+    multi = boss_factory.build_w1_variants(seeds[:1], per_seed=2, generator=None)
+    assert len(multi) == 2 and all(m["qc_ok"] for m in multi)
+
+    # Regression (review HIGH): w1_raw LỆCH cấu trúc (1 prompt hụt chỗ trống) → BỎ record,
+    # KHÔNG emit seed gán nhầm câu mẫu (thà mất còn hơn lệch key).
+    malformed = [{
+        "ma_de": "EB1.2689",
+        "w1_raw": [
+            {"kind": "p", "text": "Section 1 (10 points)"},
+            {"kind": "p", "text": "How is your surname spelt?"},
+            {"kind": "p", "text": "How do ______?"},
+            {"kind": "p", "text": "They are cleaning the car."},
+            {"kind": "p", "text": "The car (dòng này MẤT chỗ trống)."},   # prompt hụt blank → cấu trúc lệch
+            {"kind": "p", "text": "I did not bring my umbrella so I got wet."},
+            {"kind": "p", "text": "If ______"},
+        ],
+        "w1_answers": {"1": "How do you spell your surname?", "2": "The car is being cleaned.",
+                       "3": "If I had brought my umbrella, I would not have got wet."},
+    }]
+    assert boss_factory.load_w1_seeds(malformed) == []                     # bỏ cả record, 0 seed lệch
+
+    # AC5: gói bàn giao + bảng GV soát/ký.
+    bundle = boss_factory.export_w1_bundle(items)
+    assert bundle["skill"] == "writing_w1_rewrite" and bundle["count"] == 5
+    assert bundle["count_qc_ok"] == 5
+    sheet = boss_factory.w1_review_sheet(items)
+    assert "GV duyệt" in sheet and "Câu mẫu" in sheet and "Phần đầu" in sheet
