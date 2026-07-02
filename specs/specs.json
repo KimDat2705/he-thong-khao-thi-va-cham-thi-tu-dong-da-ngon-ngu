@@ -869,6 +869,26 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_007_w2_letter_variants_boss_format"
       ],
       "notes": "Slice W2 (viết thư) của kế hoạch mở rộng ngân hàng (S53; D2 Option (a)). GROUND trên bank_raw.json THẬT (đọc qua Google Drive connector): w2_raw = block 'p' tiêu đề 'Section 2 (20 points)' + vai 'You are <tên>...' + bối cảnh thư nhận (thông điệp + 2-3 ý) + 'Now write... about 100 words.' + '--- The end ---'. W2 KHÔNG có đáp án (tự luận — chấm AI/GV theo tiêu chí). Đơn vị = 1 đề viết thư; biến thể theo 14 chủ đề B1. Test = mock tất định + _StubGen nhánh real (không gọi mạng); GV/AI chấm, GV duyệt đề phù hợp B1."
+    },
+    {
+      "id": "SPEC-FACTORY-008",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh bài Nghe B1 (PET: 5 chọn-tranh + 10 điền-từ, TTS đa-giọng) — xuất định dạng pool_lis đối tác",
+      "statement": "Hệ sinh biến thể bài Nghe B1 (format Cambridge PET: L1 5 câu chọn-tranh hội thoại 2 người + L2 10 câu điền-từ monologue) từ bài THẬT trong pool_lis.json của đối tác làm seed. Vì pool_lis KHÔNG có transcript, đây là SINH-NGƯỢC-TỪ-ĐÁP-ÁN: sinh kịch bản MỚI (hội thoại L1 + monologue L2) sao cho đáp án khớp, VALIDATE bằng string-match (đáp án L2 phải nằm trong transcript) TRƯỚC khi render; xuất shape pool_lis {code, answers{1-15}, l1_stems[5], l2_gaps, audio_status} + transcript, kèm nhãn độ khó và truy vết seed. Audio render bằng Gemini TTS đa-giọng (MultiSpeakerVoiceConfig) + ghép khoảng lặng/đọc-lại (stdlib wave) ở khâu riêng (real-mode).",
+      "acceptance_criteria": [
+        "load_lis_seeds đọc pool_lis.json (DICT bài Nghe) của đối tác trích answers{1-15}, l1_stems[5], l2_gaps.",
+        "build_lis_variants sinh kịch bản MỚI (5 hội thoại L1 + 1 monologue L2) qua Gemini text real/mock, cấp code dải LB1.90-*, xuất lis_item shape pool_lis (audio_status='pending_tts', audio chưa render) + transcript truy vết.",
+        "qc_lis (cổng chống lệch đáp án) bắt lỗi: đáp án L2 KHÔNG nằm trong transcript (string-match không phân biệt hoa/thường), L1 thiếu/thừa options A/B/C hoặc answer ngoài options, sai số câu L1/chỗ điền L2; phát hiện + gắn nhãn near-dup transcript.",
+        "silence_pcm + concat_wavs (stdlib wave, 0 dep) tạo khoảng lặng + nối WAV cùng format (raise khi lệch format); _generate/_lis_tts hỗ trợ đa-giọng (MultiSpeakerVoiceConfig) cho hội thoại — khâu audio chạy real-mode, không trong unit test.",
+        "export_lis_bundle + lis_review_sheet xuất gói bàn giao JSON (shape pool_lis + transcript + metadata, ghi rõ audio MÁY cần GV nghe duyệt) + bảng GV soát/ký."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_008_lis_variants_boss_format",
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_008_audio_helpers"
+      ],
+      "notes": "Slice Nghe của kế hoạch mở rộng ngân hàng (S53; D2 Option (a); D3 CHỐT hướng (b) PoC TTS). GROUND trên pool_lis.json THẬT (đọc qua Google Drive connector): mỗi bài LB1.26xx = 1 mp3 ~17 phút cho 15 câu (L1 5 chọn-tranh + L2 10 điền), answers{1-15}, l1_stems, l2_gaps; KHÔNG có transcript. Nghiên cứu web/GitHub (Podcastfy kiến trúc, Gemini multi-speaker native ≤2 giọng, tapescript Cambridge PET đọc-2-lần + bảng pause, ghép audio stdlib wave). SCOPE MVP: core sinh kịch bản + VALIDATE đáp án (test mock tất định, string-match L2) + audio helpers (test stdlib); TTS đa-giọng + ghép trọn bài 17' + MP3 (lameenc) HOÃN/real-mode. ⚠️ KHUYẾT ĐIỂM ghi rõ: audio MÁY (accent/timbre chưa bằng người thật; multi-speaker Gemini đôi khi 2 giọng na ná), kịch bản AI → GV tiếng Anh BẮT BUỘC nghe duyệt + soát đáp án. Format WAV (chưa MP3). Test = mock/_StubGen (không gọi mạng/không sinh audio)."
     }
   ]
 }

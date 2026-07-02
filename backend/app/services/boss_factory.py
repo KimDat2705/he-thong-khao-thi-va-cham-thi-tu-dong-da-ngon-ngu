@@ -12,8 +12,10 @@ dùng `generator._call_gemini` khi có key; mock TẤT ĐỊNH khi không → te
 """
 import json
 import logging
+import os
 import re
 import unicodedata
+import wave
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -1548,3 +1550,382 @@ def w2_review_sheet(items: list) -> str:
             f"| {i} | {it['nguon_seed']} | {role} | {situation} | {len(w.get('points') or [])} | {w.get('domain_guess')} | {it['do_kho']} | {qc} |  |"
         )
     return "\n".join(rows)
+
+
+# ======================================================================
+# SLICE NGHE (Listening) — SPEC-FACTORY-008
+# ----------------------------------------------------------------------
+# Mở rộng ngân hàng Nghe của đối tác (pool_lis.json). Format = Cambridge B1 Preliminary (PET):
+#   L1 = 5 câu CHỌN-TRANH (hội thoại ngắn 2 người) · L2 = 10 câu ĐIỀN-TỪ (1 monologue, điền vào notes).
+# KHÁC BIỆT LỚN: pool_lis KHÔNG có transcript (chỉ l1_stems[5], l2_gaps, answers{1-15}, audio path) →
+# đây là SINH-NGƯỢC-TỪ-ĐÁP-ÁN (không paraphrase). Tách 5 tầng để verify từng tầng, và tách khâu
+# TEXT (sinh kịch bản + VALIDATE đáp án bằng string-match — RẺ, tất định, test được) khỏi khâu
+# TTS/AUDIO (đắt, cần Gemini + nghe tai — chạy real-mode, KHÔNG vào unit test).
+# Đa-giọng: Gemini native MultiSpeakerVoiceConfig (≤2 speaker) cho hội thoại L1; single cho L2.
+# ⚠️ Khuyết điểm ghi rõ cho GV: audio MÁY (accent/timbre chưa bằng người thật); GV BẮT BUỘC nghe duyệt.
+
+L1_OPTION_KEYS = ["A", "B", "C"]
+# Bảng pause (giây) chuẩn PET (đọc mỗi đoạn 2 LẦN) — dùng khi dựng audio ở real-mode.
+LIS_PAUSES = {"after_part_title": 5, "before_l1_audio": 2, "after_reading": 5,
+              "between_parts": 10, "before_l2": 20, "end_notes": 120}
+# Cặp giọng tương phản mạnh cho hội thoại (Google KHÔNG gắn nhãn giới tính chính thức — chọn theo nghe).
+LIS_VOICES = {"A": "Kore", "B": "Puck"}   # A ~ nữ, B ~ nam (cần nghe kiểm)
+
+
+def _lis_norm_pad(s) -> str:
+    """Chuẩn hoá + đệm khoảng trắng 2 đầu để so 'đáp án ∈ transcript' theo ranh giới TỪ (bỏ dấu câu)."""
+    return " " + " ".join(re.sub(r"[^0-9a-z ]", " ", _norm_topic(s)).split()) + " "
+
+
+def _lis_contains(transcript, answer) -> bool:
+    """Đáp án (kể cả dạng '12/twelve') có xuất hiện như CỤM TỪ trong transcript không (bỏ hoa/dấu câu)."""
+    tx = _lis_norm_pad(transcript)
+    for alt in str(answer or "").split("/"):
+        a = _lis_norm_pad(alt).strip()
+        if a and f" {a} " in tx:
+            return True
+    return False
+
+
+def load_lis_seeds(pool) -> list:
+    """Trích bài Nghe từ pool_lis.json của đối tác (DICT keyed by code 'LB1.26xx') thành seed sạch."""
+    records = pool.values() if isinstance(pool, dict) else pool
+    seeds = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        code = rec.get("code") or "?"
+        answers = rec.get("answers") or {}
+        l1_stems = rec.get("l1_stems") or []
+        l2_gaps = rec.get("l2_gaps") or []
+        if answers and l1_stems and l2_gaps:
+            seeds.append({
+                "code": code, "src_code": rec.get("src_code") or code,
+                "set_file": rec.get("audio_name") or rec.get("paper_path"),
+                "answers": {str(k): v for k, v in answers.items()},
+                "l1_stems": list(l1_stems), "l2_gaps": [int(n) for n in l2_gaps],
+                "audio_duration_s": rec.get("audio_duration_s"),
+            })
+    return seeds
+
+
+def _mock_lis_variant(seed: dict, idx: int) -> dict:
+    """Biến thể MOCK tất định (không gọi mạng) — stand-in cho test. Đáp án khớp transcript, unique theo (seed,idx)."""
+    diff = ["easy", "medium", "hard"][idx % 3]
+    code = str(seed.get("code") or "seed")
+    srcnum = code.split(".")[-1]
+    l2_nums = [int(n) for n in (seed.get("l2_gaps") or list(range(6, 16)))]
+    l1 = []
+    for k in range(5):
+        ans = L1_OPTION_KEYS[k % 3]
+        tag = f"{srcnum}v{idx + 1}q{k + 1}"
+        opts = {"A": f"choice a {tag}", "B": f"choice b {tag}", "C": f"choice c {tag}"}
+        l1.append({
+            "stem": f"L1 question about topic {tag}?", "options": opts, "answer": ans,
+            "transcript": f"Speaker A: What about {tag}? Speaker B: I think {opts[ans]} is right.",
+            "speakers": ["Speaker A", "Speaker B"],
+        })
+    l2_ans = {n: f"kw{n}s{srcnum}v{idx + 1}" for n in l2_nums}
+    l2_transcript = (f"Hello, welcome to talk {srcnum} version {idx + 1}. "
+                     + " ".join(f"Number {n} is {l2_ans[n]}." for n in l2_nums))
+    return {
+        "l1_scripts": l1,
+        "l2_transcript": l2_transcript,
+        "l2_gaps": [{"n": n, "answer": l2_ans[n]} for n in l2_nums],
+        "difficulty": diff,
+        "explanation": f"Bài nghe mock từ {code}.",
+    }
+
+
+def _real_lis_variant(generator, seed: dict, idx: int) -> Optional[dict]:
+    """Sinh kịch bản Nghe THẬT qua Gemini TEXT (không phải TTS): 5 hội thoại L1 + 1 monologue L2."""
+    n_l2 = len(seed.get("l2_gaps") or list(range(6, 16)))
+    system = (
+        "You are a Cambridge B1 Preliminary (PET) Listening item writer. Create ONE NEW listening "
+        "content set at B1 level (NOT a copy). Return ONLY JSON. PART 1 'l1_scripts' = 5 items, each a "
+        "SHORT 2-speaker conversation (or announcement) with a picture-choice question: {\"stem\": str, "
+        "\"options\": {\"A\": str, \"B\": str, \"C\": str}, \"answer\": \"A|B|C\", \"transcript\": "
+        "\"Speaker A: ...\\nSpeaker B: ...\", \"speakers\": [\"Speaker A\", \"Speaker B\"]}. The correct "
+        "option MUST be clearly supported by the transcript; the two distractors are mentioned then "
+        "rejected. PART 2 = one monologue 'l2_transcript' (~150-200 words, natural talk) plus 'l2_gaps' "
+        f"= {n_l2} note gaps, each {{\"n\": <6..>, \"answer\": \"<1-2 words>\"}} where EACH answer appears "
+        "VERBATIM in l2_transcript. Return: {\"l1_scripts\": [..5..], \"l2_transcript\": str, "
+        "\"l2_gaps\": [..], \"difficulty\": \"easy|medium|hard\", \"explanation\": str}."
+    )
+    user = (
+        f"Seed listening test to parallel (same PET style/level, do NOT copy):\n"
+        f"L1 question stems: {json.dumps(seed.get('l1_stems'), ensure_ascii=False)}\n"
+        f"Number of L2 gaps: {n_l2}\nGenerate parallel variant #{idx + 1}."
+    )
+    raw = generator._call_gemini(system, user)
+    data = _loads_lenient(raw)
+    return data if isinstance(data, dict) else None
+
+
+def qc_lis(variant: dict, seed: dict) -> list:
+    """Cổng QC cho bài Nghe. Trả danh sách lỗi (rỗng = đạt). GV vẫn PHẢI nghe duyệt audio + ngữ nghĩa."""
+    issues = []
+    l1 = variant.get("l1_scripts") or []
+    l2_transcript = str(variant.get("l2_transcript") or "")
+    l2_gaps = variant.get("l2_gaps") or []
+    if len(l1) != 5:
+        issues.append(f"L1 phải đúng 5 câu (đang {len(l1)})")
+    for i, q in enumerate(l1, 1):
+        q = q if isinstance(q, dict) else {}
+        opts = q.get("options") if isinstance(q.get("options"), dict) else {}
+        if not str(q.get("stem") or "").strip():
+            issues.append(f"L1 câu {i}: stem rỗng")
+        if sorted(opts.keys()) != L1_OPTION_KEYS:
+            issues.append(f"L1 câu {i}: options phải đủ A,B,C (đang {sorted(opts.keys())})")
+        else:
+            vals = [str(v).strip().lower() for v in opts.values()]
+            if len(set(vals)) < len(vals):
+                issues.append(f"L1 câu {i}: có phương án trùng nội dung")
+            if any(not str(v).strip() for v in opts.values()):
+                issues.append(f"L1 câu {i}: có phương án rỗng")
+            if q.get("answer") not in opts:
+                issues.append(f"L1 câu {i}: answer không thuộc options")
+        if not str(q.get("transcript") or "").strip():
+            issues.append(f"L1 câu {i}: transcript rỗng")
+    exp_gaps = [int(n) for n in (seed.get("l2_gaps") or list(range(6, 16)))]
+    if len(l2_gaps) != len(exp_gaps):
+        issues.append(f"L2 phải đúng {len(exp_gaps)} chỗ điền (đang {len(l2_gaps)})")
+    # CỔNG số-thứ-tự gap L2: n phải khớp seed (6-15), không None/trùng/đè key L1 (1-5) → tránh
+    # answers.update ghi đè đáp án L1 âm thầm (bài học review; song song gate của R4).
+    got_n = [g.get("n") for g in l2_gaps if isinstance(g, dict)]
+    if any(n is None for n in got_n) or sorted(str(n) for n in got_n) != sorted(str(n) for n in exp_gaps):
+        issues.append(f"L2 số thứ tự gap phải đúng {sorted(exp_gaps)} (đang {got_n})")
+    if not l2_transcript.strip():
+        issues.append("L2 transcript rỗng")
+    for g in l2_gaps:   # CỔNG cốt lõi: mọi đáp án L2 phải NẰM TRONG transcript (chống lệch đáp án)
+        g = g if isinstance(g, dict) else {}
+        ans = str(g.get("answer") or "").strip()
+        if not ans:
+            issues.append(f"L2 chỗ {g.get('n')}: đáp án rỗng")
+        elif not _lis_contains(l2_transcript, ans):
+            issues.append(f"L2 chỗ {g.get('n')}: đáp án {ans!r} KHÔNG có trong transcript")
+    return issues
+
+
+def _next_lis_code(seed: dict, idx: int, used: set) -> str:
+    """Cấp code MỚI dải LB1.90-* (tách khỏi LB1.26xx thật), nhúng code seed để truy vết + ổn định."""
+    src_num = str(seed.get("code") or "seed").split(".")[-1]
+    base = f"LB1.90-{src_num}-{idx + 1}"
+    code, n = base, 1
+    while code in used:
+        n += 1
+        code = f"{base}.{n}"
+    used.add(code)
+    return code
+
+
+def build_lis_variants(seeds: list, per_seed: int = 1, generator=None, dup_threshold: float = 0.85) -> list:
+    """Sinh biến thể bài Nghe (kịch bản + đáp án, CHƯA render audio). Output lis_item shape pool_lis."""
+    use_mock = generator is None or getattr(generator, "client", None) is None
+    used_codes = {s["code"] for s in seeds}
+    accepted = []
+    out = []
+    for seed in seeds:
+        for i in range(per_seed):
+            try:
+                v = _mock_lis_variant(seed, i) if use_mock else _real_lis_variant(generator, seed, i)
+            except Exception as e:
+                logger.warning(f"Sinh bài Nghe lỗi seed {seed['code']}#{i}: {e}")
+                continue
+            if not v:
+                continue
+            diff_en = (v.get("difficulty") or "medium").lower()
+            if diff_en not in DIFF_MAP:
+                diff_en = "medium"
+            l1 = [q if isinstance(q, dict) else {} for q in (v.get("l1_scripts") or [])]
+            l2_transcript = str(v.get("l2_transcript") or "").strip()
+            l2_gaps = [g if isinstance(g, dict) else {} for g in (v.get("l2_gaps") or [])]
+            issues = qc_lis({"l1_scripts": l1, "l2_transcript": l2_transcript, "l2_gaps": l2_gaps}, seed)
+            for prev in accepted:
+                if _jaccard(l2_transcript, prev) >= dup_threshold:
+                    issues.append("near-duplicate transcript (trùng lặp gần với bài khác trong lô)")
+                    break
+            accepted.append(l2_transcript)
+            code = _next_lis_code(seed, i, used_codes)
+            answers = {str(k): q.get("answer") for k, q in enumerate(l1, 1)}
+            for g in l2_gaps:   # KHÔNG ghi đè đáp án L1 (key 1-5) dù n lệch — phòng thủ (qc_lis đã gắn nhãn)
+                key = str(g.get("n"))
+                if key not in answers:
+                    answers[key] = g.get("answer")
+            out.append({
+                # shape pool_lis của đối tác (audio CHƯA render → audio_status='pending_tts').
+                "lis_item": {
+                    "code": code, "src_code": seed["code"], "set_file": seed.get("set_file"),
+                    "audio_path": None, "audio_name": f"{code}.wav", "audio_duration_s": None,
+                    "answers": answers, "n_answers": len(answers),
+                    "l1_stems": [q.get("stem") for q in l1], "l1_count": len(l1),
+                    "l2_gaps": [g.get("n") for g in l2_gaps], "l2_count": len(l2_gaps),
+                    "media_ext": {}, "flags": [],
+                    "audio_status": "pending_tts", "needs_audio_verify": True,
+                },
+                "transcripts": {"l1": l1, "l2": l2_transcript},
+                "do_kho": DIFF_MAP[diff_en],
+                "difficulty_en": diff_en,
+                "explanation": v.get("explanation"),
+                "nguon_seed": seed["code"],
+                "qc_issues": issues,
+                "qc_ok": len(issues) == 0,
+            })
+    return out
+
+
+def export_lis_bundle(items: list) -> dict:
+    """Gói bàn giao (JSON) cho đối tác: bài Nghe (kịch bản + đáp án + shape pool_lis) + metadata."""
+    return {
+        "skill": "listening",
+        "spec": "SPEC-FACTORY-008",
+        "note": (
+            "Bài Nghe (5 chọn-tranh L1 + 10 điền-từ L2, format PET) sinh từ pool_lis.json của đối tác; "
+            "lis_item = shape pool_lis (audio_status='pending_tts' — audio render bằng CLI --audio). "
+            "⚠️ AUDIO là GIỌNG MÁY (Gemini TTS đa-giọng) — GV tiếng Anh BẮT BUỘC nghe duyệt + soát đáp án "
+            "trước khi dùng; đối tác có thể thay bằng audio người thật."
+        ),
+        "count": len(items),
+        "count_qc_ok": sum(1 for it in items if it["qc_ok"]),
+        "items": items,
+    }
+
+
+def lis_review_sheet(items: list) -> str:
+    """Bảng GV soát/ký (Markdown) cho Nghe: seed | L1 đáp án | L2 đáp án | transcript rút gọn | audio | QC | ô ký."""
+    header = (
+        "| # | Nguồn seed | L1 (1-5) | L2 (6-15) | Transcript L2 (rút gọn) | Audio | Độ khó | QC | GV duyệt (Đạt/Không + chữ ký) |\n"
+        "|---|---|---|---|---|---|---|---|---|"
+    )
+    rows = [header]
+    for i, it in enumerate(items, 1):
+        li = it["lis_item"]
+        qc = "OK" if it["qc_ok"] else "⚠ " + "; ".join(it["qc_issues"])
+        l1a = "/".join(str(li["answers"].get(str(k))) for k in range(1, 6))
+        l2a = "; ".join(f"{n}:{li['answers'].get(str(n))}" for n in li["l2_gaps"]).replace("|", "/")[:50]
+        tx = (it["transcripts"]["l2"] or "").replace("|", "/").replace("\n", " ")[:45]
+        rows.append(
+            f"| {i} | {it['nguon_seed']} | {l1a} | {l2a} | {tx} | {li['audio_status']} | {it['do_kho']} | {qc} |  |"
+        )
+    return "\n".join(rows)
+
+
+# --- TTS + GHÉP AUDIO (chạy REAL-MODE / CLI --audio; KHÔNG vào unit test vì cần Gemini/nghe tai) ---
+
+def silence_pcm(ms: int, rate: int = 24000, channels: int = 1, sampwidth: int = 2) -> bytes:
+    """Khoảng lặng PCM 16-bit = bytes 0. Độ dài tính THEO rate (không hardcode) — tránh lệch khi đổi rate."""
+    return b"\x00" * (int(rate * ms / 1000) * channels * sampwidth)
+
+
+def concat_wavs(input_paths: list, output_path: str, gap_ms: int = 0) -> str:
+    """Nối nhiều WAV cùng format + chèn khoảng lặng gap_ms giữa các đoạn (stdlib wave). Raise nếu lệch format."""
+    frames, params = [], None
+    for pth in input_paths:
+        with wave.open(pth, "rb") as w:
+            p = w.getparams()
+            if params is None:
+                params = p
+            elif (p.nchannels, p.sampwidth, p.framerate) != (params.nchannels, params.sampwidth, params.framerate):
+                raise ValueError(f"WAV format lệch: {pth} ({p.nchannels},{p.sampwidth},{p.framerate}) != gốc")
+            frames.append(w.readframes(w.getnframes()))
+    if params is None:
+        raise ValueError("Không có WAV đầu vào để nối.")
+    gap = silence_pcm(gap_ms, params.framerate, params.nchannels, params.sampwidth) if gap_ms else b""
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    with wave.open(output_path, "wb") as w:
+        w.setnchannels(params.nchannels)
+        w.setsampwidth(params.sampwidth)
+        w.setframerate(params.framerate)
+        for i, fr in enumerate(frames):
+            if i and gap:
+                w.writeframes(gap)
+            w.writeframes(fr)
+    return output_path
+
+
+def _lis_tts(generator, text: str, output_path: str, speakers=None) -> str:
+    """TTS Gemini → WAV 24kHz mono. speakers=None: 1 giọng 'Puck'; speakers=[(label,voice),...]: đa-giọng.
+
+    CHỈ chạy real-mode (cần generator.client). Lazy-import google types để core logic không phụ thuộc SDK."""
+    from google.genai import types  # noqa: PLC0415
+    client = getattr(generator, "client", None)
+    if client is None:
+        raise RuntimeError("Gemini client chưa khởi tạo (cần GEMINI_API_KEY) cho TTS.")
+    if speakers:
+        speech = types.SpeechConfig(multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
+            speaker_voice_configs=[
+                types.SpeakerVoiceConfig(speaker=lab, voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)))
+                for lab, voice in speakers
+            ]))
+    else:
+        speech = types.SpeechConfig(voice_config=types.VoiceConfig(
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")))
+    resp = client.models.generate_content(
+        model="gemini-2.5-flash-preview-tts", contents=text,
+        config=types.GenerateContentConfig(response_modalities=["AUDIO"], speech_config=speech))
+    audio = None
+    for c in (resp.candidates or []):
+        for p in ((c.content.parts if c.content else None) or []):
+            if p.inline_data and p.inline_data.mime_type.startswith("audio/"):
+                audio = p.inline_data.data
+                break
+    if audio is None:
+        raise ValueError("Không có phần audio trong phản hồi Gemini TTS.")
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    with wave.open(output_path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24000)
+        w.writeframes(audio)
+    return output_path
+
+
+def build_listening_audio(generator, item: dict, out_dir: str, n_l1: int = 1) -> dict:
+    """PoC dựng audio 1 phần bài Nghe (real-mode): lời dẫn + n_l1 hội thoại L1 (đa-giọng, ĐỌC 2 LẦN +
+    pause) + monologue L2 → 1 file WAV, theo cấu trúc PET. Trả {audio_path, duration_s}.
+
+    Đây là PoC cấu trúc (pause+đọc-lại+đa-giọng); ghép TRỌN bài 17 phút để slice sau."""
+    tr = item.get("transcripts") or {}
+    l1 = tr.get("l1") or []
+    l2 = tr.get("l2") or ""
+    code = item.get("lis_item", {}).get("code", "lis")
+    tmp = os.path.join(out_dir, f"_{code}_parts")
+    os.makedirs(tmp, exist_ok=True)
+    parts, k = [], 0
+
+    def _tts(text, speakers=None):
+        nonlocal k
+        k += 1
+        p = os.path.join(tmp, f"p{k}.wav")
+        return _lis_tts(generator, text, p, speakers)
+
+    parts.append(_tts("Part One. You will hear five short conversations. You will hear each conversation twice. "
+                      "Read at a slow, clear pace suitable for a B1 English exam."))
+    voices = list(LIS_VOICES.values())              # ≤2 giọng (giới hạn MultiSpeakerVoiceConfig)
+    for q in l1[:n_l1]:
+        parts.append(_tts(f"Now look at the question. {q.get('stem', '')}"))
+        dlg = str(q.get("transcript") or "")
+        # gán giọng theo NHÃN THẬT trong transcript (config PHẢI khớp label 'X:' trong text) → tránh
+        # lệch config/text làm hội thoại không tách 2 giọng (bài học review).
+        labels = []
+        for line in dlg.splitlines():
+            m = re.match(r"\s*([^:]{1,25}):\s", line)
+            if m and m.group(1).strip() and m.group(1).strip() not in labels:
+                labels.append(m.group(1).strip())
+        labels = labels[:2]
+        if len(labels) >= 2:   # hội thoại 2 người → đa-giọng
+            dlg_wav = _tts(dlg, speakers=[(lab, voices[j % len(voices)]) for j, lab in enumerate(labels)])
+        else:                  # thông báo / 1 người → 1 giọng
+            dlg_wav = _tts(dlg, speakers=None)
+        parts.append(dlg_wav)                       # đọc lần 1
+        parts.append(_tts("Now listen again."))
+        parts.append(dlg_wav)                       # đọc lần 2 (GIỐNG HỆT)
+    parts.append(_tts("Part Two. You will hear a talk. Complete the notes. "
+                      "Read slowly and clearly for a B1 exam. " + l2, speakers=None))
+
+    final = os.path.join(out_dir, f"{code}.wav")
+    concat_wavs(parts, final, gap_ms=LIS_PAUSES["after_reading"] * 1000)
+    with wave.open(final, "rb") as w:
+        duration = w.getnframes() / float(w.getframerate())
+    return {"audio_path": final, "duration_s": round(duration, 1)}

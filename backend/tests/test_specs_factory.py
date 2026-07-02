@@ -6,6 +6,9 @@ Slice P3-NÓI: paraphrase part2_topic từ pool_speak.json → shape thẻ Nói 
 Test dùng seed TỔNG HỢP + mock tất định (không gọi Gemini/mạng).
 """
 import json
+import wave
+
+import pytest
 
 from app.services import boss_factory
 
@@ -760,3 +763,117 @@ def test_SPEC_FACTORY_007_w2_letter_variants_boss_format():
     assert bundle["count_qc_ok"] == 1
     sheet = boss_factory.w2_review_sheet(items)
     assert "GV duyệt" in sheet and "Vai" in sheet and "Chủ đề" in sheet
+
+
+def test_SPEC_FACTORY_008_lis_variants_boss_format():
+    # pool_lis.json thật là DICT bài Nghe (PET: L1 5 chọn-tranh + L2 10 điền-từ); KHÔNG có transcript.
+    pool = {
+        "LB1.2601": {
+            "code": "LB1.2601", "src_code": "2601", "audio_name": "LB1.2601.mp3",
+            "audio_duration_s": 1046.6,
+            "answers": {"1": "C", "2": "B", "3": "A", "4": "B", "5": "C",
+                        "6": "Nature", "7": "wildlife", "8": "forest", "9": "12/twelve", "10": "wood",
+                        "11": "birdhouse", "12": "Brokley", "13": "blue", "14": "receptionist", "15": "3/three"},
+            "l1_stems": ["Which dish did Mark cook?", "Where is the girl's book now?",
+                         "Who lives with Josh?", "What will the girl take on holiday?",
+                         "What time will the train leave?"],
+            "l1_count": 5, "l2_gaps": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15], "l2_count": 10,
+        }
+    }
+
+    # AC1: trích bài Nghe từ pool DICT (giữ answers/l1_stems/l2_gaps).
+    seeds = boss_factory.load_lis_seeds(pool)
+    assert len(seeds) == 1
+    s = seeds[0]
+    assert s["code"] == "LB1.2601" and len(s["answers"]) == 15
+    assert len(s["l1_stems"]) == 5 and s["l2_gaps"] == list(range(6, 16))
+
+    # AC2+AC3: sinh biến thể (mock tất định) — lis_item shape pool_lis + transcript + đáp án khớp.
+    items = boss_factory.build_lis_variants(seeds, per_seed=1, generator=None)
+    assert len(items) == 1
+    it = items[0]
+    li = it["lis_item"]
+    assert li["code"].startswith("LB1.90-")                              # code dải mở rộng, không đụng thật
+    assert li["src_code"] == "LB1.2601"
+    assert len(li["answers"]) == 15 and li["l1_count"] == 5 and li["l2_count"] == 10
+    assert len(li["l1_stems"]) == 5 and li["l2_gaps"] == list(range(6, 16))
+    assert li["audio_path"] is None and li["audio_status"] == "pending_tts" and li["needs_audio_verify"] is True
+    assert set(it["transcripts"].keys()) == {"l1", "l2"} and len(it["transcripts"]["l1"]) == 5
+    assert it["do_kho"] in ("Dễ", "TB", "Khó") and it["nguon_seed"] == "LB1.2601"
+    assert it["qc_ok"] is True                                           # đáp án L2 khớp transcript (mock)
+
+    # AC4: qc_lis bắt lỗi.
+    good = boss_factory._mock_lis_variant(s, 0)
+    assert boss_factory.qc_lis(good, s) == []                            # baseline hợp lệ
+    # (a) đáp án L2 KHÔNG có trong transcript (cổng cốt lõi chống lệch đáp án)
+    bad_l2 = {**good, "l2_gaps": [{"n": 6, "answer": "zzzmissing"}] + good["l2_gaps"][1:]}
+    assert any("KHÔNG có trong transcript" in i for i in boss_factory.qc_lis(bad_l2, s))
+    # (b) L1 thiếu options / (c) answer ngoài options
+    bad_opt = {**good, "l1_scripts": [{**good["l1_scripts"][0], "options": {"A": "x", "B": "y"}}] + good["l1_scripts"][1:]}
+    assert any("A,B,C" in i for i in boss_factory.qc_lis(bad_opt, s))
+    bad_ans = {**good, "l1_scripts": [{**good["l1_scripts"][0], "answer": "D"}] + good["l1_scripts"][1:]}
+    assert any("answer không thuộc" in i for i in boss_factory.qc_lis(bad_ans, s))
+    # (d) sai số chỗ điền L2
+    assert any("chỗ điền" in i for i in boss_factory.qc_lis({**good, "l2_gaps": good["l2_gaps"][:5]}, s))
+    # (e) [review] L2 đánh số 1-10 thay 6-15 (đè key L1) → CỔNG số-thứ-tự bắt
+    renum = {**good, "l2_gaps": [{"n": j + 1, "answer": g["answer"]} for j, g in enumerate(good["l2_gaps"])]}
+    assert any("số thứ tự gap" in i for i in boss_factory.qc_lis(renum, s))
+    # (f) [review] L1 option trùng nội dung / rỗng (parity qc_r1/qc_r2)
+    dup_opt = {**good, "l1_scripts": [{**good["l1_scripts"][0], "options": {"A": "same", "B": "same", "C": "diff"}, "answer": "A"}] + good["l1_scripts"][1:]}
+    assert any("trùng nội dung" in i for i in boss_factory.qc_lis(dup_opt, s))
+    empty_opt = {**good, "l1_scripts": [{**good["l1_scripts"][0], "options": {"A": "x", "B": "", "C": "y"}, "answer": "A"}] + good["l1_scripts"][1:]}
+    assert any("phương án rỗng" in i for i in boss_factory.qc_lis(empty_opt, s))
+
+    # AC-dedup (non-tautology): nhánh REAL (_StubGen) trả CÙNG bài 2 lần → bài 2 near-dup.
+    stub = _StubGen(boss_factory._mock_lis_variant(s, 0))
+    dupd = boss_factory.build_lis_variants(seeds[:1], per_seed=2, generator=stub)
+    assert len(dupd) == 2
+    assert dupd[0]["qc_ok"] is True
+    assert any("near-duplicate" in i for i in dupd[1]["qc_issues"])
+
+    # Regression (review): Gemini đánh số L2 1-10 → qc_ok False + build KHÔNG ghi đè đáp án L1 (key 1-5).
+    bad_num = {**boss_factory._mock_lis_variant(s, 0)}
+    bad_num["l2_gaps"] = [{"n": j + 1, "answer": g["answer"]} for j, g in enumerate(bad_num["l2_gaps"])]
+    bn = boss_factory.build_lis_variants(seeds[:1], per_seed=1, generator=_StubGen(bad_num))
+    assert bn[0]["qc_ok"] is False
+    l1_ans = [bad_num["l1_scripts"][k]["answer"] for k in range(5)]
+    assert [bn[0]["lis_item"]["answers"][str(k)] for k in range(1, 6)] == l1_ans   # L1 KHÔNG bị đè
+
+    # Regression: mock per_seed=2 CÙNG seed KHÔNG near-dup oan (đáp án/transcript khác theo idx).
+    multi = boss_factory.build_lis_variants(seeds[:1], per_seed=2, generator=None)
+    assert len(multi) == 2 and all(m["qc_ok"] for m in multi)
+
+    # AC5: gói bàn giao + bảng GV soát/ký (ghi rõ audio máy).
+    bundle = boss_factory.export_lis_bundle(items)
+    assert bundle["skill"] == "listening" and bundle["count"] == 1 and bundle["count_qc_ok"] == 1
+    assert "máy" in bundle["note"].lower() or "GV" in bundle["note"]
+    sheet = boss_factory.lis_review_sheet(items)
+    assert "GV duyệt" in sheet and "Transcript" in sheet and "Audio" in sheet
+
+
+def test_SPEC_FACTORY_008_audio_helpers(tmp_path):
+    # silence_pcm: độ dài tính theo rate (16-bit mono).
+    s = boss_factory.silence_pcm(500, rate=24000, channels=1, sampwidth=2)
+    assert len(s) == int(24000 * 0.5) * 1 * 2                            # 24000 bytes = 0.5s
+
+    def _mkwav(path, ms, channels=1):
+        with wave.open(str(path), "wb") as w:
+            w.setnchannels(channels)
+            w.setsampwidth(2)
+            w.setframerate(24000)
+            w.writeframes(boss_factory.silence_pcm(ms, 24000, channels, 2))
+
+    a, b, out = tmp_path / "a.wav", tmp_path / "b.wav", tmp_path / "out.wav"
+    _mkwav(a, 100)
+    _mkwav(b, 200)
+    # concat 100ms + gap 50ms + 200ms = 350ms
+    boss_factory.concat_wavs([str(a), str(b)], str(out), gap_ms=50)
+    with wave.open(str(out), "rb") as w:
+        dur_ms = w.getnframes() / w.getframerate() * 1000
+    assert abs(dur_ms - 350) < 5
+
+    # format lệch (stereo) → raise (tránh nối méo)
+    c = tmp_path / "c.wav"
+    _mkwav(c, 100, channels=2)
+    with pytest.raises(ValueError):
+        boss_factory.concat_wavs([str(a), str(c)], str(tmp_path / "x.wav"))
