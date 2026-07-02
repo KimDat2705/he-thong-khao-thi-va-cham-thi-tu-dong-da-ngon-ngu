@@ -1,5 +1,9 @@
 # Session Handoff — CHỐT PHIÊN 02/07/2026 (S53: D2 + 8 SLICE → HOÀN TẤT 8/8 DẠNG NGÂN HÀNG B1)
 
+> **🔖 TRẠNG THÁI CHỐT (clean-state đã verify):** pytest **71/0**, traceability 4/4, ruff `app/`+CLI sạch, architecture PASS, tree SẠCH, 0 artifact rác. Spec **49 — 48 active / 1 planned** (SCALE-003), **FACTORY 8/8 active**; feature 13 active. `main`=HEAD=**`b8e9e80`** (8 commit S53, **CHƯA push origin** — Đạt push/deploy). Demo LIVE cũ không đụng.
+> **▶ ĐẦU PHIÊN SAU LÀM GÌ:** (1) Nghe hardening — ghép trọn bài 17'/1 file + MP3 (lameenc) + ảnh L1 + GV nghe duyệt; (2) helper render-từ-JSON (de-risk D2); (3) chốt D4 (GV ký+soát chéo)/D5 (sản lượng) + xin sếp 1 record `bank_raw` mẫu + xác nhận D2(a); (4) ảnh R2/R3 slice riêng; (5) push 8 commit khi sếp OK.
+
+
 > **🆕 S53h (Claude, 02/07) — SLICE NGHE (SPEC-FACTORY-008) → HOÀN TẤT 8/8 DẠNG (đọc TRƯỚC):**
 > - **D3 CHỐT hướng (b)** (Đạt): làm PoC Nghe bằng TTS, nghiên cứu kỹ đa-giọng + mã nguồn mở, khắc phục khuyết điểm. → Nghiên cứu workflow web/GitHub: format thật = **Cambridge PET** (L1 5 chọn-tranh hội thoại 2 người + L2 10 điền-từ monologue, đọc-2-lần); `pool_lis` KHÔNG có transcript → **SINH-NGƯỢC-TỪ-ĐÁP-ÁN**; đa-giọng = **Gemini native MultiSpeakerVoiceConfig** (≤2, 0 dep); ghép audio stdlib wave; tham khảo Podcastfy.
 > - **✅ SLICE NGHE XONG (FORMAT THỨ 8)** — `boss_factory.py`: load_lis_seeds + build_lis_variants (5 hội thoại L1 + 1 monologue L2, VALIDATE đáp án L2 ∈ transcript = cổng chống lệch đáp án + gate số-thứ-tự gap, code LB1.90-*, audio_status='pending_tts') + qc_lis + export/review + **audio real-mode**: silence_pcm/concat_wavs (stdlib) + _lis_tts đa-giọng + build_listening_audio + CLI `make_lis_variants.py --audio` + 2 test.
