@@ -147,7 +147,14 @@ Tái dùng **engine Gemini + paraphrase/enrichment** mình đã có (`b1_questio
 ## 8. ⚠️ QUYẾT ĐỊNH CẦN CHỐT (trước khi code) — cần Đạt (+ hỏi sếp)
 
 - **D1 — Phạm vi hệ mình:** Có **dừng phát triển phần web/generate/chấm** (trùng sếp), chỉ giữ **engine sinh câu** làm "nhà máy" xuất JSON cho sếp không? (Khuyến nghị: **CÓ** — tập trung giá trị, tránh trùng.)
-- **D2 — Điểm nhận của sếp (KỸ THUẬT LỚN):** Render của sếp **CLONE từ .docx gốc**. Câu AI mới **không có .docx gốc**. Vậy sếp nhận item mới theo đường nào? (a) mình xuất **JSON vào `bank_raw`** + sếp mở rộng render đọc-từ-JSON (đổi pipeline sếp); (b) mình xuất luôn **.docx block chuẩn** để extract/render nuốt được; (c) mình giao JSON, **sếp tự quyết render**. → **Phải hỏi sếp** (quyết định cách ghép nối).
+- **D2 — Điểm nhận của sếp (KỸ THUẬT LỚN):** Render của sếp **CLONE từ .docx gốc**. Câu AI mới **không có .docx gốc**. Vậy sếp nhận item mới theo đường nào? (a) mình xuất **JSON vào `bank_raw`** + sếp mở rộng render đọc-từ-JSON (đổi pipeline sếp); (b) mình xuất luôn **.docx block chuẩn** để extract/render nuốt được; (c) mình giao JSON, **sếp tự quyết render**.
+  - **✅ KHUYẾN NGHỊ (Đạt yêu cầu chọn, trừ (c)) = OPTION (a)** — mình xuất JSON vào `bank_raw`, sếp thêm nhánh "render item từ JSON". Lý do:
+    - `build_db.py`/`tron_de.py` của sếp **đã đọc `bank_raw` (JSON)** → item JSON mình thêm **tự chảy vào pool + được trộn** mà KHÔNG cần sếp sửa gì ở khâu chọn/QC. Chỉ **khâu render** cần nhánh mới.
+    - Với item **text (R1/R4/W1/W2)** — phần lớn giá trị — render-từ-JSON của sếp **RẤT ĐƠN GIẢN** (đổ stem+options vào Word), nhẹ hơn nhiều so với (b).
+    - (b) buộc **mình** phải dựng .docx **khớp CHÍNH XÁC** cách `extract_bank.py` parse (numbering/nhãn/bảng hộp-từ/nhúng ảnh) — đúng **lớp lỗi #1** mà chính sếp cảnh báo ("lỗi do TRÍCH XUẤT docx & CLONE"). Rủi ro cao, giòn.
+    - (a) giữ **bank JSON là nguồn sự thật duy nhất** (đúng triết lý sếp) + mình tái dùng ngay output JSON đã có (SPEC-FACTORY-001 đang xuất shape `s1`).
+    - **Đánh đổi:** (a) cần sếp buy-in (thêm ~1 hàm render-từ-JSON, phần ảnh R2/L1 phức tạp hơn — mình sinh ảnh Imagen + tham chiếu, sếp nhúng). Nếu sếp KHÔNG muốn đổi render → lùi về (b) chỉ cho các part text.
+  - → **Cần Đạt xác nhận (a) với sếp**; đây là chốt cách ghép nối cuối.
 - **D3 — Nghe:** Hoãn hẳn, hay làm PoC **TTS** (chấp nhận audio máy) chờ trung tâm thay audio thật?
 - **D4 — GV duyệt:** Ai là người tiếng Anh ký? Cần bản duyệt dạng nào (Excel/Docs)? Có làm **soát chéo đa-agent** (AI review AI) trước khi tới GV để giảm tải?
 - **D5 — Sản lượng mục tiêu:** mở rộng bao nhiêu/part? (vd gấp đôi kho: +10/đề R1, +…); ưu tiên P1 Đọc trước.
@@ -155,10 +162,13 @@ Tái dùng **engine Gemini + paraphrase/enrichment** mình đã có (`b1_questio
 ---
 
 ## 9. BƯỚC TIẾP (sau khi chốt D1–D5)
-1. Chốt D2 với sếp (đường ghép nối) — **chặn chính**.
-2. Làm **slice mỏng P1-R1**: seed_loader (đọc bank sếp) → paraphrase → boss_exporter (shape `s1`) → qc_gate → review_export. Verify round-trip 10 câu R1 thật → 10 biến thể đúng format, GV soát mẫu.
-3. Nhân rộng R2→R4→W1→W2→Nói. Nghe theo D3.
-4. Mỗi slice: spec + test + cập nhật harness (như quy trình BANK-005/6/7).
+1. ✅ **D1 CHỐT** (Đạt 02/07): tập trung "nhà máy sinh câu", bỏ phần web/generate/chấm trùng sếp.
+2. ✅ **SLICE P1-R1 XONG** (02/07, SPEC-FACTORY-001): `boss_factory.py` (load_r1_seeds → build_r1_variants shape `s1` + độ khó + truy vết → qc_r1 → export_bundle → review_sheet) + CLI `make_r1_variants.py` + test. Verify DỮ LIỆU THẬT (30 đề thật + Gemini) → biến thể chất lượng, xuất JSON `s1` + bảng GV. pytest 63/0.
+3. **KHUYẾN NGHỊ THỨ TỰ TIẾP** (đúng logic + tối ưu — Đạt hỏi "đầu mục nào tiếp"):
+   - **(ưu tiên) Chốt D2 với sếp trước khi nhân rộng** — vì D2 quyết định khâu đóng gói cuối; làm hết các part rồi mới biết sai format thì phí. Khuyến nghị **Option (a)** (mục 8).
+   - Song song KHÔNG chờ D2, làm **slice P3-NÓI** kế tiếp: dễ nhất, **khác shape** (`pool_speak` dict, chỉ `part2_topic`+`domain`) → chứng minh factory tổng quát hoá sang format thứ 2 + gần như 0 ảo giác. Rồi mới tới **R4 (cloze, QC hộp-từ mạnh)** → R2 → R3 → W1 → W2.
+   - **Nghe (P4): hoãn** tới khi chốt D3 (cần audio; sếp bảo audio là việc trung tâm).
+4. Mỗi slice: spec `SPEC-FACTORY-00N` + test (mock tất định) + verify dữ liệu thật + cập nhật harness (như quy trình BANK-005/6/7).
 
 ---
 
