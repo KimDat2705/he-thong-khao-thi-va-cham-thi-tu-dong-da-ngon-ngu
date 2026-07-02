@@ -888,7 +888,28 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_008_lis_variants_boss_format",
         "tests/test_specs_factory.py::test_SPEC_FACTORY_008_audio_helpers"
       ],
-      "notes": "Slice Nghe của kế hoạch mở rộng ngân hàng (S53; D2 Option (a); D3 CHỐT hướng (b) PoC TTS). GROUND trên pool_lis.json THẬT (đọc qua Google Drive connector): mỗi bài LB1.26xx = 1 mp3 ~17 phút cho 15 câu (L1 5 chọn-tranh + L2 10 điền), answers{1-15}, l1_stems, l2_gaps; KHÔNG có transcript. Nghiên cứu web/GitHub (Podcastfy kiến trúc, Gemini multi-speaker native ≤2 giọng, tapescript Cambridge PET đọc-2-lần + bảng pause, ghép audio stdlib wave). SCOPE MVP: core sinh kịch bản + VALIDATE đáp án (test mock tất định, string-match L2) + audio helpers (test stdlib); TTS đa-giọng + ghép trọn bài 17' + MP3 (lameenc) HOÃN/real-mode. ⚠️ KHUYẾT ĐIỂM ghi rõ: audio MÁY (accent/timbre chưa bằng người thật; multi-speaker Gemini đôi khi 2 giọng na ná), kịch bản AI → GV tiếng Anh BẮT BUỘC nghe duyệt + soát đáp án. Format WAV (chưa MP3). Test = mock/_StubGen (không gọi mạng/không sinh audio)."
+      "notes": "Slice Nghe của kế hoạch mở rộng ngân hàng (S53; D2 Option (a); D3 CHỐT hướng (b) PoC TTS). GROUND trên pool_lis.json THẬT (đọc qua Google Drive connector): mỗi bài LB1.26xx = 1 mp3 ~17 phút cho 15 câu (L1 5 chọn-tranh + L2 10 điền), answers{1-15}, l1_stems, l2_gaps; KHÔNG có transcript. Nghiên cứu web/GitHub (Podcastfy kiến trúc, Gemini multi-speaker native ≤2 giọng, tapescript Cambridge PET đọc-2-lần + bảng pause, ghép audio stdlib wave). SCOPE MVP: core sinh kịch bản + VALIDATE đáp án (test mock tất định, string-match L2) + audio helpers (test stdlib); TTS đa-giọng + ghép trọn bài 17' + MP3 (lameenc) HOÃN/real-mode. ⚠️ KHUYẾT ĐIỂM ghi rõ: audio MÁY (accent/timbre chưa bằng người thật; multi-speaker Gemini đôi khi 2 giọng na ná), kịch bản AI → GV tiếng Anh BẮT BUỘC nghe duyệt + soát đáp án. PoC audio 1 phần (WAV); ghép TRỌN bài ~17' + MP3 hoàn thiện ở SPEC-FACTORY-009. Test = mock/_StubGen (không gọi mạng/không sinh audio)."
+    },
+    {
+      "id": "SPEC-FACTORY-009",
+      "domain": "FACTORY",
+      "title": "Nghe hardening — ghép TRỌN bài ~17' (lịch pause Cambridge PET, đọc-2-lần) + MP3 (lameenc optional) + GV nghe duyệt",
+      "statement": "Nâng khâu render audio bài Nghe (nối tiếp SPEC-FACTORY-008) từ PoC-1-phần lên TRỌN bài ~17 phút: build_listening_audio ghép cả 5 hội thoại L1 (đa-giọng, đọc-2-lần) + monologue L2 (đọc-2-lần) + lời dẫn + khoảng lặng theo BẢNG PAUSE Cambridge B1 Preliminary; encode sang MP3 bằng lameenc (dependency TÙY CHỌN, lazy-import, fallback WAV — base requirements + CI giữ '0 dep'); TTS có cache per-chunk + retry/backoff 429/503 để không cạn free-tier; bảng GV kèm đường dẫn/thời lượng audio + checklist nghe duyệt. Prompt sinh kịch bản kéo dài L1 ~85-90 từ / L2 ~300-320 từ để đạt ~17' (mục tiêu ở tốc độ đọc exam ~140wpm; thực tế 14-19' tùy giọng Gemini — GV kiểm duration_s).",
+      "acceptance_criteria": [
+        "_build_listening_segments dựng KẾ HOẠCH segment cho trọn bài theo lịch PET: 5 hội thoại L1 đọc-2-lần (đa-giọng ≤2, gán giọng theo nhãn thật trong transcript) + monologue L2 đọc-2-lần + lời dẫn ('Part One', 'Now listen again', 'That is the end of the test') + pause đúng bảng LIS_PAUSES; tách khỏi TTS thật để test offline.",
+        "assemble_wav_segments ghép danh sách segment ('audio'|'silence') thành 1 WAV với pause KHÁC NHAU mỗi vị trí (stdlib wave), raise khi WAV lệch format; build_listening_audio dựng trọn bài + trả {audio_path, wav_path, mp3_path, duration_s, format, n_segments}.",
+        "wav_to_mp3 encode WAV 16-bit → MP3 (lameenc 64kbps mono) — lameenc LAZY-IMPORT, nếu thiếu trả None + giữ WAV (không raise, không phá base requirements/CI); requirements-audio.txt khai riêng, render.yaml cài optional.",
+        "_lis_tts_cached cache per-chunk theo hash(text+speakers) → đoạn lặp (lời dẫn/đọc-lần-2) chỉ gọi Gemini 1 lần; _tts_with_retry backoff+jitter cho lỗi transient 429/503, lỗi khác raise ngay.",
+        "lis_review_sheet kèm đường dẫn audio + thời lượng + CHECKLIST GV nghe duyệt audio máy (giọng/tốc độ/tách-2-giọng/đáp-án-khớp/thời-lượng); audio_name đổi sang '.mp3' khớp pool đối tác."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_009_full_track_and_cache",
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_009_mp3_fallback_when_missing",
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_009_wav_to_mp3_optional"
+      ],
+      "notes": "Slice Nghe-hardening (S54) nối tiếp FACTORY-008. Nghiên cứu S54 (WebFetch PyPI/Cambridge/Gemini docs): lameenc 1.8.4 có manylinux/win wheel cp311/cp312 (0 compiler/system-lib, 24kHz native) → MP3 64kbps mono ~6-8× nhỏ hơn WAV (17' WAV ~49MB → MP3 ~8MB); tapescript Cambridge B1 Preliminary cho bảng pause verbatim (after_play 5s, listen-again 3s, end-part 10s, L2 look-time nội suy 45s/10gap, review cuối 2'); Gemini TTS 8192 token/call → chunk per-utterance an toàn, free-tier ~15 req/ngày → cache + backoff bắt buộc cho bài 20-30 call. Test: full-track structure + cache (offline monkeypatch TTS) CHẠY LUÔN; mp3-fallback-khi-thiếu-lameenc CHẠY LUÔN (chứng minh 0-dep không phá); wav_to_mp3 encode SKIPIF lameenc vắng (chạy khi cài requirements-audio.txt). Ảnh chọn-tranh L1 HOÃN slice sau (Đạt chốt S54; cần chốt model flash-image 'legacy' vs Nano Banana 2). Audio MÁY → GV BẮT BUỘC nghe duyệt."
     }
   ]
 }

@@ -1,6 +1,7 @@
 """CLI (SPEC-FACTORY-008): sinh biến thể bài Nghe B1 (PET: 5 chọn-tranh + 10 điền-từ) từ
 pool_lis.json của đối tác → gói bàn giao JSON (kịch bản + đáp án, shape pool_lis) + bảng GV
-soát/ký. Mặc định CHỈ sinh kịch bản+JSON; cờ --audio bật TTS đa-giọng + ghép audio WAV (PoC 1 phần).
+soát/ký. Mặc định CHỈ sinh kịch bản+JSON; cờ --audio bật TTS đa-giọng + ghép TRỌN bài ~17'
+theo lịch pause Cambridge PET (đọc-2-lần, cache per-chunk) → MP3 (lameenc, fallback WAV).
 
     python scripts/make_lis_variants.py --pool <pool_lis.json> [--limit N] [--per-seed K] [--out DIR] [--audio]
 
@@ -59,11 +60,14 @@ def main():
                 print(f"  Bỏ render audio (QC chưa đạt): {it['lis_item']['code']}")
                 continue
             try:
-                info = boss_factory.build_listening_audio(gen, it, audio_dir, n_l1=1)
-                it["lis_item"]["audio_path"] = info["audio_path"]
-                it["lis_item"]["audio_duration_s"] = info["duration_s"]
-                it["lis_item"]["audio_status"] = "wav_generated"
-                print(f"  🔊 Audio PoC {it['lis_item']['code']}: {info['audio_path']} ({info['duration_s']}s)")
+                info = boss_factory.build_listening_audio(gen, it, audio_dir)   # ghép TRỌN bài ~17' + MP3
+                li = it["lis_item"]
+                li["audio_path"] = info["audio_path"]
+                li["audio_name"] = os.path.basename(info["audio_path"])
+                li["audio_duration_s"] = info["duration_s"]
+                li["audio_status"] = f"{info['format']}_generated"    # mp3_generated | wav_generated (fallback)
+                mm, ss = divmod(int(info["duration_s"]), 60)
+                print(f"  🔊 {li['code']}: {info['audio_path']} ({mm}'{ss:02d}\", {info['format']}, {info['n_segments']} đoạn)")
             except Exception as e:
                 print(f"  ⚠ Audio lỗi {it['lis_item']['code']}: {e}")
         with open(bundle_path, "w", encoding="utf-8") as f:

@@ -1,0 +1,8 @@
+# Dependency TÙY CHỌN cho render audio Nghe (SPEC-FACTORY-009). KHÔNG nằm trong
+# requirements.txt để giữ văn hoá "0 dep" của base + CI/pytest luôn xanh.
+# Code lazy-import: nếu thiếu lameenc → bỏ MP3, giữ WAV (boss_factory.wav_to_mp3).
+# Cài khi muốn xuất MP3:  pip install -r requirements-audio.txt
+#
+# lameenc = LAME MP3 encoder (manylinux/win wheel cp311/cp312, KHÔNG cần compiler/system lib,
+# hỗ trợ 24kHz native — khớp PCM Gemini TTS). 64 kbps mono ~6-8× nhỏ hơn WAV.
+lameenc>=1.8.4

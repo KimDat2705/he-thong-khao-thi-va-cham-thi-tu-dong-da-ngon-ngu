@@ -10,10 +10,13 @@ explanation + truy vết seed + trạng thái QC + bản GV soát/ký.
 KHÔNG đụng DB/web của hệ mình. Tái dùng engine Gemini qua B1QuestionGenerator (được truyền vào):
 dùng `generator._call_gemini` khi có key; mock TẤT ĐỊNH khi không → test không gọi mạng.
 """
+import hashlib
 import json
 import logging
 import os
+import random
 import re
+import time
 import unicodedata
 import wave
 from typing import Optional
@@ -1565,9 +1568,20 @@ def w2_review_sheet(items: list) -> str:
 # ⚠️ Khuyết điểm ghi rõ cho GV: audio MÁY (accent/timbre chưa bằng người thật); GV BẮT BUỘC nghe duyệt.
 
 L1_OPTION_KEYS = ["A", "B", "C"]
-# Bảng pause (giây) chuẩn PET (đọc mỗi đoạn 2 LẦN) — dùng khi dựng audio ở real-mode.
-LIS_PAUSES = {"after_part_title": 5, "before_l1_audio": 2, "after_reading": 5,
-              "between_parts": 10, "before_l2": 20, "end_notes": 120}
+# Bảng pause (giây) lấy verbatim từ tapescript Cambridge B1 Preliminary (mỗi đoạn đọc 2 LẦN).
+# Dùng khi dựng audio real-mode. L2 look-time nội suy 45s cho 10 gap (Cambridge cho 20s/6 gap);
+# review cuối 2 phút = 60+60 (tách để chèn câu nhắc "one more minute"). Nghiên cứu S54.
+LIS_PAUSES = {
+    "after_part_title": 5,      # sau "Part One."
+    "after_instruction": 5,     # sau "For each question, choose the correct answer."
+    "before_dialogue": 2,       # sau khi đọc stem, trước khi phát hội thoại
+    "after_play": 5,            # sau mỗi lần phát (cả lần 1 và lần 2)
+    "between_plays_l1": 3,      # sau "Now listen again." (L1)
+    "end_of_part": 10,          # sau "That is the end of Part ..."
+    "l2_look_time": 45,         # nhìn Part Two trước khi nghe (10 gap)
+    "between_plays_l2": 20,     # sau "Now listen again." (L2 — bài dài)
+    "review_half": 60,          # nửa thời gian soát cuối (×2 = 2 phút)
+}
 # Cặp giọng tương phản mạnh cho hội thoại (Google KHÔNG gắn nhãn giới tính chính thức — chọn theo nghe).
 LIS_VOICES = {"A": "Kore", "B": "Puck"}   # A ~ nữ, B ~ nam (cần nghe kiểm)
 
@@ -1643,11 +1657,13 @@ def _real_lis_variant(generator, seed: dict, idx: int) -> Optional[dict]:
     system = (
         "You are a Cambridge B1 Preliminary (PET) Listening item writer. Create ONE NEW listening "
         "content set at B1 level (NOT a copy). Return ONLY JSON. PART 1 'l1_scripts' = 5 items, each a "
-        "SHORT 2-speaker conversation (or announcement) with a picture-choice question: {\"stem\": str, "
+        "2-speaker conversation (or announcement) of ABOUT 85-90 WORDS (exam-length, not a one-liner) "
+        "with a picture-choice question: {\"stem\": str, "
         "\"options\": {\"A\": str, \"B\": str, \"C\": str}, \"answer\": \"A|B|C\", \"transcript\": "
         "\"Speaker A: ...\\nSpeaker B: ...\", \"speakers\": [\"Speaker A\", \"Speaker B\"]}. The correct "
         "option MUST be clearly supported by the transcript; the two distractors are mentioned then "
-        "rejected. PART 2 = one monologue 'l2_transcript' (~150-200 words, natural talk) plus 'l2_gaps' "
+        "rejected. PART 2 = one monologue 'l2_transcript' (ABOUT 300-320 WORDS, natural talk — long "
+        "enough for a ~17-minute exam when read twice) plus 'l2_gaps' "
         f"= {n_l2} note gaps, each {{\"n\": <6..>, \"answer\": \"<1-2 words>\"}} where EACH answer appears "
         "VERBATIM in l2_transcript. Return: {\"l1_scripts\": [..5..], \"l2_transcript\": str, "
         "\"l2_gaps\": [..], \"difficulty\": \"easy|medium|hard\", \"explanation\": str}."
@@ -1756,7 +1772,7 @@ def build_lis_variants(seeds: list, per_seed: int = 1, generator=None, dup_thres
                 # shape pool_lis của đối tác (audio CHƯA render → audio_status='pending_tts').
                 "lis_item": {
                     "code": code, "src_code": seed["code"], "set_file": seed.get("set_file"),
-                    "audio_path": None, "audio_name": f"{code}.wav", "audio_duration_s": None,
+                    "audio_path": None, "audio_name": f"{code}.mp3", "audio_duration_s": None,
                     "answers": answers, "n_answers": len(answers),
                     "l1_stems": [q.get("stem") for q in l1], "l1_count": len(l1),
                     "l2_gaps": [g.get("n") for g in l2_gaps], "l2_count": len(l2_gaps),
@@ -1781,7 +1797,8 @@ def export_lis_bundle(items: list) -> dict:
         "spec": "SPEC-FACTORY-008",
         "note": (
             "Bài Nghe (5 chọn-tranh L1 + 10 điền-từ L2, format PET) sinh từ pool_lis.json của đối tác; "
-            "lis_item = shape pool_lis (audio_status='pending_tts' — audio render bằng CLI --audio). "
+            "lis_item = shape pool_lis (audio_name='.mp3'). Audio render bằng CLI --audio: ghép TRỌN "
+            "bài ~17' (thực tế 14-19' tùy giọng) theo lịch pause Cambridge (đọc-2-lần, cache per-chunk) → MP3 (lameenc, fallback WAV ~6-8× lớn). "
             "⚠️ AUDIO là GIỌNG MÁY (Gemini TTS đa-giọng) — GV tiếng Anh BẮT BUỘC nghe duyệt + soát đáp án "
             "trước khi dùng; đối tác có thể thay bằng audio người thật."
         ),
@@ -1792,10 +1809,11 @@ def export_lis_bundle(items: list) -> dict:
 
 
 def lis_review_sheet(items: list) -> str:
-    """Bảng GV soát/ký (Markdown) cho Nghe: seed | L1 đáp án | L2 đáp án | transcript rút gọn | audio | QC | ô ký."""
+    """Bảng GV soát/ký (Markdown) cho Nghe + CHECKLIST nghe duyệt audio máy. GV BẮT BUỘC nghe từng
+    file trước khi dùng: audio là giọng MÁY (Gemini TTS đa-giọng) — soát accent/tốc độ/độ rõ + đáp án khớp."""
     header = (
-        "| # | Nguồn seed | L1 (1-5) | L2 (6-15) | Transcript L2 (rút gọn) | Audio | Độ khó | QC | GV duyệt (Đạt/Không + chữ ký) |\n"
-        "|---|---|---|---|---|---|---|---|---|"
+        "| # | Nguồn seed | Mã | L1 (1-5) | L2 (6-15) | Transcript L2 (rút gọn) | Audio file | Thời lượng | Trạng thái | Độ khó | QC | GV duyệt (Đạt/Không + chữ ký) |\n"
+        "|---|---|---|---|---|---|---|---|---|---|---|---|"
     )
     rows = [header]
     for i, it in enumerate(items, 1):
@@ -1804,10 +1822,24 @@ def lis_review_sheet(items: list) -> str:
         l1a = "/".join(str(li["answers"].get(str(k))) for k in range(1, 6))
         l2a = "; ".join(f"{n}:{li['answers'].get(str(n))}" for n in li["l2_gaps"]).replace("|", "/")[:50]
         tx = (it["transcripts"]["l2"] or "").replace("|", "/").replace("\n", " ")[:45]
+        dur = li.get("audio_duration_s")
+        dur_s = f"{int(dur // 60)}'{int(dur % 60):02d}\"" if isinstance(dur, (int, float)) else "—"
+        audio_f = os.path.basename(str(li.get("audio_path") or li.get("audio_name") or "—")).replace("|", "/")
         rows.append(
-            f"| {i} | {it['nguon_seed']} | {l1a} | {l2a} | {tx} | {li['audio_status']} | {it['do_kho']} | {qc} |  |"
+            f"| {i} | {it['nguon_seed']} | {li['code']} | {l1a} | {l2a} | {tx} | {audio_f} | {dur_s} | "
+            f"{li['audio_status']} | {it['do_kho']} | {qc} |  |"
         )
-    return "\n".join(rows)
+    checklist = (
+        "\n\n**Checklist GV nghe duyệt audio MÁY (từng bài — bắt buộc trước khi dùng):**\n"
+        "- [ ] Nghe hết file: giọng rõ, tốc độ hợp thí sinh B1 (~135-140 wpm), accent chấp nhận được\n"
+        "- [ ] Hội thoại L1 tách ĐÚNG 2 giọng (không lẫn/na ná), đọc **2 lần** + khoảng lặng đủ\n"
+        "- [ ] Monologue L2 đọc 2 lần, mỗi đáp án điền-từ nghe RÕ + đúng thứ tự trong bài\n"
+        "- [ ] Đáp án (L1 A/B/C + L2 điền-từ) KHỚP nội dung nghe được\n"
+        "- [ ] Tổng thời lượng hợp lý (mục tiêu ~17' ở tốc độ đọc exam; thực tế 14-19' tùy giọng Gemini) + pause đủ\n"
+        "- [ ] (Nếu audio_status='wav_generated') file WAV lớn ~6-8× MP3 — cân nhắc cài lameenc để xuất MP3\n"
+        "- [ ] (Nếu chưa đạt) ghi lý do + đề nghị chỉnh hoặc thay bằng audio người thật\n"
+    )
+    return "\n".join(rows) + checklist
 
 
 # --- TTS + GHÉP AUDIO (chạy REAL-MODE / CLI --audio; KHÔNG vào unit test vì cần Gemini/nghe tai) ---
@@ -1843,6 +1875,63 @@ def concat_wavs(input_paths: list, output_path: str, gap_ms: int = 0) -> str:
     return output_path
 
 
+def assemble_wav_segments(segments: list, output_path: str,
+                          rate: int = 24000, channels: int = 1, sampwidth: int = 2) -> str:
+    """Ghép danh sách segment XEN KẼ audio + khoảng lặng thành 1 WAV (stdlib wave).
+
+    segments: list tuple ('audio', wav_path) | ('silence', ms). Khác concat_wavs (1 gap chung),
+    hàm này cho pause KHÁC NHAU ở từng vị trí — cần cho lịch pause PET (đọc-2-lần, review cuối).
+    Mọi WAV 'audio' phải cùng (channels, sampwidth, rate); raise nếu lệch để không ghép rác."""
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    with wave.open(output_path, "wb") as out:
+        out.setnchannels(channels)
+        out.setsampwidth(sampwidth)
+        out.setframerate(rate)
+        for i, (kind, val) in enumerate(segments):
+            if kind == "silence":
+                out.writeframes(silence_pcm(int(val), rate, channels, sampwidth))
+            elif kind == "audio":
+                with wave.open(val, "rb") as w:
+                    if (w.getnchannels(), w.getsampwidth(), w.getframerate()) != (channels, sampwidth, rate):
+                        raise ValueError(
+                            f"segment {i}/{len(segments)}: WAV format lệch: {val} ({w.getnchannels()},"
+                            f"{w.getsampwidth()},{w.getframerate()}) != ({channels},{sampwidth},{rate})")
+                    out.writeframes(w.readframes(w.getnframes()))
+            else:
+                raise ValueError(f"segment {i}/{len(segments)}: segment kind không hợp lệ: {kind!r}")
+    return output_path
+
+
+def wav_to_mp3(wav_path: str, mp3_path: Optional[str] = None,
+               bitrate_kbps: int = 64, quality: int = 2) -> Optional[str]:
+    """WAV 16-bit → MP3 (LAME qua lameenc). OPTIONAL: lameenc lazy-import; nếu CHƯA cài → log +
+    trả None (caller giữ WAV) ⇒ base requirements.txt + pytest + CI KHÔNG phá (văn hoá 0-dep).
+
+    64 kbps CBR đủ trong suốt cho speech mono 24kHz (~6-8× nhỏ hơn WAV). quality: 2=tốt, 7=nhanh."""
+    try:
+        import lameenc  # noqa: PLC0415 — lazy: chỉ nạp khi thực sự encode MP3
+    except ImportError:
+        logger.warning("lameenc chưa cài — bỏ qua MP3, giữ WAV %s (pip install -r requirements-audio.txt)", wav_path)
+        return None
+    if mp3_path is None:
+        mp3_path = os.path.splitext(wav_path)[0] + ".mp3"
+    with wave.open(wav_path, "rb") as w:
+        channels, rate = w.getnchannels(), w.getframerate()
+        if w.getsampwidth() != 2:
+            raise ValueError("wav_to_mp3 cần PCM 16-bit (sampwidth=2)")
+        pcm = w.readframes(w.getnframes())
+    enc = lameenc.Encoder()
+    enc.set_bit_rate(bitrate_kbps)
+    enc.set_in_sample_rate(rate)      # 24000 được lameenc hỗ trợ native (không resample)
+    enc.set_channels(channels)
+    enc.set_quality(quality)
+    mp3 = enc.encode(pcm) + enc.flush()   # encode cả buffer 1 lần — OK cho ~17'
+    os.makedirs(os.path.dirname(mp3_path) or ".", exist_ok=True)
+    with open(mp3_path, "wb") as f:
+        f.write(mp3)
+    return mp3_path
+
+
 def _lis_tts(generator, text: str, output_path: str, speakers=None) -> str:
     """TTS Gemini → WAV 24kHz mono. speakers=None: 1 giọng 'Puck'; speakers=[(label,voice),...]: đa-giọng.
 
@@ -1873,59 +1962,166 @@ def _lis_tts(generator, text: str, output_path: str, speakers=None) -> str:
     if audio is None:
         raise ValueError("Không có phần audio trong phản hồi Gemini TTS.")
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    with wave.open(output_path, "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(24000)
-        w.writeframes(audio)
+    # Ghi ATOMIC (temp cùng thư mục → os.replace) để cache KHÔNG bao giờ chứa WAV ghi-dở khi
+    # crash/interrupt giữa chừng (review S54: file >44 byte hỏng vẫn lọt qua check cũ).
+    tmp_path = f"{output_path}.tmp{os.getpid()}"
+    try:
+        with wave.open(tmp_path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(24000)
+            w.writeframes(audio)
+        os.replace(tmp_path, output_path)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
     return output_path
 
 
-def build_listening_audio(generator, item: dict, out_dir: str, n_l1: int = 1) -> dict:
-    """PoC dựng audio 1 phần bài Nghe (real-mode): lời dẫn + n_l1 hội thoại L1 (đa-giọng, ĐỌC 2 LẦN +
-    pause) + monologue L2 → 1 file WAV, theo cấu trúc PET. Trả {audio_path, duration_s}.
+# Lỗi transient free-tier Gemini (retry được); khác lỗi thật (raise ngay).
+_TTS_TRANSIENT = ("429", "503", "resource_exhausted", "unavailable", "overloaded", "rate limit", "quota")
 
-    Đây là PoC cấu trúc (pause+đọc-lại+đa-giọng); ghép TRỌN bài 17 phút để slice sau."""
+
+def _tts_with_retry(generator, text: str, output_path: str, speakers=None,
+                    max_retries: int = 5, base_delay: float = 2.0) -> str:
+    """Gọi _lis_tts với exponential backoff + jitter cho lỗi transient (429/503). Lỗi khác raise
+    ngay. Dựng bài dài = 20-30 call → free-tier rất dễ 429, backoff giúp không rơi cả bài."""
+    for attempt in range(max_retries):
+        try:
+            return _lis_tts(generator, text, output_path, speakers)
+        except Exception as e:
+            transient = any(t in str(e).lower() for t in _TTS_TRANSIENT)
+            if not transient or attempt == max_retries - 1:
+                raise
+            delay = min(60.0, base_delay * (2 ** attempt)) + random.uniform(0, 1)
+            logger.warning("TTS transient (%s) — thử lại sau %.1fs (lần %d/%d)", e, delay, attempt + 1, max_retries)
+            time.sleep(delay)
+
+
+def _valid_wav(path: str) -> bool:
+    """WAV ĐỌC ĐƯỢC + đủ frames (không chỉ >44 byte header)? Chống cache file ghi-dở/hỏng (review S54)."""
+    try:
+        with wave.open(path, "rb") as w:
+            n = w.getnframes()
+            return n > 0 and len(w.readframes(n)) == n * w.getsampwidth() * w.getnchannels()
+    except (wave.Error, EOFError, OSError):
+        return False
+
+
+def _lis_tts_cached(generator, text: str, cache_dir: str, speakers=None) -> str:
+    """TTS có CACHE theo hash(text+speakers): đoạn lặp lại (lời dẫn, 'Now listen again', đọc-lần-2)
+    chỉ gọi Gemini 1 lần → giảm mạnh số call, tránh cạn free-tier khi dựng trọn bài + re-run rẻ.
+    Cache theo NỘI DUNG: cùng text+giọng → cùng audio (dedup hợp lệ; item trùng nội dung đã bị
+    near-dup + qc gate loại render nên không lẫn bài)."""
+    key = hashlib.md5((text + "|" + json.dumps(speakers or [], ensure_ascii=False)).encode("utf-8")).hexdigest()[:16]
+    os.makedirs(cache_dir, exist_ok=True)
+    cached = os.path.join(cache_dir, f"{key}.wav")
+    if _valid_wav(cached):       # đọc-được + đủ frames (không chỉ >44 byte) → dùng lại an toàn
+        return cached
+    return _tts_with_retry(generator, text, cached, speakers)
+
+
+# Lời dẫn chuẩn (phỏng theo tapescript Cambridge B1 Preliminary; khung "hai phần" cho bản rút gọn đối tác).
+LIS_OPENING = ("B1 Preliminary, Listening. There are two parts to the test. "
+               "You will hear each recording twice. You will have time at the end to check your answers.")
+
+
+def _build_listening_segments(l1: list, l2: str, pauses: dict = None) -> list:
+    """Dựng KẾ HOẠCH segment cho TRỌN bài Nghe theo lịch Cambridge PET: 5 hội thoại L1 (đọc-2-lần,
+    đa-giọng) + monologue L2 (đọc-2-lần) + lời dẫn + pause đúng bảng. Tách khỏi TTS thật để test
+    OFFLINE được cấu trúc/pause. Trả list [('audio', (text, speakers)) | ('silence', ms)]."""
+    p = pauses or LIS_PAUSES
+    voices = list(LIS_VOICES.values())
+    seg = []
+
+    def say(text, speakers=None):
+        seg.append(("audio", (text, speakers)))
+
+    def pause(sec):
+        seg.append(("silence", int(sec) * 1000))
+
+    say(LIS_OPENING)
+    say("Part One.")
+    pause(p["after_part_title"])
+    say("For each question, choose the correct answer.")
+    pause(p["after_instruction"])
+    for i, q in enumerate(l1, 1):
+        say(f"Question {i}. {str((q or {}).get('stem') or '')}")
+        pause(p["before_dialogue"])
+        dlg = str((q or {}).get("transcript") or "")
+        # gán giọng theo NHÃN THẬT trong transcript (config PHẢI khớp label 'X:' trong text) để tách
+        # đúng 2 giọng (bài học review S53); ≤2 giọng = giới hạn MultiSpeakerVoiceConfig.
+        labels = []
+        for line in dlg.splitlines():
+            m = re.match(r"\s*([^:]{1,40}):\s", line)   # nới 25→40: tên dài ("Professor ...") vẫn tách 2 giọng
+            if m and m.group(1).strip() and m.group(1).strip() not in labels:
+                labels.append(m.group(1).strip())
+        labels = labels[:2]
+        if len(labels) < 2 and sum(": " in ln for ln in dlg.splitlines()) >= 2:
+            logger.warning("Nghe: tách <2 nhãn giọng từ hội thoại (sẽ đọc MONO): %s", dlg.replace("\n", " ")[:60])
+        speakers = ([(lab, voices[j % len(voices)]) for j, lab in enumerate(labels)]
+                    if len(labels) >= 2 else None)
+        say(dlg, speakers)                    # đọc lần 1
+        pause(p["after_play"])
+        say("Now listen again.")
+        pause(p["between_plays_l1"])
+        say(dlg, speakers)                    # đọc lần 2 (GIỐNG HỆT → cache trúng, 1 call)
+        pause(p["after_play"])
+    say("That is the end of Part One.")
+    pause(p["end_of_part"])
+    say("Now look at Part Two.")
+    pause(p["after_part_title"])
+    say("You will hear a talk. For each question, write the correct answer in the gap. "
+        "Write one or two words or a number or a date or a time. "
+        "You now have forty-five seconds to look at Part Two.")
+    pause(p["l2_look_time"])
+    say(str(l2 or ""))                        # monologue đọc lần 1
+    pause(p["after_play"])
+    say("Now listen again.")
+    pause(p["between_plays_l2"])
+    say(str(l2 or ""))                        # monologue đọc lần 2 (cache trúng)
+    pause(p["after_play"])
+    say("That is the end of Part Two. You now have two minutes to check your answers.")
+    pause(p["review_half"])
+    say("You now have one more minute.")
+    pause(p["review_half"])
+    say("That is the end of the test.")
+    return seg
+
+
+def build_listening_audio(generator, item: dict, out_dir: str, to_mp3: bool = True) -> dict:
+    """Dựng TRỌN bài Nghe ~17' (real-mode): 5 hội thoại L1 (đa-giọng, đọc-2-lần) + monologue L2
+    (đọc-2-lần) + lời dẫn + pause theo lịch Cambridge PET → 1 file. Encode MP3 (lameenc) nếu có,
+    fallback WAV. TTS có cache per-chunk + retry/backoff 429/503 free-tier.
+
+    Thời lượng ~17' là MỤC TIÊU ở tốc độ đọc exam (~140wpm); giọng Gemini có thể nhanh hơn → thực tế
+    14-19' tùy giọng (GV kiểm duration_s). Trả {audio_path, wav_path, mp3_path, duration_s, format, n_segments}."""
     tr = item.get("transcripts") or {}
     l1 = tr.get("l1") or []
     l2 = tr.get("l2") or ""
     code = item.get("lis_item", {}).get("code", "lis")
-    tmp = os.path.join(out_dir, f"_{code}_parts")
-    os.makedirs(tmp, exist_ok=True)
-    parts, k = [], 0
+    cache_dir = os.path.join(out_dir, "_tts_cache")
+    plan = _build_listening_segments(l1, l2)
 
-    def _tts(text, speakers=None):
-        nonlocal k
-        k += 1
-        p = os.path.join(tmp, f"p{k}.wav")
-        return _lis_tts(generator, text, p, speakers)
+    rendered, n_audio = [], 0
+    for kind, val in plan:
+        if kind == "silence":
+            rendered.append(("silence", val))
+        else:
+            text, speakers = val
+            rendered.append(("audio", _lis_tts_cached(generator, text, cache_dir, speakers)))
+            n_audio += 1
 
-    parts.append(_tts("Part One. You will hear five short conversations. You will hear each conversation twice. "
-                      "Read at a slow, clear pace suitable for a B1 English exam."))
-    voices = list(LIS_VOICES.values())              # ≤2 giọng (giới hạn MultiSpeakerVoiceConfig)
-    for q in l1[:n_l1]:
-        parts.append(_tts(f"Now look at the question. {q.get('stem', '')}"))
-        dlg = str(q.get("transcript") or "")
-        # gán giọng theo NHÃN THẬT trong transcript (config PHẢI khớp label 'X:' trong text) → tránh
-        # lệch config/text làm hội thoại không tách 2 giọng (bài học review).
-        labels = []
-        for line in dlg.splitlines():
-            m = re.match(r"\s*([^:]{1,25}):\s", line)
-            if m and m.group(1).strip() and m.group(1).strip() not in labels:
-                labels.append(m.group(1).strip())
-        labels = labels[:2]
-        if len(labels) >= 2:   # hội thoại 2 người → đa-giọng
-            dlg_wav = _tts(dlg, speakers=[(lab, voices[j % len(voices)]) for j, lab in enumerate(labels)])
-        else:                  # thông báo / 1 người → 1 giọng
-            dlg_wav = _tts(dlg, speakers=None)
-        parts.append(dlg_wav)                       # đọc lần 1
-        parts.append(_tts("Now listen again."))
-        parts.append(dlg_wav)                       # đọc lần 2 (GIỐNG HỆT)
-    parts.append(_tts("Part Two. You will hear a talk. Complete the notes. "
-                      "Read slowly and clearly for a B1 exam. " + l2, speakers=None))
-
-    final = os.path.join(out_dir, f"{code}.wav")
-    concat_wavs(parts, final, gap_ms=LIS_PAUSES["after_reading"] * 1000)
-    with wave.open(final, "rb") as w:
+    final_wav = os.path.join(out_dir, f"{code}.wav")
+    assemble_wav_segments(rendered, final_wav)
+    with wave.open(final_wav, "rb") as w:
         duration = w.getnframes() / float(w.getframerate())
-    return {"audio_path": final, "duration_s": round(duration, 1)}
+
+    result = {"audio_path": final_wav, "wav_path": final_wav, "mp3_path": None,
+              "duration_s": round(duration, 1), "format": "wav", "n_segments": n_audio}
+    if to_mp3:
+        mp3 = wav_to_mp3(final_wav)
+        if mp3:
+            result.update({"audio_path": mp3, "mp3_path": mp3, "format": "mp3"})
+    return result

@@ -5,7 +5,9 @@ paraphrase câu Đọc phần 1 (R1) từ đề thật của đối tác → sha
 Slice P3-NÓI: paraphrase part2_topic từ pool_speak.json → shape thẻ Nói (7 field).
 Test dùng seed TỔNG HỢP + mock tất định (không gọi Gemini/mạng).
 """
+import importlib.util
 import json
+import os
 import wave
 
 import pytest
@@ -877,3 +879,90 @@ def test_SPEC_FACTORY_008_audio_helpers(tmp_path):
     _mkwav(c, 100, channels=2)
     with pytest.raises(ValueError):
         boss_factory.concat_wavs([str(a), str(c)], str(tmp_path / "x.wav"))
+
+
+def test_SPEC_FACTORY_009_full_track_and_cache(tmp_path, monkeypatch):
+    # SPEC-FACTORY-009 (Nghe hardening): ghép TRỌN bài ~17' (5 L1 đọc-2-lần + L2 đọc-2-lần +
+    # lời dẫn + pause theo lịch Cambridge PET) + cache per-chunk. Test OFFLINE (monkeypatch TTS).
+    l1 = [{"stem": f"Q{k}", "transcript": f"Anna: line number {k}.\nBen: my reply {k}."}
+          for k in range(1, 6)]     # giọng tách TỪ transcript ('Anna:'/'Ben:'), không cần field speakers
+    l2 = "This is the talk about the museum. " * 20
+
+    # --- AC1: kế hoạch segment đúng cấu trúc PET (không gọi TTS) ---
+    plan = boss_factory._build_listening_segments(l1, l2)
+    audio = [v for kind, v in plan if kind == "audio"]
+    silence = [v for kind, v in plan if kind == "silence"]
+    texts = [t for (t, _sp) in audio]
+    assert texts.count("Anna: line number 1.\nBen: my reply 1.") == 2   # mỗi hội thoại L1 đọc 2 lần
+    assert texts.count(l2) == 2                                          # monologue L2 đọc 2 lần
+    assert sum(t == "Now listen again." for t in texts) == 6            # 5 L1 + 1 L2
+    assert boss_factory.LIS_OPENING in texts
+    assert "Part One." in texts and "That is the end of the test." in texts
+    dlg_sp = next(sp for (t, sp) in audio if t.startswith("Anna:"))      # hội thoại 2 nhãn → 2 giọng
+    assert dlg_sp is not None and len(dlg_sp) == 2
+    mono_sp = [sp for (t, sp) in audio if t == l2][0]                    # monologue → 1 giọng
+    assert mono_sp is None
+    assert silence and all(s > 0 for s in silence)
+
+    # --- AC2: build_listening_audio ghép file thật + CACHE per-chunk (monkeypatch TTS) ---
+    calls = {"n": 0}
+
+    def fake_tts(generator, text, output_path, speakers=None):
+        calls["n"] += 1
+        with wave.open(output_path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(24000)
+            w.writeframes(boss_factory.silence_pcm(50, 24000, 1, 2))     # 50ms mỗi đoạn
+        return output_path
+
+    monkeypatch.setattr(boss_factory, "_lis_tts", fake_tts)
+    item = {"lis_item": {"code": "LB1.90-x-1"}, "transcripts": {"l1": l1, "l2": l2}}
+    info = boss_factory.build_listening_audio(None, item, str(tmp_path / "aud"), to_mp3=False)
+    assert os.path.exists(info["wav_path"]) and info["duration_s"] > 0
+    assert info["format"] == "wav" and info["n_segments"] == len(audio)
+    # CACHE: số call TTS THẬT < số đoạn audio (đọc-lần-2 + 'Now listen again' lặp → trúng cache)
+    assert 0 < calls["n"] < info["n_segments"]
+    n_first = calls["n"]
+    # build lại cùng out_dir → cache trúng toàn bộ → KHÔNG gọi TTS thêm
+    boss_factory.build_listening_audio(None, item, str(tmp_path / "aud"), to_mp3=False)
+    assert calls["n"] == n_first
+
+
+def test_SPEC_FACTORY_009_mp3_fallback_when_missing(tmp_path, monkeypatch):
+    # SPEC-FACTORY-009: MP3 là OPTIONAL — nếu lameenc CHƯA cài, wav_to_mp3 trả None (giữ WAV),
+    # KHÔNG raise → base requirements + CI không phá. Giả lập lameenc vắng qua __import__.
+    import builtins
+    real_import = builtins.__import__
+
+    def fake_import(name, *a, **k):
+        if name == "lameenc":
+            raise ImportError("simulated: lameenc not installed")
+        return real_import(name, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    wav = tmp_path / "s.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24000)
+        w.writeframes(boss_factory.silence_pcm(200, 24000, 1, 2))
+    assert boss_factory.wav_to_mp3(str(wav)) is None                     # fallback: giữ WAV, không raise
+    assert os.path.exists(str(wav))                                      # WAV gốc KHÔNG bị xoá khi fallback
+
+
+@pytest.mark.skipif(importlib.util.find_spec("lameenc") is None,
+                    reason="lameenc optional (MP3, SPEC-FACTORY-009) — chạy khi cài requirements-audio.txt")
+def test_SPEC_FACTORY_009_wav_to_mp3_optional(tmp_path):
+    # SPEC-FACTORY-009: khi CÓ lameenc → encode WAV→MP3 hợp lệ + nhỏ hơn WAV (offline, 0 Gemini).
+    wav = tmp_path / "s.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24000)
+        w.writeframes(boss_factory.silence_pcm(2000, 24000, 1, 2))       # 2s
+    mp3 = boss_factory.wav_to_mp3(str(wav))
+    assert mp3 and mp3.endswith(".mp3") and os.path.exists(mp3)
+    data = open(mp3, "rb").read()
+    assert data[:3] == b"ID3" or data[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xfa")  # ID3/MP3 frame sync
+    assert len(data) < os.path.getsize(str(wav))                          # MP3 nhỏ hơn WAV

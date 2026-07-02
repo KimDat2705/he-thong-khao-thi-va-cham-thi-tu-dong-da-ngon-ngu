@@ -7,7 +7,9 @@ services:
     runtime: python
     rootDir: backend
     plan: free
-    buildCommand: pip install -r requirements.txt && python scripts/cloud_bootstrap.py
+    # requirements-audio.txt (lameenc → MP3) là OPTIONAL: "|| echo" để build KHÔNG fail nếu
+    # thiếu wheel; code lazy-import + fallback WAV. Base requirements giữ nguyên "0 dep".
+    buildCommand: pip install -r requirements.txt && (pip install -r requirements-audio.txt || echo "audio extras optional — skipped") && python scripts/cloud_bootstrap.py
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
