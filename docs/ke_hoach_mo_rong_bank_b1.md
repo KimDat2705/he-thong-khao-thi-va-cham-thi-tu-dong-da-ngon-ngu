@@ -148,6 +148,12 @@ Tái dùng **engine Gemini + paraphrase/enrichment** mình đã có (`b1_questio
 
 - **D1 — Phạm vi hệ mình:** Có **dừng phát triển phần web/generate/chấm** (trùng sếp), chỉ giữ **engine sinh câu** làm "nhà máy" xuất JSON cho sếp không? (Khuyến nghị: **CÓ** — tập trung giá trị, tránh trùng.)
 - **D2 — Điểm nhận của sếp (KỸ THUẬT LỚN):** Render của sếp **CLONE từ .docx gốc**. Câu AI mới **không có .docx gốc**. Vậy sếp nhận item mới theo đường nào? (a) mình xuất **JSON vào `bank_raw`** + sếp mở rộng render đọc-từ-JSON (đổi pipeline sếp); (b) mình xuất luôn **.docx block chuẩn** để extract/render nuốt được; (c) mình giao JSON, **sếp tự quyết render**.
+  - **✅ D2 ĐÃ CHỐT = OPTION (a)** *(02/07 S53 — Claude tự quyết theo uỷ quyền Đạt, DỰA TRÊN tài liệu sếp gửi, KHÔNG chờ sếp trả lời vì sếp chưa xong phần của sếp).* Thẩm định độc lập 3 lăng kính (biện hộ (a) · steelman (b) · phản biện cố bác (a)) đều **hội tụ về (a)**, confidence CAO. Chốt cứng:
+    - **Cô lập rủi ro vào đúng 1 khâu:** 4/5 giai đoạn của sếp (extract/build_db/tron_de/qc) ĐÃ đọc `bank_raw` JSON → item mình thêm TỰ chảy vào pool + gắn độ khó + trộn quota 3/5/2 + qua QC mà sếp KHÔNG sửa gì; chỉ **render** cần THÊM 1 nhánh (không sửa logic cũ). Đây là mức phụ thuộc **nhỏ nhất** vào phần code sếp còn biến động — đúng ràng buộc "giảm tối đa phụ thuộc code sếp chưa xong".
+    - **Output mình ĐÃ CÓ chính là payload (a) cần** (SPEC-FACTORY-001/002 xuất đúng shape s1/pool_speak + do_kho + truy vết) → 0 chi phí đổi hướng. Chọn (b) = vứt bỏ export JSON đã nghiệm thu để dựng lại tầng .docx.
+    - **Loại (b):** tự nguyện bước vào "lớp lỗi #1" (trích xuất/CLONE .docx) do CHÍNH sếp cảnh báo; reverse-engineer parser mình không sở hữu; coupling ngược & giòn theo thời gian (sếp chỉnh `extract_bank.py` → .docx mình vỡ âm thầm); phá "JSON là nguồn sự thật duy nhất".
+    - **DE-RISK (để KHÔNG bị chặn dù sếp chưa xong):** (1) **giao pure-JSON TRƯỚC** — item vào pool + được trộn ngay cả khi nhánh render-từ-JSON của sếp chưa có → tiến độ mình KHÔNG treo vào code sếp; (2) kèm **helper render-từ-JSON tham chiếu** (mình viết `build_docx_block_from_json` mẫu → chứng minh item dùng được + GV ký được TRƯỚC khi sếp làm, đồng thời là spec mẫu sếp copy); (3) **chốt schema JSON một lần** (đóng băng interface s1_item/speak_card làm hợp đồng) trước khi nhân rộng; (4) **tách part CÓ ẢNH** (R2/R3/L1) ra slice riêng — (a) sạch cho part TEXT (R1/R4/W1/W2/Nói), part ảnh cần chốt cơ chế giao asset; (5) **phương án lùi**: nếu sếp DỨT KHOÁT không đổi render → dùng (b) CHỈ cho part text (helper docx là bước đệm sẵn) → không có tình huống kẹt hoàn toàn.
+    - **Giả định cần xác nhận khi sếp rảnh** (không chặn): build_db/tron nhận item mới miễn đủ cờ tối thiểu (`sX_complete` + độ khó); `qc_check` đối xử item JSON-origin (không .docx gốc) NGANG item clone. → nên xin **1 record mẫu `bank_raw` hoàn chỉnh** để đối chiếu đủ cờ.
   - **✅ KHUYẾN NGHỊ (Đạt yêu cầu chọn, trừ (c)) = OPTION (a)** — mình xuất JSON vào `bank_raw`, sếp thêm nhánh "render item từ JSON". Lý do:
     - `build_db.py`/`tron_de.py` của sếp **đã đọc `bank_raw` (JSON)** → item JSON mình thêm **tự chảy vào pool + được trộn** mà KHÔNG cần sếp sửa gì ở khâu chọn/QC. Chỉ **khâu render** cần nhánh mới.
     - Với item **text (R1/R4/W1/W2)** — phần lớn giá trị — render-từ-JSON của sếp **RẤT ĐƠN GIẢN** (đổ stem+options vào Word), nhẹ hơn nhiều so với (b).
@@ -164,11 +170,13 @@ Tái dùng **engine Gemini + paraphrase/enrichment** mình đã có (`b1_questio
 ## 9. BƯỚC TIẾP (sau khi chốt D1–D5)
 1. ✅ **D1 CHỐT** (Đạt 02/07): tập trung "nhà máy sinh câu", bỏ phần web/generate/chấm trùng sếp.
 2. ✅ **SLICE P1-R1 XONG** (02/07, SPEC-FACTORY-001): `boss_factory.py` (load_r1_seeds → build_r1_variants shape `s1` + độ khó + truy vết → qc_r1 → export_bundle → review_sheet) + CLI `make_r1_variants.py` + test. Verify DỮ LIỆU THẬT (30 đề thật + Gemini) → biến thể chất lượng, xuất JSON `s1` + bảng GV. pytest 63/0.
-3. **KHUYẾN NGHỊ THỨ TỰ TIẾP** (đúng logic + tối ưu — Đạt hỏi "đầu mục nào tiếp"):
-   - **(ưu tiên) Chốt D2 với sếp trước khi nhân rộng** — vì D2 quyết định khâu đóng gói cuối; làm hết các part rồi mới biết sai format thì phí. Khuyến nghị **Option (a)** (mục 8).
-   - Song song KHÔNG chờ D2, làm **slice P3-NÓI** kế tiếp: dễ nhất, **khác shape** (`pool_speak` dict, chỉ `part2_topic`+`domain`) → chứng minh factory tổng quát hoá sang format thứ 2 + gần như 0 ảo giác. Rồi mới tới **R4 (cloze, QC hộp-từ mạnh)** → R2 → R3 → W1 → W2.
+3. ✅ **D2 CHỐT (a)** (02/07 S53) — xem mục 8. Bàn giao = pure-JSON đúng schema đối tác + (sẽ có) helper render-từ-JSON tham chiếu. KHÔNG chặn tiến độ mình.
+4. ✅ **SLICE P3-NÓI XONG** (02/07 S53, SPEC-FACTORY-002): `boss_factory.py` mở rộng (load_speak_seeds đọc `pool_speak.json` DICT → build_speak_variants sinh `part2_topic` MỚI cùng domain, giữ part1/part3, shape pool_speak 7 field + metadata + code `SB1.90-<seed>-<n>` ổn định/truy vết + qc_speak khớp domain khoan dung định dạng + phát hiện/gắn nhãn near-dup jaccard → export_speak_bundle → speak_review_sheet) + CLI `make_speak_variants.py` + test. **Chứng minh factory tổng quát sang FORMAT THỨ 2** (pool_speak DICT ≠ bank_raw LIST). pytest 64/0, ruff/arch/traceability sạch. Verify Gemini THẬT: 3 thẻ Nói chất lượng cùng domain, QC OK, card 7 field thuần + metadata sibling. Review đối kháng 4-lăng-kính (14 agent) → vá 6 defect trước khi chốt.
+5. **THỨ TỰ TIẾP** (đúng logic + tối ưu):
+   - **R4 (cloze hộp-từ)** — QC ràng buộc mạnh (đáp án ∈ hộp từ), là cổng `kiem_hop_tu` của sếp → giá trị cao + khác shape. Rồi **R2** (thông báo 3-đáp-án, lưu ý ảnh 18/30) → **R3** (đoạn+câu hiểu, GV soát ngữ nghĩa kỹ) → **W1** (viết lại câu) → **W2** (đề thư, không key).
    - **Nghe (P4): hoãn** tới khi chốt D3 (cần audio; sếp bảo audio là việc trung tâm).
-4. Mỗi slice: spec `SPEC-FACTORY-00N` + test (mock tất định) + verify dữ liệu thật + cập nhật harness (như quy trình BANK-005/6/7).
+   - **Helper render-từ-JSON tham chiếu** (de-risk D2 điểm 2) — làm khi có nhịp, không chặn.
+6. Mỗi slice: spec `SPEC-FACTORY-00N` + test (mock tất định) + verify dữ liệu thật + cập nhật harness (như quy trình BANK-005/6/7).
 
 ---
 

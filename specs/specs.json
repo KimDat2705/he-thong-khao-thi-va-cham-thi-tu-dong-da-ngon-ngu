@@ -755,6 +755,25 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_001_r1_variants_boss_format"
       ],
       "notes": "Slice P1-R1 của kế hoạch mở rộng ngân hàng (docs/ke_hoach_mo_rong_bank_b1.md, S52). Nhà máy sinh câu: seed = câu R1 thật trong bank_raw.json đối tác, output = shape s1 của đối tác + độ khó + review sheet cho GV ký. Test = mock tất định (không gọi mạng); chất lượng THẬT do Gemini 2.5-flash + GV duyệt. CHƯA chốt D2 (cách đối tác nhận .docx/JSON) — bàn giao hiện là JSON shape s1 + bảng GV."
+    },
+    {
+      "id": "SPEC-FACTORY-002",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh thẻ Nói (Speaking part2_topic) — xuất định dạng pool_speak đối tác (bàn giao)",
+      "statement": "Hệ sinh biến thể thẻ Nói B1 từ thẻ THẬT trong pool_speak.json của đối tác làm seed (grounded, hạn chế ảo giác): sinh part2_topic MỚI CÙNG domain (giữ part1/part3 chuẩn), xuất đúng shape pool_speak {code, src_code, set_file, part2_topic, domain_guess, part1, part3} kèm nhãn độ khó và truy vết seed, qua cổng QC (phát hiện + gắn nhãn near-dup, KHÔNG tự xoá — để GV quyết), để bàn giao cho pipeline ghép đề của đối tác.",
+      "acceptance_criteria": [
+        "load_speak_seeds đọc pool_speak.json (DICT thẻ) của đối tác trích đúng thẻ Nói làm seed (giữ part2_topic/part1/part3/domain_guess/code).",
+        "build_speak_variants sinh part2_topic MỚI CÙNG domain, KHÁC nguyên văn seed (bản quyền), GIỮ part1/part3, cấp code mới không đụng code seed thật (dải SB1.90-<seed>-<n>, ổn định & duy nhất qua lô), src_code truy vết về seed.",
+        "Mỗi item gắn nhãn độ khó Dễ/TB/Khó + truy vết nguồn seed (nguon_seed); card thuần đúng 7 field pool_speak, metadata (độ khó) để NGOÀI card.",
+        "qc_speak bắt lỗi thẻ hỏng (part2_topic rỗng/trùng nguyên văn seed, domain ngoài 14 chủ đề B1 với khớp khoan dung định dạng, thiếu part1/part3); phát hiện + gắn nhãn near-dup part2_topic toàn-lô bằng jaccard (không tự xoá).",
+        "export_speak_bundle + speak_review_sheet xuất gói bàn giao JSON (shape pool_speak + metadata) + bảng GV soát/ký."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_002_speak_variants_boss_format"
+      ],
+      "notes": "Slice P3-NÓI của kế hoạch mở rộng ngân hàng (docs/ke_hoach_mo_rong_bank_b1.md, S52; D2 chốt Option (a) = xuất JSON vào ngân hàng đối tác). Nhà máy sinh câu format thứ 2 (pool_speak là DICT, khác bank_raw là LIST): seed = thẻ Nói thật, output = shape pool_speak thuần + độ khó + review sheet GV. Test = mock tất định + _StubGen nhánh real (không gọi mạng); chất lượng THẬT do Gemini 2.5-flash + GV duyệt. part1/part3 cố định (giữ từ seed), chỉ part2_topic đổi cùng domain (không bịa chủ đề)."
     }
   ]
 }
