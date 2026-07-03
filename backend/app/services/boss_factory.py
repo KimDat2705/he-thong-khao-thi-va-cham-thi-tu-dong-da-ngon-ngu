@@ -122,9 +122,11 @@ def qc_r1(variant: dict, seed: dict) -> list:
     return issues
 
 
-def build_r1_variants(seeds: list, per_seed: int = 1, generator=None) -> list:
-    """Sinh biến thể R1 cho danh sách seed. Mỗi item ra: shape s1 của đối tác + metadata."""
+def build_r1_variants(seeds: list, per_seed: int = 1, generator=None, dup_threshold: float = 0.85) -> list:
+    """Sinh biến thể R1 cho danh sách seed. Mỗi item ra: shape s1 của đối tác + metadata.
+    Khử near-dup stem toàn-lô bằng jaccard (nhất quán các build_*_variants khác — gắn nhãn, không xoá)."""
     use_mock = generator is None or getattr(generator, "client", None) is None
+    accepted_stems = []
     out = []
     for seed in seeds:
         for i in range(per_seed):
@@ -139,6 +141,12 @@ def build_r1_variants(seeds: list, per_seed: int = 1, generator=None) -> list:
             if diff_en not in DIFF_MAP:
                 diff_en = "medium"
             issues = qc_r1(v, seed)
+            stem = str(v.get("stem") or "")
+            for prev in accepted_stems:
+                if _jaccard(stem, prev) >= dup_threshold:
+                    issues.append("near-duplicate stem (trùng lặp gần với câu khác trong lô)")
+                    break
+            accepted_stems.append(stem)
             out.append({
                 # Item ĐÚNG shape s1 của đối tác (chỉ 3 field) — merge được thẳng.
                 "s1_item": {

@@ -947,6 +947,25 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_011_l1_images"
       ],
       "notes": "Slice hoàn thiện Nghe (S54, sau helper render-từ-JSON). Nghiên cứu S54 (3 hướng, WebFetch): gemini-2.5-flash-image (stable, không -preview) còn dùng; Nano Banana 2 = gemini-3.1-flash-image (GA 28/05/2026) → để env đổi sau. ⚠️ FREE-TIER API image = 0 IPM (chặn cứng ~12/2025) → sinh ảnh THẬT cần BẬT BILLING ($0-limit OK → Tier 1); code graceful nên không phụ thuộc (mock/skip). 3 ảnh RIÊNG A/B/C (khớp b1_question_gen cũ image_url comma + frontend TakeView parse comma). Calibrate: bài cũ ở 210wpm chỉ ~13' → COMBO content+pause = ~17.1'. Ảnh sinh real-mode → GV duyệt (như audio). Test = mock (không gọi Gemini/không sinh ảnh thật)."
+    },
+    {
+      "id": "SPEC-FACTORY-012",
+      "domain": "FACTORY",
+      "title": "Orchestrator end-to-end + roundtrip — chạy toàn bộ nhà máy từ ngân hàng đối tác + kiểm merge-ready/đủ-pool",
+      "statement": "Hoàn tất backlog 'nhà máy sinh câu' (docs §6.7): (1) run_bank_expansion chạy TẤT CẢ 8 dạng (R1/R2/R3/R4/W1/W2 từ bank_raw + Nói từ pool_speak + Nghe từ pool_lis) trong 1 lượt → {skill: bundle}; (2) roundtrip_check mô phỏng NHẸ khâu merge/tron của sếp — kiểm mỗi item có SHAPE merge-được (đủ field bắt buộc theo skill) + qc_ok, đếm theo độ khó, đủ pool cho N biến thể chưa; roundtrip_report tổng hợp mọi skill. CLI make_bank_expansion.py chạy end-to-end → xuất bundle JSON + .docx (GV ký) + báo cáo roundtrip. KHÔNG dựng lại pipeline build_db/tron của sếp (chỉ sanity phía mình); cờ merge chính xác chờ record bank_raw mẫu của sếp.",
+      "acceptance_criteria": [
+        "run_bank_expansion(bank_raw, pool_speak, pool_lis, per_seed, generator, limit) chạy mọi dạng CÓ seed → {skill: bundle} (dạng thiếu seed bị bỏ qua); generator=None → mock tất định.",
+        "roundtrip_check(bundle, n_target) trả {skill, count, count_qc_ok, count_merge_ready, by_difficulty, enough_for_n, issues}: item merge-ready = qc_ok + đủ field bắt buộc theo _MERGE_REQUIRED; item qc_ok nhưng thiếu field → issues; n_target>0 → enough_for_n = count_merge_ready>=n_target.",
+        "roundtrip_report(bundles, n_target) tổng hợp mọi skill + total_merge_ready + all_ok.",
+        "make_bank_expansion.py chạy toàn bộ từ 1 bộ file ngân hàng → xuất bundle JSON + .docx + in báo cáo roundtrip mỗi dạng (đủ để TEST nhiệm vụ chính end-to-end).",
+        "Test offline (mock, bank tổng hợp nhỏ) phủ orchestrator (nhiều dạng) + roundtrip (merge-ready, bắt thiếu-field, đủ/không-đủ-pool, report)."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_012_orchestrator_roundtrip"
+      ],
+      "notes": "Slice hoàn tất backlog §6.7 (roundtrip_test) + orchestrator tổng (S54, sau ảnh L1). boss_pipeline.py (import boss_factory). 'Làm đủ để TEST nhiệm vụ chính mở rộng ngân hàng end-to-end' (Đạt chỉ đạo: chỉ tập trung sinh ngân hàng, chức năng khác làm đủ để test). roundtrip = sanity phía MÌNH (shape merge-ready + qc + độ khó); KHÔNG chạy code build_db/tron của sếp — cờ merge chính xác (sX_complete...) chờ 1 record bank_raw mẫu của sếp (D2 open). Test = mock (không gọi Gemini)."
     }
   ]
 }

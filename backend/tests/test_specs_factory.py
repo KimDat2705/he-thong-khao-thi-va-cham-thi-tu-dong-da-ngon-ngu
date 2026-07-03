@@ -1132,3 +1132,48 @@ def test_SPEC_FACTORY_011_l1_images(tmp_path, monkeypatch):
     boss_render.render_bundle_docx({"skill": "listening", "items": [item]}, str(out))
     t = "\n".join(pp.text for pp in Document(str(out)).paragraphs)
     assert "LB1.90-1_L1q1_A.png" in t
+
+
+def test_SPEC_FACTORY_012_orchestrator_roundtrip(tmp_path):
+    # SPEC-FACTORY-012: orchestrator chạy TOÀN BỘ dạng từ ngân hàng + roundtrip (merge-ready/đủ-pool). Offline.
+    from app.services import boss_pipeline
+
+    bank_raw = [{"ma_de": "2601", "s1": {"1": {"stem": "I ...... home.",
+                "options": {"A": "go", "B": "goes", "C": "went", "D": "gone"}, "answer": "A"}}}]
+    pool_speak = {"SB1.2601": {"code": "SB1.2601", "part1": ["Q1?"], "part2_topic": "a book",
+                               "part3": ["Q3?"], "domain_guess": "Giải trí", "set_file": "x"}}
+    pool_lis = {"LB1.2601": {"code": "LB1.2601", "audio_name": "LB1.2601.mp3",
+                             "answers": {str(i): ("A" if i < 6 else "w%d" % i) for i in range(1, 16)},
+                             "l1_stems": ["Q%d" % i for i in range(1, 6)], "l2_gaps": list(range(6, 16))}}
+
+    # orchestrator: chạy mọi dạng CÓ seed (mock tất định) → {skill: bundle}
+    bundles = boss_pipeline.run_bank_expansion(bank_raw, pool_speak, pool_lis, per_seed=1, generator=None)
+    assert {"reading_s1", "speaking", "listening"} <= set(bundles)
+
+    # roundtrip: R1 item merge-ready + đếm theo độ khó + đủ-pool cho N=1
+    rt = boss_pipeline.roundtrip_check(bundles["reading_s1"], n_target=1)
+    assert rt["count"] >= 1 and rt["count_merge_ready"] >= 1 and rt["enough_for_n"] is True and not rt["issues"]
+    assert sum(rt["by_difficulty"].values()) == rt["count_merge_ready"]
+
+    # roundtrip BẮT item thiếu field merge (qc_ok nhưng s1_item thiếu options/answer)
+    bad = {"skill": "reading_s1", "items": [{"s1_item": {"stem": "x"}, "qc_ok": True, "do_kho": "Dễ"}]}
+    rtb = boss_pipeline.roundtrip_check(bad, n_target=1)
+    assert rtb["count_merge_ready"] == 0 and rtb["enough_for_n"] is False and rtb["issues"]
+
+    # n_target lớn → KHÔNG đủ pool
+    assert boss_pipeline.roundtrip_check(bundles["reading_s1"], n_target=999)["enough_for_n"] is False
+
+    # roundtrip_report tổng hợp mọi skill; total nhất quán với tổng per-skill (R1 + Nghe merge-ready ≥2)
+    rep = boss_pipeline.roundtrip_report(bundles, n_target=1)
+    assert set(rep["skills"]) == set(bundles)
+    assert rep["total_merge_ready"] == sum(r["count_merge_ready"] for r in rep["skills"].values()) >= 2
+
+    # s3 SIBLING: s3_item đủ NHƯNG thiếu s3_raw/s3_answers (top-level) → KHÔNG merge-ready + báo rõ field
+    s3_bad = {"skill": "reading_s3_comprehension", "items": [
+        {"s3_item": {"passage": "P", "questions": [{"stem": "q", "answer": "A"}]}, "qc_ok": True, "do_kho": "TB"}]}
+    rt3 = boss_pipeline.roundtrip_check(s3_bad, n_target=1)
+    assert rt3["count_merge_ready"] == 0 and any("s3_raw" in i or "s3_answers" in i for i in rt3["issues"])
+
+    # limit=0 → lô RỖNG (khác None=tất cả); n_target=0 + pool rỗng → enough_for_n False (không mask pool rỗng)
+    assert boss_pipeline.run_bank_expansion(bank_raw, None, None, per_seed=1, generator=None, limit=0) == {}
+    assert boss_pipeline.roundtrip_check({"skill": "reading_s1", "items": []}, n_target=0)["enough_for_n"] is False
