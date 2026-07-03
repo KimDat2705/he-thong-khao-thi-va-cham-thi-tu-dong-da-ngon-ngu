@@ -126,3 +126,7 @@ static/
 audio_data/
 *.db.bak
 scripts/b1_bank_export.json
+
+# Artifact do nhà máy sinh câu / helper render sinh ra khi chạy CLI (bàn giao — không commit)
+test_*.docx
+bank_expansion/
