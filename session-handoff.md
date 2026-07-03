@@ -1,9 +1,14 @@
 # Session Handoff — CHỐT PHIÊN 03/07/2026 (S55: FACTORY-013 méo/cắt JSON + Nghe 16'43" · FACTORY-014 cổng kiểm đáp án · [đo+vá+FACTORY-015 tích hợp — CHƯA COMMIT])
 
-> **🔖 TRẠNG THÁI CHỐT (S55, sau FACTORY-015):** pytest **80/0**, ruff `app/`+CLI+test sạch, arch/traceability sạch, specs.json valid. Spec **56 — 55 active / 1 planned** (chỉ SCALE-003); **FACTORY 15/15 active**; feature 13 active (`question-factory-boss-format` +013+014+015, testedAt 03/07).
-> - **FACTORY-013 + FACTORY-014: ĐÃ COMMIT + PUSH** — `main`=`origin/main`=`3ca4303`, CI ✅ SUCCESS, LIVE /health 200.
-> - **[S55c] ĐO+VÁ cổng (FACTORY-014 refine) + SPEC-FACTORY-015 (tích hợp orchestrator): ⚠️ CHƯA COMMIT — chờ Đạt.** Git tree sửa: `boss_factory.py`, `boss_pipeline.py`, `scripts/make_bank_expansion.py`, `tests/test_specs_factory.py`, `specs.json`, `feature_list.json`, `claude-progress.md`, `session-handoff.md`. OFFLINE thuần, KHÔNG đụng LIVE → push ít rủi ro.
-> **▶ ĐẦU PHIÊN SAU LÀM GÌ:** (1) hỏi Đạt **commit + push S55c** (offline, an toàn); (2) chạy đo cổng trên đề sếp **THẬT** (bank_raw.json đã xác nhận truy cập được qua Drive — sampled N item, cấy sai, đo recall/FP trên dữ liệu thật — hiện mới đo trên bộ curated n=10: recall 100%/FP 10%); (3) **GV nghe duyệt** MP3 Nghe 16'43" + 15 ảnh L1 (billing); (4) **D4/D5 + record `bank_raw` mẫu + D2(a)** — cần sếp/Đạt; (5) ảnh R2/R3 (rủi ro cao, hoãn). HOÃN: CN/HSK, SCALE-003.
+> **🔖 TRẠNG THÁI CHỐT (S55, sau S55d validation):** pytest **80/0**, ruff sạch, arch/traceability sạch, specs.json valid. Spec **56 — 55 active / 1 planned** (chỉ SCALE-003); **FACTORY 15/15 active**; feature 13 active (+013+014+015+validation, testedAt 03/07).
+> - **FACTORY-013 + 014 + 015 (đo+vá+tích hợp): ĐÃ COMMIT + PUSH** — `main`=`origin/main`=`adde068`, CI ✅ SUCCESS, LIVE /health 200.
+> - **[S55d] ĐO cổng trên ĐỀ SẾP THẬT + harness `eval_answer_gate.py`: ⚠️ CHƯA COMMIT — chờ Đạt.** Git tree sửa: `scripts/eval_answer_gate.py` (MỚI), `specs.json`, `feature_list.json`, `claude-progress.md`, `session-handoff.md`. OFFLINE thuần. **KHÔNG commit dữ liệu đối tác** (real_items.json ở scratchpad).
+> **▶ ĐẦU PHIÊN SAU LÀM GÌ:** (1) hỏi Đạt **commit + push S55d** (offline, an toàn); (2) [tùy chọn] mở rộng mẫu đo cổng (nhiều đề + R4 cloze) nếu muốn số chắc hơn; (3) **GV nghe duyệt** MP3 Nghe 16'43" + 15 ảnh L1 (billing); (4) **D4/D5 + record `bank_raw` mẫu + D2(a)** — cần sếp/Đạt; (5) ảnh R2/R3 (rủi ro cao, hoãn). HOÃN: CN/HSK, SCALE-003.
+
+> **🆕 S55d (Claude, 03/07) — ĐO cổng kiểm đáp án trên ĐỀ SẾP THẬT (validation) — đọc TRƯỚC:**
+> - **Đúng logic**: đã đo curated (recall 100%/FP 10%) → đo trên **đề sếp THẬT** để authentic + soi lỗi đáp án bank. Lấy dữ liệu không nổ context: **giao subagent** đọc `bank_raw.json` (430KB) qua Drive connector → trích **14 item R1/R2/R3 THẬT** (đáp án cross-verify key_reading) → trả về CHỈ 14 item.
+> - **KẾT QUẢ** (gemini-3.5-flash): **recall 100% (14/14)**; **R1/R2 (10) 0 false-positive**; R3 (4) 2 flag khi để đáp án thật — cả 2 GIẢI THÍCH ĐƯỢC (1 do passage bị cắt cho input đo → checker báo "không trả lời được từ passage"=đúng, production dùng passage đầy đủ; 1 item khó "why-written" → flag GV=đúng mục đích). **KHÔNG lỗi đáp án bank rõ ràng.** ⇒ cổng validated trên dữ liệu THẬT.
+> - **Đóng gói** `scripts/eval_answer_gate.py` (harness tái dùng: bộ curated + --items cho đề ngoài; KHÔNG chứa dữ liệu đối tác). KHÔNG sửa code cổng (giữ vững trên dữ liệu thật). pytest 80/0.
 
 > **🆕 S55c (Claude, 03/07) — ĐO + VÁ cổng kiểm đáp án + SPEC-FACTORY-015 (tích hợp orchestrator) — đọc TRƯỚC:**
 > - **Đúng logic "ĐO TRƯỚC, TÍCH HỢP SAU"**: cổng FACTORY-014 chưa được đo (notes+spec flag) → KHÔNG xây thêm đè lên; đo trước.
