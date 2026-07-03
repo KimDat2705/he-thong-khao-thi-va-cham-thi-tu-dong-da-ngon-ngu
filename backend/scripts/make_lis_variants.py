@@ -26,7 +26,8 @@ def main():
     ap.add_argument("--limit", type=int, default=3, help="số bài Nghe seed lấy (từ đầu)")
     ap.add_argument("--per-seed", type=int, default=1, help="số biến thể mỗi seed")
     ap.add_argument("--out", default=".", help="thư mục xuất")
-    ap.add_argument("--audio", action="store_true", help="render audio TTS đa-giọng (PoC 1 phần) — cần GEMINI_API_KEY")
+    ap.add_argument("--audio", action="store_true", help="render audio TTS đa-giọng + ghép TRỌN bài ~17' + MP3 — cần GEMINI_API_KEY")
+    ap.add_argument("--images", action="store_true", help="sinh ảnh chọn-tranh L1 (3 ảnh A/B/C mỗi câu) — cần GEMINI key + BILLING (free-tier image=0 IPM)")
     args = ap.parse_args()
 
     with open(args.pool, encoding="utf-8") as f:
@@ -70,6 +71,20 @@ def main():
                 print(f"  🔊 {li['code']}: {info['audio_path']} ({mm}'{ss:02d}\", {info['format']}, {info['n_segments']} đoạn)")
             except Exception as e:
                 print(f"  ⚠ Audio lỗi {it['lis_item']['code']}: {e}")
+        with open(bundle_path, "w", encoding="utf-8") as f:
+            json.dump(boss_factory.export_lis_bundle(items), f, ensure_ascii=False, indent=2)
+
+    if args.images and gen.client:
+        img_dir = os.path.join(args.out, "img")
+        for it in items:
+            if not it["qc_ok"]:
+                continue
+            try:
+                info = boss_factory.build_listening_images(gen, it, img_dir)   # 3 ảnh A/B/C mỗi câu L1 (graceful)
+                warn = "  (⚠ cần BẬT BILLING — free-tier image=0 IPM)" if info["needs_billing"] else ""
+                print(f"  🖼 {it['lis_item']['code']}: {info['n_images']} ảnh, {info['n_failed']} lỗi{warn}")
+            except Exception as e:
+                print(f"  ⚠ Ảnh lỗi {it['lis_item']['code']}: {e}")
         with open(bundle_path, "w", encoding="utf-8") as f:
             json.dump(boss_factory.export_lis_bundle(items), f, ensure_ascii=False, indent=2)
 

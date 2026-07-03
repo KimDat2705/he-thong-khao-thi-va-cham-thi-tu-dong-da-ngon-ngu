@@ -151,7 +151,10 @@ def _render_lis(doc, idx, it, ak):
     doc.add_paragraph("PART 1 — Chọn tranh (5 câu hội thoại, đọc 2 lần):")
     for j, q in enumerate(_as_list(tr.get("l1")), 1):
         q = q if isinstance(q, dict) else {}
-        doc.add_paragraph(f"  Câu {j}. {q.get('stem', '')}   [ẢNH A/B/C — asset giao riêng]")
+        imgs = str(q.get("image_urls") or "").strip()      # tên file ảnh thật (FACTORY-011) nếu đã sinh
+        has_img = bool(imgs) and any(part.strip() for part in imgs.split(","))   # guard: bỏ chuỗi ',,' lệch
+        img_ref = imgs.replace(",", " / ") if has_img else "A/B/C — asset giao riêng"
+        doc.add_paragraph(f"  Câu {j}. {q.get('stem', '')}   [ẢNH: {img_ref}]")
         _opts(doc, q.get("options"), R2_OPTS)
         doc.add_paragraph(f"     (Kịch bản: {q.get('transcript', '')})")
     n_l2 = li.get("l2_count") if isinstance(li.get("l2_count"), int) else 10

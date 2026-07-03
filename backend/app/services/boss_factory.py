@@ -1572,18 +1572,46 @@ L1_OPTION_KEYS = ["A", "B", "C"]
 # Dùng khi dựng audio real-mode. L2 look-time nội suy 45s cho 10 gap (Cambridge cho 20s/6 gap);
 # review cuối 2 phút = 60+60 (tách để chèn câu nhắc "one more minute"). Nghiên cứu S54.
 LIS_PAUSES = {
+    # Calibrate S54: giọng Gemini TTS đo THẬT ~210wpm (nhanh hơn 140) → nới pause + tăng content
+    # (L1 115 từ / L2 360 từ) để trọn bài ~17.1' (band 16.3-18.2' ở 190-230wpm). Tổng pause = 441s.
     "after_part_title": 5,      # sau "Part One."
     "after_instruction": 5,     # sau "For each question, choose the correct answer."
-    "before_dialogue": 2,       # sau khi đọc stem, trước khi phát hội thoại
-    "after_play": 5,            # sau mỗi lần phát (cả lần 1 và lần 2)
-    "between_plays_l1": 3,      # sau "Now listen again." (L1)
+    "before_dialogue": 5,       # sau khi đọc stem, trước khi phát hội thoại
+    "after_play": 8,            # sau mỗi lần phát (cả lần 1 và lần 2)
+    "between_plays_l1": 5,      # sau "Now listen again." (L1)
     "end_of_part": 10,          # sau "That is the end of Part ..."
-    "l2_look_time": 45,         # nhìn Part Two trước khi nghe (10 gap)
-    "between_plays_l2": 20,     # sau "Now listen again." (L2 — bài dài)
-    "review_half": 60,          # nửa thời gian soát cuối (×2 = 2 phút)
+    "l2_look_time": 60,         # nhìn Part Two trước khi nghe (10 gap)
+    "between_plays_l2": 30,     # sau "Now listen again." (L2 — bài dài)
+    "review_half": 90,          # nửa thời gian soát cuối (×2 = 3 phút)
 }
 # Cặp giọng tương phản mạnh cho hội thoại (Google KHÔNG gắn nhãn giới tính chính thức — chọn theo nghe).
 LIS_VOICES = {"A": "Kore", "B": "Puck"}   # A ~ nữ, B ~ nam (cần nghe kiểm)
+
+# Ảnh chọn-tranh L1 (SPEC-FACTORY-011) — model CONFIGURABLE (giữ 2.5-flash-image proven S43; đổi Nano
+# Banana 2 = set env B1_IMAGE_MODEL=gemini-3.1-flash-image). ⚠️ Free-tier API image = 0 IPM (chặn cứng
+# từ ~12/2025) → cần BẬT BILLING ($0-limit OK → Tier 1) mới sinh ảnh thật (khác 503 text: retry vô ích).
+IMAGE_MODEL = os.getenv("B1_IMAGE_MODEL", "gemini-2.5-flash-image")
+# Style preamble KHOÁ CỨNG (paste GIỐNG HỆT cho A/B/C → 3 ảnh chỉ khác chủ thể, so sánh công bằng).
+LIS_IMG_STYLE = (
+    "A single simple flat vector illustration for an English exam, in a clean minimalist style. "
+    "One clear central subject on a plain solid white background, soft even lighting, no shadows. "
+    "Simple bold outlines, flat pastel colours, centered composition, square 1:1 aspect ratio, "
+    "the same drawing style for every picture in this set so the options differ ONLY in subject."
+)
+LIS_IMG_NEGATIVE = (
+    "Must NOT contain: text, letters, words, numbers, digits, captions, labels, speech bubbles, "
+    "watermark, signature, logo, typography, option letters A B C. All signs and screens are blank."
+)
+
+
+def build_lis_image_prompt(option_text: str) -> str:
+    """Prompt sinh 1 ảnh minh hoạ 1 option (GROUNDED theo option text, cấm bịa/chữ). answer KHÔNG vào."""
+    subject = str(option_text or "").strip().rstrip(".")
+    if not subject:                    # fail-fast: không có chủ thể → prompt vô nghĩa (grounded)
+        raise ValueError("build_lis_image_prompt: option_text rỗng — không có chủ thể để vẽ.")
+    return (f"{LIS_IMG_STYLE}\n\nThe subject to depict is exactly this and nothing more: {subject}. "
+            f"Draw only what is described; do not invent extra objects, words or details.\n\n"
+            f"{LIS_IMG_NEGATIVE}")
 
 
 def _lis_norm_pad(s) -> str:
@@ -1657,12 +1685,14 @@ def _real_lis_variant(generator, seed: dict, idx: int) -> Optional[dict]:
     system = (
         "You are a Cambridge B1 Preliminary (PET) Listening item writer. Create ONE NEW listening "
         "content set at B1 level (NOT a copy). Return ONLY JSON. PART 1 'l1_scripts' = 5 items, each a "
-        "2-speaker conversation (or announcement) of ABOUT 85-90 WORDS (exam-length, not a one-liner) "
+        "2-speaker conversation (or announcement) of ABOUT 110-115 WORDS (exam-length, not a one-liner) "
         "with a picture-choice question: {\"stem\": str, "
         "\"options\": {\"A\": str, \"B\": str, \"C\": str}, \"answer\": \"A|B|C\", \"transcript\": "
         "\"Speaker A: ...\\nSpeaker B: ...\", \"speakers\": [\"Speaker A\", \"Speaker B\"]}. The correct "
         "option MUST be clearly supported by the transcript; the two distractors are mentioned then "
-        "rejected. PART 2 = one monologue 'l2_transcript' (ABOUT 300-320 WORDS, natural talk — long "
+        "rejected. IMPORTANT: each option A/B/C must be a SHORT, CONCRETE, DRAWABLE noun phrase (an "
+        "object/action/scene, e.g. 'a woman riding a bicycle') so it can be illustrated as a picture. "
+        "PART 2 = one monologue 'l2_transcript' (ABOUT 350-360 WORDS, natural talk — long "
         "enough for a ~17-minute exam when read twice) plus 'l2_gaps' "
         f"= {n_l2} note gaps, each {{\"n\": <6..>, \"answer\": \"<1-2 words>\"}} where EACH answer appears "
         "VERBATIM in l2_transcript. Return: {\"l1_scripts\": [..5..], \"l2_transcript\": str, "
@@ -1778,6 +1808,7 @@ def build_lis_variants(seeds: list, per_seed: int = 1, generator=None, dup_thres
                     "l2_gaps": [g.get("n") for g in l2_gaps], "l2_count": len(l2_gaps),
                     "media_ext": {}, "flags": [],
                     "audio_status": "pending_tts", "needs_audio_verify": True,
+                    "image_status": "pending_image", "needs_image_verify": True,
                 },
                 "transcripts": {"l1": l1, "l2": l2_transcript},
                 "do_kho": DIFF_MAP[diff_en],
@@ -1798,9 +1829,10 @@ def export_lis_bundle(items: list) -> dict:
         "note": (
             "Bài Nghe (5 chọn-tranh L1 + 10 điền-từ L2, format PET) sinh từ pool_lis.json của đối tác; "
             "lis_item = shape pool_lis (audio_name='.mp3'). Audio render bằng CLI --audio: ghép TRỌN "
-            "bài ~17' (thực tế 14-19' tùy giọng) theo lịch pause Cambridge (đọc-2-lần, cache per-chunk) → MP3 (lameenc, fallback WAV ~6-8× lớn). "
+            "bài ~17' (16-18' theo dải giọng, calibrate S54) theo lịch pause Cambridge (đọc-2-lần, cache per-chunk) → MP3 (lameenc, fallback WAV ~6-8× lớn). "
             "⚠️ AUDIO là GIỌNG MÁY (Gemini TTS đa-giọng) — GV tiếng Anh BẮT BUỘC nghe duyệt + soát đáp án "
-            "trước khi dùng; đối tác có thể thay bằng audio người thật."
+            "trước khi dùng. Ảnh chọn-tranh L1 = asset giao RIÊNG (media_ext.l1_images + transcripts.l1[].image_urls, "
+            "sinh Gemini image real-mode) — GV duyệt ảnh; đối tác có thể thay audio/ảnh người thật."
         ),
         "count": len(items),
         "count_qc_ok": sum(1 for it in items if it["qc_ok"]),
@@ -1835,9 +1867,10 @@ def lis_review_sheet(items: list) -> str:
         "- [ ] Hội thoại L1 tách ĐÚNG 2 giọng (không lẫn/na ná), đọc **2 lần** + khoảng lặng đủ\n"
         "- [ ] Monologue L2 đọc 2 lần, mỗi đáp án điền-từ nghe RÕ + đúng thứ tự trong bài\n"
         "- [ ] Đáp án (L1 A/B/C + L2 điền-từ) KHỚP nội dung nghe được\n"
-        "- [ ] Tổng thời lượng hợp lý (mục tiêu ~17' ở tốc độ đọc exam; thực tế 14-19' tùy giọng Gemini) + pause đủ\n"
+        "- [ ] Tổng thời lượng hợp lý (mục tiêu ~17'; thực tế 16-18' theo dải giọng 190-230wpm — calibrate S54) + pause đủ\n"
         "- [ ] (Nếu audio_status='wav_generated') file WAV lớn ~6-8× MP3 — cân nhắc cài lameenc để xuất MP3\n"
-        "- [ ] (Nếu chưa đạt) ghi lý do + đề nghị chỉnh hoặc thay bằng audio người thật\n"
+        "- [ ] ẢNH chọn-tranh L1 (nếu có): mỗi câu 3 tranh A/B/C rõ, ĐÚNG option, cùng style, KHÔNG dính chữ/số/nhãn\n"
+        "- [ ] (Nếu chưa đạt) ghi lý do + đề nghị chỉnh hoặc thay bằng audio/ảnh người thật\n"
     )
     return "\n".join(rows) + checklist
 
@@ -2095,8 +2128,8 @@ def build_listening_audio(generator, item: dict, out_dir: str, to_mp3: bool = Tr
     (đọc-2-lần) + lời dẫn + pause theo lịch Cambridge PET → 1 file. Encode MP3 (lameenc) nếu có,
     fallback WAV. TTS có cache per-chunk + retry/backoff 429/503 free-tier.
 
-    Thời lượng ~17' là MỤC TIÊU ở tốc độ đọc exam (~140wpm); giọng Gemini có thể nhanh hơn → thực tế
-    14-19' tùy giọng (GV kiểm duration_s). Trả {audio_path, wav_path, mp3_path, duration_s, format, n_segments}."""
+    Thời lượng ~17' (calibrate S54 cho giọng Gemini đo ~210wpm: L1 115 từ / L2 360 từ + pause 441s →
+    ~17.1', band 16-18' ở 190-230wpm; GV kiểm duration_s). Trả {audio_path, wav_path, mp3_path, duration_s, format, n_segments}."""
     tr = item.get("transcripts") or {}
     l1 = tr.get("l1") or []
     l2 = tr.get("l2") or ""
@@ -2125,3 +2158,84 @@ def build_listening_audio(generator, item: dict, out_dir: str, to_mp3: bool = Tr
         if mp3:
             result.update({"audio_path": mp3, "mp3_path": mp3, "format": "mp3"})
     return result
+
+
+def _lis_image(generator, prompt: str, output_path: str) -> str:
+    """Sinh 1 ảnh PNG qua Gemini image (real-mode, atomic write). Raise nếu lỗi/không có ảnh.
+    Lazy-import google types (core không phụ thuộc SDK). Model = IMAGE_MODEL (configurable qua env)."""
+    from google.genai import types  # noqa: PLC0415
+    client = getattr(generator, "client", None)
+    if client is None:
+        raise RuntimeError("Gemini client chưa khởi tạo (cần GEMINI_API_KEY) cho image.")
+    resp = client.models.generate_content(
+        model=IMAGE_MODEL, contents=prompt,
+        config=types.GenerateContentConfig(response_modalities=["IMAGE"]))
+    data = None
+    for c in (resp.candidates or []):
+        for p in ((c.content.parts if c.content else None) or []):
+            if p.inline_data and str(p.inline_data.mime_type or "").startswith("image/"):
+                data = p.inline_data.data
+                break
+    if data is None:
+        raise ValueError("Không có phần ảnh trong phản hồi Gemini image.")
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    tmp = f"{output_path}.tmp{os.getpid()}"          # atomic (như _lis_tts) → không lưu ảnh ghi-dở
+    try:
+        with open(tmp, "wb") as f:
+            f.write(data)
+        os.replace(tmp, output_path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
+    return output_path
+
+
+_IMG_BILLING_HINT = ("429/IPM: free-tier API image = 0 IPM (từ ~12/2025) — PHẢI bật BILLING "
+                     "($0-limit OK) → Tier 1 mới sinh ảnh. Retry KHÔNG cứu (khác 503 text).")
+
+
+def build_listening_images(generator, item: dict, out_dir: str) -> dict:
+    """Sinh 3 ảnh A/B/C (từ options text) cho MỖI câu L1 → PNG `<code>_L1q<n>_<K>.png`. GRACEFUL:
+    1 ảnh lỗi → skip + đếm, KHÔNG crash cả bài; 429/IPM (free-tier=0) → log gợi ý billing, KHÔNG retry.
+    Cập nhật transcripts.l1[j].image_urls + lis_item.media_ext.l1_images + image_status.
+    Trả {n_images, n_failed, needs_billing}."""
+    tr = item.get("transcripts") or {}
+    l1 = tr.get("l1") if isinstance(tr.get("l1"), list) else []
+    li = item.get("lis_item") or {}
+    code = li.get("code", "lis")
+    os.makedirs(out_dir, exist_ok=True)
+    manifest, n_ok, n_fail, billing = [], 0, 0, False
+    for j, q in enumerate(l1, 1):
+        q = q if isinstance(q, dict) else {}
+        opts = q.get("options") if isinstance(q.get("options"), dict) else {}
+        files = {}
+        for key in L1_OPTION_KEYS:      # A, B, C
+            text = str(opts.get(key) or "").strip()
+            if not text:
+                continue
+            fn = f"{code}_L1q{j}_{key}.png"
+            try:
+                _lis_image(generator, build_lis_image_prompt(text), os.path.join(out_dir, fn))
+                files[key] = fn
+                n_ok += 1
+            except Exception as e:
+                n_fail += 1
+                if any(t in str(e).lower() for t in ("429", "ipm", "quota", "resource_exhausted")):
+                    billing = True
+                    logger.error("Ảnh L1 %s — %s (%s)", fn, _IMG_BILLING_HINT, e)
+                else:
+                    logger.warning("Ảnh L1 %s lỗi: %s", fn, e)
+        # image_urls chỉ điền khi ĐỦ 3 ảnh A/B/C (frontend chọn-tranh cần đủ 3); thiếu → "" (render
+        # fallback placeholder, tránh chuỗi 'A,,C' lệch). manifest LUÔN ghi ảnh đã có để GV soát ảnh nào thiếu.
+        q["image_urls"] = (",".join(files[k] for k in L1_OPTION_KEYS)
+                           if len(files) == len(L1_OPTION_KEYS) else "")
+        if files:
+            manifest.append({"q": j, **files})
+    li.setdefault("media_ext", {})["l1_images"] = manifest
+    li["image_status"] = ("images_generated" if n_fail == 0 and n_ok > 0
+                          else "partial" if n_ok > 0 else "pending_image")
+    li["needs_image_verify"] = not (n_fail == 0 and n_ok > 0)     # đồng bộ với image_status
+    if billing:
+        li.setdefault("flags", []).append("needs_billing")        # persist vào JSON (không chỉ stdout)
+    return {"n_images": n_ok, "n_failed": n_fail, "needs_billing": billing}

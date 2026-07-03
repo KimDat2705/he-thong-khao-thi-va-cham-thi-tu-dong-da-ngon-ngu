@@ -894,7 +894,7 @@
       "id": "SPEC-FACTORY-009",
       "domain": "FACTORY",
       "title": "Nghe hardening — ghép TRỌN bài ~17' (lịch pause Cambridge PET, đọc-2-lần) + MP3 (lameenc optional) + GV nghe duyệt",
-      "statement": "Nâng khâu render audio bài Nghe (nối tiếp SPEC-FACTORY-008) từ PoC-1-phần lên TRỌN bài ~17 phút: build_listening_audio ghép cả 5 hội thoại L1 (đa-giọng, đọc-2-lần) + monologue L2 (đọc-2-lần) + lời dẫn + khoảng lặng theo BẢNG PAUSE Cambridge B1 Preliminary; encode sang MP3 bằng lameenc (dependency TÙY CHỌN, lazy-import, fallback WAV — base requirements + CI giữ '0 dep'); TTS có cache per-chunk + retry/backoff 429/503 để không cạn free-tier; bảng GV kèm đường dẫn/thời lượng audio + checklist nghe duyệt. Prompt sinh kịch bản kéo dài L1 ~85-90 từ / L2 ~300-320 từ để đạt ~17' (mục tiêu ở tốc độ đọc exam ~140wpm; thực tế 14-19' tùy giọng Gemini — GV kiểm duration_s).",
+      "statement": "Nâng khâu render audio bài Nghe (nối tiếp SPEC-FACTORY-008) từ PoC-1-phần lên TRỌN bài ~17 phút: build_listening_audio ghép cả 5 hội thoại L1 (đa-giọng, đọc-2-lần) + monologue L2 (đọc-2-lần) + lời dẫn + khoảng lặng theo BẢNG PAUSE Cambridge B1 Preliminary; encode sang MP3 bằng lameenc (dependency TÙY CHỌN, lazy-import, fallback WAV — base requirements + CI giữ '0 dep'); TTS có cache per-chunk + retry/backoff 429/503 để không cạn free-tier; bảng GV kèm đường dẫn/thời lượng audio + checklist nghe duyệt. Prompt sinh kịch bản kéo dài L1 ~110-115 từ / L2 ~350-360 từ + bảng pause (tổng 441s) để đạt ~17' (calibrate S54: giọng Gemini đo ~210wpm → ~17.1', band 16-18' ở 190-230wpm; GV kiểm duration_s).",
       "acceptance_criteria": [
         "_build_listening_segments dựng KẾ HOẠCH segment cho trọn bài theo lịch PET: 5 hội thoại L1 đọc-2-lần (đa-giọng ≤2, gán giọng theo nhãn thật trong transcript) + monologue L2 đọc-2-lần + lời dẫn ('Part One', 'Now listen again', 'That is the end of the test') + pause đúng bảng LIS_PAUSES; tách khỏi TTS thật để test offline.",
         "assemble_wav_segments ghép danh sách segment ('audio'|'silence') thành 1 WAV với pause KHÁC NHAU mỗi vị trí (stdlib wave), raise khi WAV lệch format; build_listening_audio dựng trọn bài + trả {audio_path, wav_path, mp3_path, duration_s, format, n_segments}.",
@@ -928,6 +928,25 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_010_render_bundle_docx"
       ],
       "notes": "Slice de-risk D2 Option (a) (S54, sau Nghe hardening). Helper render-từ-JSON THAM CHIẾU (kế hoạch docs/ke_hoach_mo_rong_bank_b1.md §8 D2 điểm de-risk 2 + §9 bước 11). boss_render.py + scripts/make_render_docx.py. Test offline phủ 8 skill + skill lạ + QC-flag + render_bundle_file (mở lại .docx bằng python-docx, assert nội dung đề + đáp án + ô GV ký). Part ẢNH (R2 dạng ảnh / L1 chọn-tranh) = placeholder tham chiếu, asset giao riêng. KHÔNG thay pipeline/render của sếp — chỉ mẫu để copy; interface item (s1_item/s2_item/.../lis_item) đóng băng làm hợp đồng bàn giao."
+    },
+    {
+      "id": "SPEC-FACTORY-011",
+      "domain": "FACTORY",
+      "title": "Ảnh chọn-tranh L1 + calibrate 17' — hoàn thiện bài Nghe (Gemini image graceful, asset giao riêng)",
+      "statement": "Hoàn thiện bài Nghe (nối FACTORY-008/009): (1) sinh ẢNH chọn-tranh L1 — mỗi câu L1 sinh 3 ảnh A/B/C từ options text (grounded, style khoá cứng, cấm chữ) qua Gemini image (model CONFIGURABLE qua env B1_IMAGE_MODEL, mặc định gemini-2.5-flash-image), GRACEFUL (lỗi/429-IPM 1 ảnh → skip + đếm + flag needs_billing, KHÔNG crash cả bài), ghi transcripts.l1[].image_urls + lis_item.media_ext.l1_images (asset giao RIÊNG — pool_lis đối tác không có field ảnh); (2) CALIBRATE thời lượng ~17' cho giọng Gemini đo THẬT ~210wpm (nới LIS_PAUSES tổng 441s + prompt L1 ~115 từ / L2 ~360 từ → ~17.1', band 16-18' ở 190-230wpm). boss_render tham chiếu tên file ảnh thật; review-sheet thêm GV duyệt ảnh.",
+      "acceptance_criteria": [
+        "build_lis_image_prompt(option_text) tạo prompt GROUNDED theo option text (style preamble khoá cứng dùng chung 3 ảnh + subject = option text, cấm bịa), có negative block chặn text/số/nhãn, KHÔNG chứa answer; IMAGE_MODEL configurable qua env B1_IMAGE_MODEL (mặc định gemini-2.5-flash-image).",
+        "build_listening_images sinh 3 ảnh A/B/C mỗi câu L1 → PNG <code>_L1q<n>_<K>.png (atomic write); GRACEFUL: 1 ảnh lỗi → skip + đếm n_failed, 429/IPM → flag needs_billing + log gợi ý billing (KHÔNG retry), KHÔNG crash cả bài; cập nhật transcripts.l1[].image_urls (comma) + lis_item.media_ext.l1_images + image_status (images_generated/partial/pending_image).",
+        "CALIBRATE: LIS_PAUSES nới (tổng pause = 441s) + prompt _real_lis_variant L1 ~110-115 từ / L2 ~350-360 từ → _build_listening_segments tổng silence = 441s (test kiểm) cho ~17.1' ở giọng thật ~210wpm.",
+        "boss_render._render_lis tham chiếu tên file ảnh THẬT từ transcripts.l1[].image_urls (thay placeholder) khi có; lis_review_sheet + note bundle ghi rõ ảnh = asset giao riêng + GV BẮT BUỘC duyệt ảnh.",
+        "make_lis_variants.py --images gọi build_listening_images real-mode; test offline (mock _lis_image, monkeypatch) phủ prompt + build + graceful-429 + render-tham-chiếu."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_011_l1_images"
+      ],
+      "notes": "Slice hoàn thiện Nghe (S54, sau helper render-từ-JSON). Nghiên cứu S54 (3 hướng, WebFetch): gemini-2.5-flash-image (stable, không -preview) còn dùng; Nano Banana 2 = gemini-3.1-flash-image (GA 28/05/2026) → để env đổi sau. ⚠️ FREE-TIER API image = 0 IPM (chặn cứng ~12/2025) → sinh ảnh THẬT cần BẬT BILLING ($0-limit OK → Tier 1); code graceful nên không phụ thuộc (mock/skip). 3 ảnh RIÊNG A/B/C (khớp b1_question_gen cũ image_url comma + frontend TakeView parse comma). Calibrate: bài cũ ở 210wpm chỉ ~13' → COMBO content+pause = ~17.1'. Ảnh sinh real-mode → GV duyệt (như audio). Test = mock (không gọi Gemini/không sinh ảnh thật)."
     }
   ]
 }

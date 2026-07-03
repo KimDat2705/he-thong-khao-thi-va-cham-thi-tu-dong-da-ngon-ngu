@@ -890,6 +890,9 @@ def test_SPEC_FACTORY_009_full_track_and_cache(tmp_path, monkeypatch):
 
     # --- AC1: kế hoạch segment đúng cấu trúc PET (không gọi TTS) ---
     plan = boss_factory._build_listening_segments(l1, l2)
+    assert sum(v for kind, v in plan if kind == "silence") == 441_000   # calibrate S54: tổng pause = 441s (→ ~17.1' @210wpm)
+    assert sum(v for kind, v in boss_factory._build_listening_segments(l1[:3], l2)
+               if kind == "silence") == 389_000                          # pause scale = 311 + 26×L1 (L1=3 → 389s)
     audio = [v for kind, v in plan if kind == "audio"]
     silence = [v for kind, v in plan if kind == "silence"]
     texts = [t for (t, _sp) in audio]
@@ -996,7 +999,7 @@ def test_SPEC_FACTORY_010_render_bundle_docx(tmp_path):
         ("speaking", {"speak_card": {"code": "SB1.90-1", "part1": ["Where do you live?", "Do you work?"], "part2_topic": "Describe a book", "part3": ["Why read?"]}, "qc_ok": True},
          ["Describe a book", "• Where do you live?", "• Do you work?", "• Why read?"], "chấm theo tiêu chí"),
         ("listening", {"lis_item": {"code": "LB1.90-1", "l2_count": 10, "answers": {"1": "A", "2": "B", "6": "train", "15": "blue"}}, "transcripts": {"l1": [{"stem": "Where?", "options": {"A": "home", "B": "school", "C": "park"}, "answer": "A", "transcript": "A: ...\nB: ..."}], "l2": "Welcome to the museum."}, "qc_ok": True},
-         ["ẢNH A/B/C", "Welcome to the museum.", "câu 6-15"], "1=A"),
+         ["A/B/C — asset giao riêng", "Welcome to the museum.", "câu 6-15"], "1=A"),
     ]
     for skill, item, must_have, key_line in cases:
         bundle = {"skill": skill, "spec": "SPEC-FACTORY-0xx", "note": "ghi chú", "count": 1, "count_qc_ok": 1, "items": [item]}
@@ -1057,3 +1060,75 @@ def test_SPEC_FACTORY_010_render_bundle_docx(tmp_path):
     bpath.write_text(json.dumps({"skill": "reading_s1", "items": [cases[0][1]]}), encoding="utf-8")
     dp = boss_render.render_bundle_file(str(bpath), str(tmp_path / "b.docx"))
     assert os.path.exists(dp)
+
+
+def test_SPEC_FACTORY_011_l1_images(tmp_path, monkeypatch):
+    # SPEC-FACTORY-011: sinh ảnh chọn-tranh L1 (3 ảnh A/B/C mỗi câu) từ options text — GRACEFUL. Offline.
+    # (A) prompt GROUNDED theo option text, có style + chặn-chữ, KHÔNG chứa answer.
+    p = boss_factory.build_lis_image_prompt("a woman riding a bicycle")
+    assert "a woman riding a bicycle" in p
+    assert "flat vector illustration" in p and "Must NOT contain" in p and "letters" in p
+    assert "answer" not in p.lower()
+
+    item = {"lis_item": {"code": "LB1.90-1", "media_ext": {}},
+            "transcripts": {"l1": [
+                {"stem": "What did she buy?", "options": {"A": "a book", "B": "a pen", "C": "a bag"}, "answer": "A", "transcript": "..."},
+                {"stem": "Where?", "options": {"A": "home", "B": "school", "C": "park"}, "answer": "B", "transcript": "..."}],
+                "l2": "..."}}
+
+    # (B) build_listening_images (monkeypatch _lis_image → PNG giả) → media_ext + image_urls + status.
+    calls = []
+
+    def fake_img(generator, prompt, output_path):
+        calls.append(output_path)
+        with open(output_path, "wb") as f:
+            f.write(b"\x89PNG\r\n\x1a\n" + b"0" * 20)
+        return output_path
+
+    monkeypatch.setattr(boss_factory, "_lis_image", fake_img)
+    info = boss_factory.build_listening_images(None, item, str(tmp_path / "img"))
+    assert info["n_images"] == 6 and info["n_failed"] == 0 and info["needs_billing"] is False   # 2 câu × 3 ảnh
+    li = item["lis_item"]
+    assert li["image_status"] == "images_generated"
+    assert len(li["media_ext"]["l1_images"]) == 2
+    assert li["media_ext"]["l1_images"][0]["A"] == "LB1.90-1_L1q1_A.png"
+    assert item["transcripts"]["l1"][0]["image_urls"] == "LB1.90-1_L1q1_A.png,LB1.90-1_L1q1_B.png,LB1.90-1_L1q1_C.png"
+    assert all(os.path.exists(c) for c in calls)
+    assert li["needs_image_verify"] is False        # đủ ảnh → không cần verify thêm (đồng bộ image_status)
+
+    # (C) GRACEFUL: 429/IPM → KHÔNG crash cả bài, needs_billing=True, image_status='pending_image'.
+    item2 = {"lis_item": {"code": "LB1.90-2"}, "transcripts": {"l1": [
+        {"stem": "x", "options": {"A": "a", "B": "b", "C": "c"}, "answer": "A"}], "l2": ""}}
+
+    def boom(generator, prompt, output_path):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED: image IPM 0")
+
+    monkeypatch.setattr(boss_factory, "_lis_image", boom)
+    info2 = boss_factory.build_listening_images(None, item2, str(tmp_path / "img2"))
+    assert info2["n_images"] == 0 and info2["n_failed"] == 3 and info2["needs_billing"] is True
+    assert item2["lis_item"]["image_status"] == "pending_image"
+    assert item2["lis_item"]["needs_image_verify"] is True
+    assert "needs_billing" in item2["lis_item"].get("flags", [])       # billing persist vào JSON (review S54)
+
+    # (D) PARTIAL FAILURE: 1 ảnh (B) LỖI → 2/3; image_status='partial'; image_urls="" (KHÔNG gaps 'A,,C'); manifest ghi A,C.
+    def flaky(generator, prompt, output_path):
+        if "_B.png" in output_path:
+            raise RuntimeError("boom on B")
+        return fake_img(generator, prompt, output_path)
+
+    monkeypatch.setattr(boss_factory, "_lis_image", flaky)
+    item3 = {"lis_item": {"code": "LB1.90-3", "media_ext": {}}, "transcripts": {"l1": [
+        {"stem": "Which?", "options": {"A": "a book", "B": "a pen", "C": "a bag"}, "answer": "A"}], "l2": ""}}
+    info3 = boss_factory.build_listening_images(None, item3, str(tmp_path / "img3"))
+    assert info3["n_images"] == 2 and info3["n_failed"] == 1            # B lỗi → A,C sinh
+    assert item3["lis_item"]["image_status"] == "partial"
+    assert item3["transcripts"]["l1"][0]["image_urls"] == ""           # <3 ảnh → rỗng (KHÔNG gaps 'A,,C')
+    assert len(item3["lis_item"]["media_ext"]["l1_images"][0]) == 3     # manifest {q, A, C}
+    assert item3["lis_item"]["needs_image_verify"] is True             # partial → cần verify tiếp
+
+    # (E) boss_render tham chiếu tên file ảnh THẬT (thay placeholder) khi image_urls có.
+    from docx import Document
+    out = tmp_path / "lis.docx"
+    boss_render.render_bundle_docx({"skill": "listening", "items": [item]}, str(out))
+    t = "\n".join(pp.text for pp in Document(str(out)).paragraphs)
+    assert "LB1.90-1_L1q1_A.png" in t
