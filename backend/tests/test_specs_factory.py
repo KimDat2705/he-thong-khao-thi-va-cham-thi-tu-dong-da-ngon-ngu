@@ -12,7 +12,7 @@ import wave
 
 import pytest
 
-from app.services import boss_factory
+from app.services import boss_factory, boss_render
 
 
 class _StubGen:
@@ -966,3 +966,94 @@ def test_SPEC_FACTORY_009_wav_to_mp3_optional(tmp_path):
     data = open(mp3, "rb").read()
     assert data[:3] == b"ID3" or data[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xfa")  # ID3/MP3 frame sync
     assert len(data) < os.path.getsize(str(wav))                          # MP3 nhỏ hơn WAV
+
+
+def test_SPEC_FACTORY_010_render_bundle_docx(tmp_path):
+    # SPEC-FACTORY-010 (helper render-từ-JSON): bundle export_*_bundle → .docx tham chiếu
+    # (đề + đáp án + ô GV ký). Chứng minh JSON 8 dạng ĐỦ thông tin để render. Offline, 0 Gemini.
+    from docx import Document
+
+    def text_of(path):
+        return "\n".join(p.text for p in Document(str(path)).paragraphs)
+
+    # 1 item mẫu MỖI skill (shape đúng như build_*_variants xuất) + fragment ĐỀ + dòng đáp án đại diện.
+    cases = [
+        ("reading_s1", {"s1_item": {"stem": "The sky is ___.", "options": {"A": "blue", "B": "green", "C": "red", "D": "grey"}, "answer": "A"}, "do_kho": "Dễ", "nguon_seed": "2601#Q1", "qc_ok": True},
+         ["The sky is ___.", "A. blue", "B. green", "C. red", "D. grey"], "Câu 1: A"),
+        ("reading_s2_notice", {"s2_item": {"stem": "NO PARKING here.", "options": {"A": "x", "B": "y", "C": "z"}, "answer": "B"}, "qc_ok": True},
+         ["NO PARKING here.", "A. x", "B. y", "C. z"], "Câu 1: B"),
+        ("reading_s3_comprehension", {"s3_item": {"passage": "Sleep is important.", "questions": [
+            {"stem": "Why sleep?", "options": {"A": "a", "B": "b", "C": "c", "D": "d"}, "answer": "C"},
+            {"stem": "When to sleep?", "options": {"A": "a", "B": "b", "C": "c", "D": "d"}, "answer": "B"}]},
+          "s3_answers": {"16": "C", "17": "B"}, "qc_ok": True},
+         ["Sleep is important.", "16. Why sleep?", "17. When to sleep?"], "Nhóm 1: 16-C, 17-B"),   # số đề THẬT 16-20
+        ("reading_s4_cloze", {"s4_item": {"s4_raw": [{"kind": "p", "text": "I go (21) ...... school (22) ...... bus."}, {"kind": "tbl", "text": "to at by in"}], "s4_answers": {"21": "to", "22": "by"}}, "word_box": ["to", "at", "by", "in"], "answers": {"21": "to", "22": "by"}, "qc_ok": True},
+         ["I go (21) ...... school (22) ...... bus.", "Hộp từ: to, at, by, in"], "21=to"),
+        ("writing_w1_rewrite", {"w1_item": {"original": "He is too young.", "prompt": "He is not ......", "answer": "He is not old enough."}, "qc_ok": True},
+         ["He is too young.", "He is not ......"], "Câu 1: He is not old enough."),
+        ("writing_w2_letter", {"w2_item": {"role": "You are Nam.", "situation": "Your penfriend wrote.", "points": ["when", "where", "who"], "instruction": "Write about 100 words."}, "qc_ok": True},
+         ["You are Nam.", "• when", "• where", "• who"], "tự luận"),
+        ("speaking", {"speak_card": {"code": "SB1.90-1", "part1": ["Where do you live?", "Do you work?"], "part2_topic": "Describe a book", "part3": ["Why read?"]}, "qc_ok": True},
+         ["Describe a book", "• Where do you live?", "• Do you work?", "• Why read?"], "chấm theo tiêu chí"),
+        ("listening", {"lis_item": {"code": "LB1.90-1", "l2_count": 10, "answers": {"1": "A", "2": "B", "6": "train", "15": "blue"}}, "transcripts": {"l1": [{"stem": "Where?", "options": {"A": "home", "B": "school", "C": "park"}, "answer": "A", "transcript": "A: ...\nB: ..."}], "l2": "Welcome to the museum."}, "qc_ok": True},
+         ["ẢNH A/B/C", "Welcome to the museum.", "câu 6-15"], "1=A"),
+    ]
+    for skill, item, must_have, key_line in cases:
+        bundle = {"skill": skill, "spec": "SPEC-FACTORY-0xx", "note": "ghi chú", "count": 1, "count_qc_ok": 1, "items": [item]}
+        out = tmp_path / f"{skill}.docx"
+        boss_render.render_bundle_docx(bundle, str(out))
+        assert out.exists()
+        t = text_of(out)
+        for frag in must_have:
+            assert frag in t, f"{skill}: thiếu {frag!r} trong .docx"
+        assert key_line in t, f"{skill}: thiếu đáp án/nhắc {key_line!r}"
+        assert "GV" in t                       # ô ký GV có mặt ở mọi skill
+        # ĐÁP ÁN ĐẦY ĐỦ (không chỉ 1) cho skill nhiều đáp án — chống mất-đáp-án âm thầm
+        if skill == "reading_s4_cloze":
+            for k, v in item["answers"].items():
+                assert f"{k}={v}" in t, f"{skill}: thiếu đáp án {k}={v}"
+        elif skill == "listening":
+            for k, v in item["lis_item"]["answers"].items():
+                assert f"{k}={v}" in t, f"{skill}: thiếu đáp án {k}={v}"
+        elif skill == "reading_s3_comprehension":
+            assert "16-C" in t and "17-B" in t
+
+    # R4 word_box RỖNG → suy hộp từ từ đáp án (GV vẫn thấy hộp từ)
+    r4e = {"skill": "reading_s4_cloze", "items": [{"s4_item": {"s4_raw": [{"kind": "p", "text": "Go (21) ...... ."}], "s4_answers": {"21": "home"}}, "word_box": [], "answers": {"21": "home"}, "qc_ok": True}]}
+    o4 = tmp_path / "r4e.docx"
+    boss_render.render_bundle_docx(r4e, str(o4))
+    t4 = text_of(o4)
+    assert "Hộp từ: home" in t4 and "21=home" in t4
+
+    # QC nhiều lỗi → TẤT CẢ lỗi + separator hiển thị cho GV
+    bad = {"skill": "reading_s1", "items": [{"s1_item": {"stem": "x", "options": {"A": "1", "B": "2", "C": "3", "D": "4"}, "answer": "A"}, "qc_ok": False, "qc_issues": ["loi1", "loi2", "loi3"]}]}
+    o = tmp_path / "bad.docx"
+    boss_render.render_bundle_docx(bad, str(o))
+    tbad = text_of(o)
+    assert "QC" in tbad and "loi1" in tbad and "loi2" in tbad and "loi3" in tbad and "; " in tbad
+
+    # skill LẠ → dump không mất dữ liệu, không crash
+    unk = {"skill": "weird", "items": [{"foo": "bar42", "qc_ok": True}]}
+    ou = tmp_path / "u.docx"
+    boss_render.render_bundle_docx(unk, str(ou))
+    assert "bar42" in text_of(ou)
+
+    # PHÒNG THỦ input MÉO (bundle từ đĩa) — KHÔNG crash cả file (review S54)
+    for bad_item in (
+        {"w2_item": {"role": "R", "points": 42, "instruction": "x"}, "qc_ok": True},       # points scalar
+        {"s1_item": {"stem": "s", "options": ["A", "B"], "answer": "A"}, "qc_ok": True},    # options là list
+    ):
+        bskill = "writing_w2_letter" if "w2_item" in bad_item else "reading_s1"
+        bp = tmp_path / f"guard_{bskill}.docx"
+        boss_render.render_bundle_docx({"skill": bskill, "items": [bad_item]}, str(bp))     # không raise
+        assert bp.exists()
+    # note toàn khoảng trắng + items rỗng → không IndexError trên runs[0]
+    ow = tmp_path / "ws.docx"
+    boss_render.render_bundle_docx({"skill": "reading_s1", "note": "   ", "items": []}, str(ow))
+    assert ow.exists()
+
+    # render_bundle_file: đọc bundle JSON từ đĩa → docx
+    bpath = tmp_path / "b.json"
+    bpath.write_text(json.dumps({"skill": "reading_s1", "items": [cases[0][1]]}), encoding="utf-8")
+    dp = boss_render.render_bundle_file(str(bpath), str(tmp_path / "b.docx"))
+    assert os.path.exists(dp)

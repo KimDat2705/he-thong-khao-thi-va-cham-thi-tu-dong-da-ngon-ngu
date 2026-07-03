@@ -910,6 +910,24 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_009_wav_to_mp3_optional"
       ],
       "notes": "Slice Nghe-hardening (S54) nối tiếp FACTORY-008. Nghiên cứu S54 (WebFetch PyPI/Cambridge/Gemini docs): lameenc 1.8.4 có manylinux/win wheel cp311/cp312 (0 compiler/system-lib, 24kHz native) → MP3 64kbps mono ~6-8× nhỏ hơn WAV (17' WAV ~49MB → MP3 ~8MB); tapescript Cambridge B1 Preliminary cho bảng pause verbatim (after_play 5s, listen-again 3s, end-part 10s, L2 look-time nội suy 45s/10gap, review cuối 2'); Gemini TTS 8192 token/call → chunk per-utterance an toàn, free-tier ~15 req/ngày → cache + backoff bắt buộc cho bài 20-30 call. Test: full-track structure + cache (offline monkeypatch TTS) CHẠY LUÔN; mp3-fallback-khi-thiếu-lameenc CHẠY LUÔN (chứng minh 0-dep không phá); wav_to_mp3 encode SKIPIF lameenc vắng (chạy khi cài requirements-audio.txt). Ảnh chọn-tranh L1 HOÃN slice sau (Đạt chốt S54; cần chốt model flash-image 'legacy' vs Nano Banana 2). Audio MÁY → GV BẮT BUỘC nghe duyệt."
+    },
+    {
+      "id": "SPEC-FACTORY-010",
+      "domain": "FACTORY",
+      "title": "Helper render-từ-JSON tham chiếu — bundle 8 dạng → .docx (đề + đáp án + ô GV ký) de-risk D2",
+      "statement": "Module tham chiếu boss_render nhận 1 bundle JSON (từ boss_factory.export_*_bundle, mọi skill: R1/R2/R3/R4/W1/W2/Nói/Nghe) và render thành 1 file .docx gồm PHẦN ĐỀ (đọc-được) + PHẦN ĐÁP ÁN (GV soát) + ô GV ký — chứng minh item JSON nhà máy xuất ĐỦ thông tin để dựng đề (GV ký được) và là SPEC MẪU để đối tác copy nhánh 'render item từ JSON' vào pipeline của họ (D2 Option a). KHÔNG thay pipeline sếp; dùng python-docx (base dep, 0 dep mới); part ẢNH chèn placeholder tham chiếu (asset giao riêng).",
+      "acceptance_criteria": [
+        "render_bundle_docx(bundle, out) dispatch theo bundle['skill'] (reading_s1/s2_notice/s3_comprehension/s4_cloze, writing_w1_rewrite/w2_letter, speaking, listening) → render phần đề đúng cấu trúc từng dạng (stem+options, passage+câu hỏi, cloze+hộp-từ, câu gốc+viết-lại, vai+bối cảnh+ý, thẻ Nói, kịch bản Nghe + placeholder ảnh L1).",
+        "Phần ĐÁP ÁN (GV soát) liệt kê đáp án mỗi câu/nhóm (R1/R2/R3/R4/Nghe có đáp án; W1 câu mẫu; W2/Nói ghi 'tự luận — chấm theo tiêu chí'); mỗi item hiển thị độ khó + nguồn seed + cờ QC (khi qc_ok=False); có ô 'GV duyệt/chữ ký/ngày'.",
+        "skill LẠ (không có renderer) → dump field cơ bản (không mất dữ liệu, không crash); render_bundle_file đọc bundle JSON từ đĩa → .docx (tiện CLI make_render_docx.py).",
+        "python-docx lazy-import trong hàm (base dep — 0 dep mới); render offline, KHÔNG gọi Gemini/mạng."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_010_render_bundle_docx"
+      ],
+      "notes": "Slice de-risk D2 Option (a) (S54, sau Nghe hardening). Helper render-từ-JSON THAM CHIẾU (kế hoạch docs/ke_hoach_mo_rong_bank_b1.md §8 D2 điểm de-risk 2 + §9 bước 11). boss_render.py + scripts/make_render_docx.py. Test offline phủ 8 skill + skill lạ + QC-flag + render_bundle_file (mở lại .docx bằng python-docx, assert nội dung đề + đáp án + ô GV ký). Part ẢNH (R2 dạng ảnh / L1 chọn-tranh) = placeholder tham chiếu, asset giao riêng. KHÔNG thay pipeline/render của sếp — chỉ mẫu để copy; interface item (s1_item/s2_item/.../lis_item) đóng băng làm hợp đồng bàn giao."
     }
   ]
 }
