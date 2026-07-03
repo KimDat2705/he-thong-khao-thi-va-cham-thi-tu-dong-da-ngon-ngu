@@ -986,6 +986,27 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_013_gemini_truncation_guard"
       ],
       "notes": "Grounded bằng PROBE THẬT (S55): thinking đo ~9530 token dùng chung budget; thinking_budget honored trên CẢ gemini-2.5-flash lẫn gemini-3.5-flash (thoughts 9530→3290) nên KHÔNG cần branch model-aware. Model local (.env) = gemini-3.5-flash (Gemini-3). Trần rộng absorb thinking dù thinking_budget chỉ advisory; retry+raise là lưới an toàn. Không dùng response_schema per-skill (scope creep — QC gate + _loads_lenient đã đủ). Fix nằm ở generator TEXT dùng chung nên có lợi cho cả 8 dạng, trọng tâm là Nghe (dạng dài nhất). GEMINI_MAX_OUTPUT_TOKENS default = 65536 (model-max) để KHÔNG hồi quy các batch method b1_question_gen (sinh cả count câu/1 call, --count 20 → JSON ~20-24k token) — review đối kháng S55 bắt: default thấp làm R3/R4 count=20 cắt→retry/mock. Site Nghe (1 variant/call) truyền trần riêng 24576 + thinking 512. VERIFY THẬT: render trọn bài Nghe 16'43\" (1003s, trong dải 16-18') + MP3 7.6MB, JSON không cắt."
+    },
+    {
+      "id": "SPEC-FACTORY-014",
+      "domain": "FACTORY",
+      "title": "Cổng kiểm đáp án bằng AI đối kháng (AI-review-AI) — bắt đáp án sai/ảo giác trước GV",
+      "statement": "Bổ sung cổng NGỮ NGHĨA cho nhà máy sinh câu (bổ trợ QC cấu trúc qc_r*): với mỗi item R1/R2/R3/R4, gọi Gemini GIẢI ĐỘC LẬP câu hỏi (independent-solve, KHÔNG cho biết đáp án ta gắn → không anchor/nịnh), rồi SO BẰNG CODE với đáp án ta gắn. Khớp = PASS; lệch / checker chọn ngoài phương án (nghi ảo giác) / mơ hồ (>1 phương án) / lỗi = gắn cờ SUSPECT cho GV soát. KHÔNG tự xoá item (GV vẫn là cổng cuối — cùng-model có thể chung điểm mù nên PASS chỉ là gợi ý, GV chấm mẫu). ADDITIVE: chỉ THÊM field answer_verify (+ answer_verify_flag) vào item, KHÔNG sửa build_*/export/qc. R3 kiểm TỪNG câu kèm passage; R4 cloze kiểm TỪNG chỗ + bắt buộc ∈ hộp từ, KHÔNG tự nhận synonym. W1/W2/Nói/Nghe không có đáp án đóng duy nhất → BỎ QUA (đánh dấu, không cờ). Grounded: phục vụ yêu cầu #1 của sếp 'hạn chế tối đa ảo giác' + giảm tải GV (D4 'soát chéo đa-agent trước GV'). Cổng OFFLINE/batch (không nối web).",
+      "acceptance_criteria": [
+        "verify_bundle_answers(items, skill, generator=None) gắn answer_verify {checked, agree, checker_answer, confidence, note, checker_call_error} cho mỗi item; khớp → agree=True KHÔNG cờ; lệch → answer_verify_flag='SUSPECT'. generator=None → mock (đồng thuận, offline).",
+        "Independent-solve: checker KHÔNG được cho biết đáp án ta gắn (chống anchor); so sánh bằng CODE sau khi checker trả lời. Checker chọn phương án NGOÀI options/hộp từ → SUSPECT (guard checker ảo giác), KHÔNG khớp âm thầm.",
+        "KHÔNG tự xoá/ghi đè đáp án: cờ SUSPECT chỉ để GV soát; đáp án gốc giữ nguyên (GV là cổng cuối).",
+        "Graceful: checker lỗi/không parse/thiếu field → checked=False + checker_call_error + cờ SUSPECT, KHÔNG crash — lô nhiều item vẫn xử lý đủ.",
+        "Per-skill: R1 (4 opt), R2 (3 opt notice), R3 (kiểm từng câu kèm passage, item nghi nếu bất kỳ câu lệch), R4 (kiểm từng chỗ + ∈ hộp từ, synonym khác key → lệch → nghi). W1/W2/Nói/Nghe → checked=False + note 'không có đáp án đóng' + KHÔNG cờ.",
+        "verify_report(items) liệt kê item SUSPECT (giảm tải GV) + verify_cell cho bảng; additive KHÔNG phá export/review_sheet cũ.",
+        "Test offline tất định (_StubGen payload cố định + mock) phủ: agree, disagree, checker-ảo-giác, mơ hồ, graceful-lỗi, R3 per-câu, R4 ∈-hộp+synonym, bỏ-qua-W1, non-breaking export."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_014_answer_verify_gate"
+      ],
+      "notes": "S55 (sau FACTORY-013). Nghiên cứu (Workflow 3 agent: methodology + integration + synthesis): independent-solve giảm anchor/sycophancy (model sửa lỗi NGOÀI 81-91% vs lỗi CỦA MÌNH 18-50%); agreement-based (không tin confidence tự báo); flag-not-drop (GV cổng cuối); reasoning-first trong OUTPUT (thinking nhỏ 512, cap 4096 — SPEC-FACTORY-013). ⚠️ RỦI RO ghi rõ: cùng-model CHUNG điểm mù → PASS vẫn cần GV chấm mẫu; đáp-án-seed-sai + checker-cũng-sai = false-pass (chỉ GV bắt được); recall>precision (synonym R4 bị cờ oan = GV xử, không phải lỗi ship). Chưa đo precision/recall trên đề B1 THẬT (arxiv nguồn là MATH/GSM8K) → cần 1 mẫu gán nhãn tay (cấy N đáp án sai, đo tỉ lệ bắt) trước khi khẳng định định lượng. Checker dùng chung _call_gemini (independent-solve, temp mặc định, N=1 free-tier; self-consistency N>1 = mở rộng sau). CLI make_r*_variants.py có cờ --verify (mặc định TẮT). Skill dispatch nhận cả tên bundle (reading_s1..) lẫn alias (R1..)."
     }
   ]
 }

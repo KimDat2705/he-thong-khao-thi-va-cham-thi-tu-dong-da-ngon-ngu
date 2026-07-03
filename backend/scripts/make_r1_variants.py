@@ -22,6 +22,8 @@ def main():
     ap.add_argument("--limit", type=int, default=5, help="số seed R1 lấy (từ đầu)")
     ap.add_argument("--per-seed", type=int, default=1, help="số biến thể mỗi seed")
     ap.add_argument("--out", default=".", help="thư mục xuất")
+    ap.add_argument("--verify", action="store_true",
+                    help="cổng kiểm đáp án AI đối kháng (SPEC-FACTORY-014) — gắn cờ item NGHI cho GV; cần GEMINI_API_KEY")
     args = ap.parse_args()
 
     with open(args.bank, encoding="utf-8") as f:
@@ -34,6 +36,14 @@ def main():
     print("Chế độ sinh:", "REAL Gemini (" + str(gen.model_name) + ")" if gen.client else "MOCK")
 
     items = boss_factory.build_r1_variants(seeds, per_seed=args.per_seed, generator=gen)
+    if args.verify and gen.client:
+        boss_factory.verify_bundle_answers(items, skill="reading_s1", generator=gen)
+        report_path = os.path.join(args.out, "r1_verify_report.md")
+        os.makedirs(args.out, exist_ok=True)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(boss_factory.verify_report(items))
+        n_susp = sum(1 for it in items if it.get("answer_verify_flag") == "SUSPECT")
+        print(f"Kiểm đáp án AI: {n_susp}/{len(items)} NGHI (xem {report_path}) — GV soát item NGHI trước.")
     bundle = boss_factory.export_bundle(items)
 
     os.makedirs(args.out, exist_ok=True)

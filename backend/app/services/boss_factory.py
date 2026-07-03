@@ -2262,3 +2262,228 @@ def build_listening_images(generator, item: dict, out_dir: str) -> dict:
     if billing:
         li.setdefault("flags", []).append("needs_billing")        # persist vào JSON (không chỉ stdout)
     return {"n_images": n_ok, "n_failed": n_fail, "needs_billing": billing}
+
+
+# ======================================================================
+# SLICE KIỂM ĐÁP ÁN — SPEC-FACTORY-014
+# ----------------------------------------------------------------------
+# Cổng "AI kiểm AI" NGỮ NGHĨA (bổ trợ QC cấu trúc qc_r*): với mỗi item R1/R2/R3/R4,
+# gọi Gemini GIẢI ĐỘC LẬP câu hỏi (KHÔNG cho biết đáp án ta gắn → không anchor/nịnh)
+# rồi SO BẰNG CODE với đáp án ta gắn. Khớp = PASS · lệch / checker chọn ngoài phương án
+# (nghi ảo giác) / mơ hồ / lỗi = gắn cờ SUSPECT cho GV. KHÔNG tự xoá — GV vẫn là cổng cuối
+# (cùng-model có thể chung điểm mù → PASS vẫn cần GV chấm mẫu). Additive: chỉ THÊM field
+# answer_verify (+ answer_verify_flag khi nghi), KHÔNG sửa build_*/export/qc. W1/W2/Nói/Nghe
+# KHÔNG có đáp án đóng duy nhất → BỎ QUA. Grounded: giảm ảo giác (yêu cầu #1 sếp) + giảm tải GV (D4).
+
+CHECKER_MAX_OUTPUT_TOKENS = 4096   # reasoning nằm ở OUTPUT field (không cần thinking lớn)
+CHECKER_THINKING_BUDGET = 512      # thinking nhỏ để nhường chỗ output (SPEC-FACTORY-013)
+
+_CHECKER_SYSTEM = (
+    "You are a meticulous VSTEP B1 (CEFR B1) English test reviewer. A colleague drafted the exam "
+    "item below. Do NOT assume it is correct. Independently work out the answer YOURSELF from the "
+    "item alone. Use ONLY the text/options (and passage/word box if given) — do NOT rely on outside "
+    "facts. Reason step by step FIRST; if something feels off, recheck before deciding. If more than "
+    "one option is genuinely defensible, say so in ambiguity_note instead of forcing a pick. Return "
+    "ONLY JSON with fields IN THIS ORDER: {\"reasoning\": str, \"derived_answer\": <as instructed>, "
+    "\"confidence\": <0-100 integer>, \"ambiguity_note\": str}."
+)
+
+
+def _solve_mcq(generator, stem, options: dict, passage=None) -> dict:
+    """Gemini GIẢI ĐỘC LẬP 1 câu MCQ → {ok, letter, confidence, ambiguity} | {ok:False, error}. Graceful."""
+    opt_keys = sorted(options.keys())
+    opts_txt = "\n".join(f"{k}. {options[k]}" for k in opt_keys)
+    ctx = (f"Read the passage, then answer BASED ONLY ON THE PASSAGE.\nPassage:\n{passage}\n\n"
+           if passage else "")
+    user = (f"{ctx}Question:\n{stem}\n{opts_txt}\n\nIndependently choose the single correct option. "
+            f"derived_answer must be EXACTLY one of these letters: {', '.join(opt_keys)}.")
+    try:
+        raw = generator._call_gemini(_CHECKER_SYSTEM, user,
+                                     max_output_tokens=CHECKER_MAX_OUTPUT_TOKENS,
+                                     thinking_budget=CHECKER_THINKING_BUDGET)
+        data = _loads_lenient(raw)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    if not isinstance(data, dict):
+        return {"ok": False, "error": "checker JSON không phải object"}
+    letter = str(data.get("derived_answer") or "").strip().upper()[:1]
+    return {"ok": True, "letter": letter, "confidence": data.get("confidence"),
+            "ambiguity": str(data.get("ambiguity_note") or "").strip()}
+
+
+def _mcq_verdict(generator, stem, options: dict, marked, passage=None) -> dict:
+    """answer_verify cho 1 MCQ: solve độc lập + so với 'marked' (đáp án ta gắn). Không gọi mạng nếu thiếu field."""
+    if not stem or not isinstance(options, dict) or not options or not marked:
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                "note": "item thiếu stem/options/answer — không kiểm được", "checker_call_error": None}
+    r = _solve_mcq(generator, stem, options, passage)
+    if not r.get("ok"):
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                "note": "checker lỗi/không parse được", "checker_call_error": r.get("error")}
+    letter = r["letter"]
+    conf = r.get("confidence")
+    if letter not in options:      # guard checker ảo giác: chọn phương án KHÔNG tồn tại → nghi
+        return {"checked": True, "agree": False, "checker_answer": letter or None, "confidence": conf,
+                "note": f"checker chọn {letter!r} KHÔNG thuộc phương án — nghi checker ảo giác",
+                "checker_call_error": None}
+    agree = letter == str(marked).strip().upper()[:1]
+    note = "khớp đáp án đã gắn" if agree else f"checker chọn {letter}, ta gắn {marked}"
+    if r.get("ambiguity"):         # checker thấy >1 phương án hợp lý → cần GV dù có khớp
+        agree = False
+        note += f" · checker báo mơ hồ: {r['ambiguity'][:80]}"
+    return {"checked": True, "agree": agree, "checker_answer": letter, "confidence": conf,
+            "note": note, "checker_call_error": None}
+
+
+def _verify_r1_item(item, generator) -> dict:
+    s = item.get("s1_item") or {}
+    return _mcq_verdict(generator, s.get("stem"), s.get("options") or {}, s.get("answer"))
+
+
+def _verify_r2_item(item, generator) -> dict:
+    s = item.get("s2_item") or {}
+    return _mcq_verdict(generator, s.get("stem"), s.get("options") or {}, s.get("answer"))
+
+
+def _verify_r3_item(item, generator) -> dict:
+    """R3: kiểm TỪNG câu hỏi kèm passage (đáp án phụ thuộc đoạn văn). Item nghi nếu BẤT KỲ câu lệch/lỗi."""
+    s3 = item.get("s3_item") or {}
+    passage = str(s3.get("passage") or "")
+    ctx = passage if len(passage) <= 2000 else passage[:1800] + "..."   # chặn token cho đoạn dài
+    qs = s3.get("questions") or []
+    if not qs:
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                "note": "R3 không có câu hỏi", "checker_call_error": None}
+    per_q, all_agree, any_err = [], True, None
+    for idx, q in enumerate(qs, 1):
+        v = _mcq_verdict(generator, q.get("stem"), q.get("options") or {}, q.get("answer"), passage=ctx)
+        per_q.append({"q": idx, "checker": v.get("checker_answer"), "ours": q.get("answer"),
+                      "agree": v.get("agree"), "note": v.get("note")})
+        if not v.get("checked"):
+            any_err = v.get("checker_call_error") or any_err
+        all_agree = all_agree and v.get("checked") and v.get("agree")
+    return {"checked": True, "agree": bool(all_agree), "checker_answer": per_q, "confidence": None,
+            "note": ("tất cả câu khớp" if all_agree else "có câu lệch/nghi/lỗi — xem chi tiết"),
+            "checker_call_error": any_err}
+
+
+def _r4_passage_from_raw(s4_raw: list) -> str:
+    """Tái tạo passage-có-chỗ-trống từ s4_raw (bỏ header/hướng dẫn cố định + block tbl hộp từ)."""
+    return "\n".join(str(b.get("text") or "") for b in s4_raw
+                     if b.get("kind") == "p" and b.get("text") not in (R4_HEADER, R4_INSTRUCTION))
+
+
+def _verify_r4_item(item, generator) -> dict:
+    """R4 cloze: checker điền MỌI chỗ từ hộp → so từng chỗ (chuẩn hoá hoa/thường) + KIỂM ∈ hộp từ.
+    KHÔNG tự nhận synonym: checker điền từ khác (dù hợp nghĩa) → lệch → nghi (GV quyết, tránh sai âm thầm)."""
+    box = [str(w) for w in (item.get("word_box") or [])]
+    marked = {str(k): str(v) for k, v in (item.get("answers") or {}).items()}
+    if not box or not marked:
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                "note": "item R4 thiếu hộp từ/đáp án", "checker_call_error": None}
+    box_norm = {_norm_topic(w) for w in box}
+    passage = _r4_passage_from_raw((item.get("s4_item") or {}).get("s4_raw") or [])
+    user = (f"Fill EACH numbered blank in the passage with EXACTLY ONE word from the word box.\n"
+            f"Passage:\n{passage}\n\nWord box: {' '.join(box)}\n\n"
+            "derived_answer must be a JSON object mapping each blank number (string) to one box word.")
+    try:
+        raw = generator._call_gemini(_CHECKER_SYSTEM, user,
+                                     max_output_tokens=CHECKER_MAX_OUTPUT_TOKENS,
+                                     thinking_budget=CHECKER_THINKING_BUDGET)
+        data = _loads_lenient(raw)
+    except Exception as e:
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                "note": "checker lỗi/không parse được", "checker_call_error": str(e)}
+    derived = data.get("derived_answer") if isinstance(data, dict) else None
+    if not isinstance(derived, dict):
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                "note": "checker không trả dict đáp án", "checker_call_error": None}
+    per_blank, all_agree = {}, True
+    for k, our in marked.items():
+        cw = str(derived.get(k) or "").strip()
+        cw_norm = _norm_topic(cw)
+        in_box = cw_norm in box_norm
+        agree = bool(cw) and in_box and cw_norm == _norm_topic(our)
+        per_blank[k] = {"checker": cw, "ours": our, "agree": agree,
+                        "note": ("" if agree else ("ngoài hộp từ (nghi ảo giác)" if (cw and not in_box)
+                                                   else "lệch/synonym"))}
+        all_agree = all_agree and agree
+    return {"checked": True, "agree": bool(all_agree), "checker_answer": per_blank,
+            "confidence": (data.get("confidence") if isinstance(data, dict) else None),
+            "note": ("mọi chỗ khớp" if all_agree else "có chỗ lệch/ngoài hộp — xem chi tiết"),
+            "checker_call_error": None}
+
+
+_VERIFY_DISPATCH = {
+    "reading_s1": _verify_r1_item, "r1": _verify_r1_item,
+    "reading_s2_notice": _verify_r2_item, "r2": _verify_r2_item,
+    "reading_s3_comprehension": _verify_r3_item, "r3": _verify_r3_item,
+    "reading_s4_cloze": _verify_r4_item, "r4": _verify_r4_item,
+}
+
+
+def verify_bundle_answers(items: list, skill: str, generator=None) -> list:
+    """Cổng kiểm đáp án AI (SPEC-FACTORY-014). Với mỗi item: solve độc lập + so đáp án → gắn
+    answer_verify (+ answer_verify_flag='SUSPECT' khi nghi). ADDITIVE + KHÔNG tự xoá (GV quyết).
+    generator=None/không client → MOCK (coi như đồng thuận, chỉ test plumbing). skill ngoài R1-R4
+    (W/Nói/Nghe) → đánh dấu 'không có đáp án đóng' + KHÔNG cờ. Trả về chính items (đã mutate)."""
+    fn = _VERIFY_DISPATCH.get(str(skill or "").strip().lower())
+    use_mock = generator is None or getattr(generator, "client", None) is None
+    for it in items:
+        if fn is None:                 # W1/W2/Nói/Nghe: không có đáp án đóng duy nhất → ngoài phạm vi
+            it["answer_verify"] = {"checked": False, "agree": False, "checker_answer": None,
+                                   "confidence": None, "note": f"skill {skill!r} không có đáp án đóng "
+                                   "duy nhất — GV soát tay", "checker_call_error": None}
+            it.pop("answer_verify_flag", None)
+            continue
+        if use_mock:
+            av = {"checked": True, "agree": True, "checker_answer": None, "confidence": None,
+                  "note": "mock (offline) — không gọi checker thật", "checker_call_error": None}
+        else:
+            try:
+                av = fn(it, generator)
+            except Exception as e:     # lưới cuối: 1 item lỗi KHÔNG làm hỏng cả lô
+                logger.warning("verify item lỗi (%s): %s", it.get("nguon_seed"), e)
+                av = {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                      "note": "lỗi khi kiểm", "checker_call_error": str(e)}
+        it["answer_verify"] = av
+        if av.get("checked") and av.get("agree"):
+            it.pop("answer_verify_flag", None)
+        else:
+            it["answer_verify_flag"] = "SUSPECT"      # lệch / chưa kiểm được / mơ hồ → GV soát
+    return items
+
+
+def verify_cell(item) -> str:
+    """Ô 'Kiểm đáp án AI' cho bảng GV (rỗng nếu chưa bật kiểm)."""
+    av = item.get("answer_verify")
+    if not av:
+        return ""
+    if not av.get("checked"):
+        return "CHƯA KIỂM"
+    return "PASS" if av.get("agree") else "⚠ NGHI"
+
+
+def verify_report(items: list) -> str:
+    """Báo cáo kiểm đáp án (Markdown): liệt kê item NGHI để GV soát TRƯỚC (giảm tải). PASS chỉ là gợi ý."""
+    flagged = [it for it in items if it.get("answer_verify_flag") == "SUSPECT"]
+    n_checked = sum(1 for it in items if (it.get("answer_verify") or {}).get("checked"))
+    n_pass = sum(1 for it in items if (it.get("answer_verify") or {}).get("agree"))
+    lines = [
+        f"# Kiểm đáp án AI (SPEC-FACTORY-014) — {len(flagged)} NGHI / {len(items)} item "
+        f"(kiểm được {n_checked}, PASS {n_pass})",
+        "",
+        "GV BẮT BUỘC soát kỹ các item NGHI dưới đây (AI-solve lệch / mơ hồ / nghi checker ảo giác / "
+        "lỗi). PASS chỉ là GỢI Ý — cùng-model có thể chung điểm mù nên GV vẫn nên chấm MẪU. Cổng cuối là GV.",
+        "",
+    ]
+    if not flagged:
+        lines.append("_Không có item NGHI (mọi item checker đồng thuận, hoặc chưa bật kiểm)._")
+        return "\n".join(lines)
+    lines += ["| # | Nguồn seed | Vì sao NGHI |", "|---|---|---|"]
+    for i, it in enumerate(flagged, 1):
+        av = it.get("answer_verify") or {}
+        why = f"chưa kiểm được (lỗi checker: {av['checker_call_error'][:50]})" if av.get("checker_call_error") \
+            else (av.get("note") or "?")
+        lines.append(f"| {i} | {it.get('nguon_seed', '?')} | {str(why).replace('|', '/')[:100]} |")
+    return "\n".join(lines)

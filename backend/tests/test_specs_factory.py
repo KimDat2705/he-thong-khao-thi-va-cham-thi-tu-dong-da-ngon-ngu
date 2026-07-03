@@ -1298,3 +1298,90 @@ def test_SPEC_FACTORY_013_gemini_truncation_guard():
     boss_factory._real_lis_variant(_RecStub(), seed, 0)
     assert rec["cap"] == boss_factory.LIS_MAX_OUTPUT_TOKENS      # trần cao (dạng dài)
     assert rec["think"] == boss_factory.LIS_THINKING_BUDGET      # thinking nhỏ (nhường chỗ JSON)
+
+
+def test_SPEC_FACTORY_014_answer_verify_gate():
+    """SPEC-FACTORY-014: cổng kiểm đáp án AI đối kháng (independent-solve). PASS khi checker khớp;
+    cờ SUSPECT khi lệch / checker chọn ngoài phương án (ảo giác) / mơ hồ / lỗi; graceful (không crash
+    lô); bỏ qua skill không có đáp án đóng (W/Nói). Dùng _StubGen (nhánh real, payload cố định)."""
+    def stub(derived, ambiguity=""):
+        return _StubGen({"reasoning": "x", "derived_answer": derived,
+                         "confidence": 88, "ambiguity_note": ambiguity})
+
+    def r1(marked):
+        return {"s1_item": {"stem": "She ...... to school every day.",
+                            "options": {"A": "go", "B": "goes", "C": "going", "D": "went"}, "answer": marked},
+                "nguon_seed": "EB1.2601#Q1", "qc_ok": True}
+
+    # (1) HAPPY mock (generator=None) → coi như đồng thuận: agree, KHÔNG cờ.
+    it = boss_factory.verify_bundle_answers([r1("B")], "reading_s1", generator=None)[0]
+    assert it["answer_verify"]["checked"] and it["answer_verify"]["agree"] and "answer_verify_flag" not in it
+
+    # (2) AGREE (real stub khớp): gắn "B", checker "B" → PASS.
+    it = boss_factory.verify_bundle_answers([r1("B")], "R1", generator=stub("B"))[0]
+    assert it["answer_verify"]["agree"] is True and "answer_verify_flag" not in it
+    assert it["answer_verify"]["checker_answer"] == "B"
+
+    # (3) DISAGREE: gắn "B", checker "A" → NGHI (KHÔNG tự xoá).
+    it = boss_factory.verify_bundle_answers([r1("B")], "R1", generator=stub("A"))[0]
+    assert it["answer_verify"]["agree"] is False and it["answer_verify_flag"] == "SUSPECT"
+    assert it["answer_verify"]["checker_answer"] == "A"
+
+    # (4) CHECKER ẢO GIÁC: chọn "E" ngoài A-D → NGHI + note.
+    it = boss_factory.verify_bundle_answers([r1("B")], "R1", generator=stub("E"))[0]
+    assert it["answer_verify_flag"] == "SUSPECT" and "thuộc phương án" in it["answer_verify"]["note"]
+
+    # (4b) MƠ HỒ: checker khớp "B" NHƯNG báo ambiguity → vẫn NGHI (GV quyết).
+    it = boss_factory.verify_bundle_answers([r1("B")], "R1", generator=stub("B", "A cũng hợp lý"))[0]
+    assert it["answer_verify"]["agree"] is False and it["answer_verify_flag"] == "SUSPECT"
+
+    # (5) GRACEFUL: checker raise → checked=False + checker_call_error + cờ; lô 2 item vẫn đủ.
+    class _Raise:
+        client = object()
+        model_name = "stub"
+
+        def _call_gemini(self, *a, **k):
+            raise RuntimeError("boom-503")
+
+    two = boss_factory.verify_bundle_answers([r1("B"), r1("A")], "R1", generator=_Raise())
+    assert len(two) == 2
+    for it2 in two:
+        assert it2["answer_verify"]["checked"] is False
+        assert it2["answer_verify"]["checker_call_error"] and it2["answer_verify_flag"] == "SUSPECT"
+
+    # (6) R3 per-question (passage): 1 câu lệch → item NGHI; checker_answer = list per-câu.
+    r3item = {"s3_item": {"passage": "Sleep is important. It helps memory.",
+                          "questions": [
+                              {"stem": "What helps memory?", "options": {"A": "sleep", "B": "food", "C": "x", "D": "y"}, "answer": "A"},
+                              {"stem": "Q2?", "options": {"A": "a", "B": "b", "C": "c", "D": "d"}, "answer": "B"}]},
+              "s3_answers": {"16": "A", "17": "B"}, "nguon_seed": "EB1.2601", "qc_ok": True}
+    it = boss_factory.verify_bundle_answers([r3item], "reading_s3_comprehension", generator=stub("A"))[0]
+    assert it["answer_verify"]["checked"] and it["answer_verify"]["agree"] is False   # q2: checker A vs gắn B
+    assert it["answer_verify_flag"] == "SUSPECT"
+    ca = it["answer_verify"]["checker_answer"]
+    assert len(ca) == 2 and ca[0]["agree"] is True and ca[1]["agree"] is False
+
+    # (7) R4 cloze: khớp hết → PASS; chỗ ngoài hộp → NGHI; synonym (∈ hộp nhưng khác key) → NGHI.
+    def r4():
+        box = ["fact", "begin", "also", "must", "very"]
+        ans = {"21": "fact", "22": "also"}
+        return {"s4_item": {"s4_raw": [{"kind": "p", "text": "Text (21).. (22).."}], "s4_answers": ans, "key_cloze": ans},
+                "word_box": box, "answers": ans, "nguon_seed": "EB1.2601", "qc_ok": True}
+    it = boss_factory.verify_bundle_answers([r4()], "reading_s4_cloze", generator=stub({"21": "fact", "22": "also"}))[0]
+    assert it["answer_verify"]["agree"] is True and "answer_verify_flag" not in it
+    it = boss_factory.verify_bundle_answers([r4()], "reading_s4_cloze", generator=stub({"21": "fact", "22": "zzz"}))[0]
+    assert it["answer_verify_flag"] == "SUSPECT" and it["answer_verify"]["checker_answer"]["22"]["agree"] is False
+    assert "ngoài hộp" in it["answer_verify"]["checker_answer"]["22"]["note"]
+    it = boss_factory.verify_bundle_answers([r4()], "reading_s4_cloze", generator=stub({"21": "fact", "22": "very"}))[0]
+    assert it["answer_verify_flag"] == "SUSPECT"      # synonym ∈ hộp nhưng khác key → KHÔNG tự nhận
+
+    # (8) BỎ QUA skill không có đáp án đóng (W1): checked=False + KHÔNG cờ.
+    it = boss_factory.verify_bundle_answers([{"w1_item": {}, "nguon_seed": "x"}], "W1", generator=stub("A"))[0]
+    assert it["answer_verify"]["checked"] is False and "answer_verify_flag" not in it
+
+    # (9) NON-BREAKING: export + report + cell chạy; report liệt kê item NGHI.
+    verified = boss_factory.verify_bundle_answers([r1("B"), r1("A")], "R1", generator=stub("A"))
+    assert boss_factory.export_bundle(verified)["count"] == 2
+    rep = boss_factory.verify_report(verified)
+    assert "SPEC-FACTORY-014" in rep and "NGHI" in rep
+    assert boss_factory.verify_cell(verified[0]) == "⚠ NGHI" and boss_factory.verify_cell(verified[1]) == "PASS"
