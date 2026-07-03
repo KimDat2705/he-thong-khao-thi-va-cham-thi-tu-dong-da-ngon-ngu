@@ -1595,6 +1595,12 @@ LIS_PAUSES = {
 # Cặp giọng tương phản mạnh cho hội thoại (Google KHÔNG gắn nhãn giới tính chính thức — chọn theo nghe).
 LIS_VOICES = {"A": "Kore", "B": "Puck"}   # A ~ nữ, B ~ nam (cần nghe kiểm)
 
+# Sinh kịch bản Nghe = prompt DÀI NHẤT nhà máy (5 hội thoại ~113 từ + monologue ~355 từ + gaps →
+# JSON ~2500 token). Ở Gemini 2.5/3.x thinking (~9500 token đo thật) + JSON dùng CHUNG budget → phải
+# đặt trần RỘNG kẻo cắt/méo JSON (SPEC-FACTORY-013). thinking_budget nhỏ để nhường chỗ cho JSON.
+LIS_MAX_OUTPUT_TOKENS = 24576
+LIS_THINKING_BUDGET = 512
+
 # Ảnh chọn-tranh L1 (SPEC-FACTORY-011) — model CONFIGURABLE (giữ 2.5-flash-image proven S43; đổi Nano
 # Banana 2 = set env B1_IMAGE_MODEL=gemini-3.1-flash-image). ⚠️ Free-tier API image = 0 IPM (chặn cứng
 # từ ~12/2025) → cần BẬT BILLING ($0-limit OK → Tier 1) mới sinh ảnh thật (khác 503 text: retry vô ích).
@@ -1711,9 +1717,18 @@ def _real_lis_variant(generator, seed: dict, idx: int) -> Optional[dict]:
         f"L1 question stems: {json.dumps(seed.get('l1_stems'), ensure_ascii=False)}\n"
         f"Number of L2 gaps: {n_l2}\nGenerate parallel variant #{idx + 1}."
     )
-    raw = generator._call_gemini(system, user)
-    data = _loads_lenient(raw)
-    return data if isinstance(data, dict) else None
+    # Trần token rộng + thinking nhỏ để JSON kịch bản dài KHÔNG bị cắt/méo (SPEC-FACTORY-013).
+    raw = generator._call_gemini(system, user, max_output_tokens=LIS_MAX_OUTPUT_TOKENS,
+                                 thinking_budget=LIS_THINKING_BUDGET)
+    try:
+        data = _loads_lenient(raw)
+    except Exception as e:
+        logger.warning("Nghe: JSON méo/không parse được (%s); raw[:120]=%r", e, (raw or "")[:120])
+        return None
+    if not isinstance(data, dict):
+        logger.warning("Nghe: JSON không phải object; raw[:120]=%r", (raw or "")[:120])
+        return None
+    return data
 
 
 def qc_lis(variant: dict, seed: dict) -> list:

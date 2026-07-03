@@ -966,6 +966,26 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_012_orchestrator_roundtrip"
       ],
       "notes": "Slice hoàn tất backlog §6.7 (roundtrip_test) + orchestrator tổng (S54, sau ảnh L1). boss_pipeline.py (import boss_factory). 'Làm đủ để TEST nhiệm vụ chính mở rộng ngân hàng end-to-end' (Đạt chỉ đạo: chỉ tập trung sinh ngân hàng, chức năng khác làm đủ để test). roundtrip = sanity phía MÌNH (shape merge-ready + qc + độ khó); KHÔNG chạy code build_db/tron của sếp — cờ merge chính xác (sX_complete...) chờ 1 record bank_raw mẫu của sếp (D2 open). Test = mock (không gọi Gemini)."
+    },
+    {
+      "id": "SPEC-FACTORY-013",
+      "domain": "FACTORY",
+      "title": "Chống méo/cắt JSON khi sinh câu — token 'thinking' và JSON dùng CHUNG budget (đặc biệt kịch bản Nghe dài)",
+      "statement": "Sửa lỗi biến thể bị bỏ do JSON méo/cắt: ở Gemini 2.5/3.x, token 'thinking' và text JSON DÙNG CHUNG max_output_tokens; thinking đo THẬT tới ~9500 token nên khi trần không đặt/đặt thấp, JSON kịch bản dài (nhất là Nghe: 5 hội thoại ~113 từ + monologue ~355 từ + gaps) bị cắt giữa chừng (finish_reason=MAX_TOKENS) → _loads_lenient vỡ → build_lis_variants bỏ biến thể ÂM THẦM (roundtrip báo CHƯA đủ pool). Vá tại _call_gemini (generator TEXT dùng chung cho cả nhà máy): (1) đặt trần rộng (config GEMINI_MAX_OUTPUT_TOKENS, kẹp <=65536) + tùy chọn giới hạn thinking_budget để nhường chỗ JSON; (2) đọc parts trực tiếp + finish_reason để PHÁT HIỆN cắt (text rỗng/MAX_TOKENS); (3) retry 1 lần trần cao hơn + thinking=0; (4) vẫn cắt → raise RuntimeError rõ ràng thay vì drop âm thầm. Site Nghe truyền trần cao (24576) + thinking nhỏ (512). 15 site còn lại giữ nguyên hành vi (tham số optional, mặc định không đụng thinking).",
+      "acceptance_criteria": [
+        "_call_gemini nhận max_output_tokens/thinking_budget optional; response hợp lệ → trả text và truyền ĐÚNG cap + thinking_budget vào GenerateContentConfig; thinking_budget=None → KHÔNG set thinking_config (giữ hành vi 15 site đang chạy).",
+        "Phát hiện cắt (finish_reason=MAX_TOKENS hoặc text đầu ra rỗng do chỉ có phần 'thought') → retry 1 lần với trần CAO hơn + thinking_budget=0.",
+        "Cắt cả sau retry → raise RuntimeError chứa 'truncat' (không nuốt lỗi/không drop âm thầm).",
+        "max_output_tokens override (env/tham số) > 65536 bị kẹp về <=65536 (trần model), tránh API từ chối.",
+        "Site sinh kịch bản Nghe (_real_lis_variant) truyền trần cao (LIS_MAX_OUTPUT_TOKENS) + thinking nhỏ (LIS_THINKING_BUDGET) và parse phòng thủ (JSON méo → log + trả None).",
+        "Test offline (fake response MAX_TOKENS, KHÔNG gọi mạng) phủ: truyền đúng cap/thinking, retry, raise, clamp."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_013_gemini_truncation_guard"
+      ],
+      "notes": "Grounded bằng PROBE THẬT (S55): thinking đo ~9530 token dùng chung budget; thinking_budget honored trên CẢ gemini-2.5-flash lẫn gemini-3.5-flash (thoughts 9530→3290) nên KHÔNG cần branch model-aware. Model local (.env) = gemini-3.5-flash (Gemini-3). Trần rộng absorb thinking dù thinking_budget chỉ advisory; retry+raise là lưới an toàn. Không dùng response_schema per-skill (scope creep — QC gate + _loads_lenient đã đủ). Fix nằm ở generator TEXT dùng chung nên có lợi cho cả 8 dạng, trọng tâm là Nghe (dạng dài nhất). GEMINI_MAX_OUTPUT_TOKENS default = 65536 (model-max) để KHÔNG hồi quy các batch method b1_question_gen (sinh cả count câu/1 call, --count 20 → JSON ~20-24k token) — review đối kháng S55 bắt: default thấp làm R3/R4 count=20 cắt→retry/mock. Site Nghe (1 variant/call) truyền trần riêng 24576 + thinking 512. VERIFY THẬT: render trọn bài Nghe 16'43\" (1003s, trong dải 16-18') + MP3 7.6MB, JSON không cắt."
     }
   ]
 }

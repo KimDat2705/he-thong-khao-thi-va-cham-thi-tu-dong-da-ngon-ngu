@@ -151,6 +151,34 @@ class L1BatchAI(BaseModel):
     questions: List[L1QuestionAI]
 
 
+def _extract_gemini_text(resp) -> tuple:
+    """Trích text ĐẦU RA (bỏ phần 'thought') + cờ truncated (finish_reason=MAX_TOKENS) + usage.
+
+    Đọc parts TRỰC TIẾP thay vì tin `resp.text`: khi model chỉ kịp 'thinking' rồi hết budget,
+    `resp.text` trả None ÂM THẦM → json.loads vỡ mà không rõ nguyên nhân. Ở đây ta PHÁT HIỆN cắt
+    để retry/raise có chủ đích (SPEC-FACTORY-013)."""
+    cand = (getattr(resp, "candidates", None) or [None])[0]
+    fr = getattr(cand, "finish_reason", None)
+    truncated = fr is not None and "MAX_TOKENS" in str(fr)
+    content = getattr(cand, "content", None) if cand is not None else None
+    parts = (getattr(content, "parts", None) if content is not None else None) or []
+    chunks = [p.text for p in parts
+              if isinstance(getattr(p, "text", None), str) and not getattr(p, "thought", False)]
+    text = "".join(chunks)
+    if not text:                       # fallback: resp.text (SDK cũng bỏ thought) — guard None
+        try:
+            text = resp.text or ""
+        except Exception:
+            text = ""
+    um = getattr(resp, "usage_metadata", None)
+    usage = None
+    if um is not None:
+        usage = {"thoughts": getattr(um, "thoughts_token_count", None),
+                 "candidates": getattr(um, "candidates_token_count", None),
+                 "total": getattr(um, "total_token_count", None)}
+    return text, truncated, usage
+
+
 class B1QuestionGenerator:
     def __init__(self):
         # Initialize Google GenAI client if API key is present
@@ -162,23 +190,49 @@ class B1QuestionGenerator:
             self.model_name = None
             logger.warning("GEMINI_API_KEY is not set. B1 Question Generator will run in mock mode.")
 
-    def _call_gemini(self, system_instruction: str, user_prompt: str) -> str:
-        """Call Gemini using the google-genai Client and return the raw text response."""
+    def _call_gemini(self, system_instruction: str, user_prompt: str,
+                     max_output_tokens: Optional[int] = None,
+                     thinking_budget: Optional[int] = None) -> str:
+        """Gọi Gemini (google-genai Client) → text JSON thô.
+
+        max_output_tokens: trần token đầu ra. Ở Gemini 2.5/3.x token "thinking" + JSON DÙNG CHUNG
+        budget này (thinking đo THẬT tới ~9500 token) → trần quá thấp làm JSON bị cắt/méo
+        (finish_reason=MAX_TOKENS). None → settings.GEMINI_MAX_OUTPUT_TOKENS; kẹp <=65536 (trần model).
+        thinking_budget: giới hạn token suy nghĩ (0=tắt) để nhường chỗ cho JSON — honored trên cả
+        2.5 lẫn 3.5-flash (đo THẬT). None → KHÔNG đụng thinking (giữ hành vi mặc định cho các dạng
+        ngắn đang chạy tốt). Nếu phát hiện cắt (MAX_TOKENS/text rỗng) → RETRY 1 lần (trần cao hơn +
+        thinking=0); vẫn cắt → raise RuntimeError (không drop âm thầm). SPEC-FACTORY-013."""
         if not self.client:
             raise RuntimeError("Gemini client is not initialized.")
 
-        try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=[system_instruction, user_prompt],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
+        eff_max = int(max_output_tokens if max_output_tokens is not None else settings.GEMINI_MAX_OUTPUT_TOKENS)
+        eff_max = max(256, min(eff_max, 65536))     # env override không vượt trần model
+
+        def _once(cap: int, think: Optional[int]) -> tuple:
+            cfg_kw = {"response_mime_type": "application/json", "max_output_tokens": cap}
+            if think is not None:
+                cfg_kw["thinking_config"] = types.ThinkingConfig(thinking_budget=think)
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=[system_instruction, user_prompt],
+                    config=types.GenerateContentConfig(**cfg_kw),
                 )
-            )
-            return response.text
-        except Exception as e:
-            logger.error(f"Gemini API call failed: {e}")
-            raise e
+            except Exception as e:
+                logger.error(f"Gemini API call failed: {e}")
+                raise
+            return _extract_gemini_text(response)
+
+        text, truncated, usage = _once(eff_max, thinking_budget)
+        if truncated or not text:
+            retry_cap = min(65536, max(eff_max * 2, 32768))
+            logger.warning("Gemini output bị cắt/rỗng (cap=%s, thinking=%s, usage=%s) — retry cap=%s + thinking=0",
+                           eff_max, thinking_budget, usage, retry_cap)
+            text, truncated, usage = _once(retry_cap, 0)
+            if truncated or not text:
+                raise RuntimeError(
+                    f"Gemini response truncated (MAX_TOKENS) — JSON không đầy đủ sau retry (usage={usage}).")
+        return text
 
     def generate_r1_questions(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
         """Generate R1 (Part 1 Standalone Choice) questions and save to the bank."""

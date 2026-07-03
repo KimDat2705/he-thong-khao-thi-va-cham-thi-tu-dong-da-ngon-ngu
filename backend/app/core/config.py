@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
     GEMINI_MAX_RETRIES: int = 4
     GEMINI_RETRY_BASE_DELAY: float = 1.5
+    # Trần token ĐẦU RA mặc định khi sinh câu (SPEC-FACTORY-013). Ở Gemini 2.5/3.x, token "thinking"
+    # và JSON DÙNG CHUNG budget này (thinking đo THẬT ~9500 token) → trần thấp làm JSON bị cắt/méo
+    # (finish_reason=MAX_TOKENS). = model-max để KHÔNG hồi quy các batch method (generate_r*_questions
+    # sinh cả `count` câu/1 call: --count 20 → JSON ~20-24k + thinking ~9.5k). Site sinh 1-variant
+    # (boss_factory) truyền trần riêng nhỏ hơn. _call_gemini kẹp <=65536 (trần model) nếu env vượt.
+    GEMINI_MAX_OUTPUT_TOKENS: int = 65536
     
     # Grading Sandbox
     SANDBOX_URL: Optional[str] = None  # E.g., Judge0 API URL if using SaaS

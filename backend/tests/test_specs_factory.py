@@ -25,7 +25,8 @@ class _StubGen:
     def __init__(self, payload: dict):
         self._payload = payload
 
-    def _call_gemini(self, system_instruction: str, user_prompt: str) -> str:
+    def _call_gemini(self, system_instruction: str, user_prompt: str,
+                     max_output_tokens=None, thinking_budget=None) -> str:
         return json.dumps(self._payload, ensure_ascii=False)
 
 
@@ -1177,3 +1178,123 @@ def test_SPEC_FACTORY_012_orchestrator_roundtrip(tmp_path):
     # limit=0 → lô RỖNG (khác None=tất cả); n_target=0 + pool rỗng → enough_for_n False (không mask pool rỗng)
     assert boss_pipeline.run_bank_expansion(bank_raw, None, None, per_seed=1, generator=None, limit=0) == {}
     assert boss_pipeline.roundtrip_check({"skill": "reading_s1", "items": []}, n_target=0)["enough_for_n"] is False
+
+
+# ---- SPEC-FACTORY-013: chống méo/cắt JSON do thinking "ăn" budget (fake response, KHÔNG gọi mạng) ----
+class _FakePart:
+    def __init__(self, text, thought=False):
+        self.text = text
+        self.thought = thought
+
+
+class _FakeContent:
+    def __init__(self, parts):
+        self.parts = parts
+
+
+class _FakeCand:
+    def __init__(self, parts, finish):
+        self.content = _FakeContent(parts)
+        self.finish_reason = finish
+
+
+class _FakeUsage:
+    thoughts_token_count = 9000
+    candidates_token_count = 12
+    total_token_count = 9012
+
+
+class _FakeResp:
+    def __init__(self, parts, finish):
+        self.candidates = [_FakeCand(parts, finish)]
+        self.usage_metadata = _FakeUsage()
+
+    @property
+    def text(self):
+        vis = "".join(p.text for p in self.candidates[0].content.parts if not p.thought)
+        return vis or None
+
+
+class _FakeModels:
+    def __init__(self, responses):
+        self._responses = list(responses)
+        self.calls = []
+
+    def generate_content(self, model, contents, config):
+        tb = getattr(config.thinking_config, "thinking_budget", None) if config.thinking_config else None
+        self.calls.append({"max_output_tokens": config.max_output_tokens, "thinking_budget": tb})
+        return self._responses.pop(0)
+
+
+class _FakeClient:
+    def __init__(self, responses):
+        self.models = _FakeModels(responses)
+
+
+def _fake_gen(responses):
+    from app.services.b1_question_gen import B1QuestionGenerator
+    gen = B1QuestionGenerator.__new__(B1QuestionGenerator)   # bỏ __init__ (không cần API key)
+    gen.model_name = "fake-model"
+    gen.client = _FakeClient(responses)
+    return gen
+
+
+def test_SPEC_FACTORY_013_gemini_truncation_guard():
+    """SPEC-FACTORY-013: _call_gemini truyền đúng cap/thinking, phát hiện cắt (MAX_TOKENS/rỗng) →
+    retry trần cao + thinking=0, cắt cả sau retry → raise; env override bị kẹp <=65536."""
+    from google.genai import types
+
+    OK, MAX = types.FinishReason.STOP, types.FinishReason.MAX_TOKENS
+
+    # AC1: response hợp lệ → trả text, truyền ĐÚNG cap + thinking, KHÔNG retry.
+    gen = _fake_gen([_FakeResp([_FakePart('{"ok": true}')], OK)])
+    out = gen._call_gemini("sys", "user", max_output_tokens=12345, thinking_budget=512)
+    assert out == '{"ok": true}'
+    c0 = gen.client.models.calls
+    assert len(c0) == 1 and c0[0]["max_output_tokens"] == 12345 and c0[0]["thinking_budget"] == 512
+
+    # AC2: lần 1 CẮT (MAX_TOKENS, chỉ có phần thought → text rỗng) → retry trần cao hơn + thinking=0 → OK.
+    gen = _fake_gen([
+        _FakeResp([_FakePart("...suy nghĩ...", thought=True)], MAX),
+        _FakeResp([_FakePart('{"recovered": 1}')], OK),
+    ])
+    out = gen._call_gemini("sys", "user", max_output_tokens=8192)
+    assert out == '{"recovered": 1}'
+    calls = gen.client.models.calls
+    assert len(calls) == 2
+    assert calls[1]["max_output_tokens"] > calls[0]["max_output_tokens"]   # retry NÂNG trần
+    assert calls[1]["thinking_budget"] == 0                                 # retry TẮT thinking
+
+    # AC3: cắt cả 2 lần → raise RuntimeError rõ ràng (không nuốt âm thầm).
+    gen = _fake_gen([
+        _FakeResp([_FakePart("x", thought=True)], MAX),
+        _FakeResp([_FakePart("y", thought=True)], MAX),
+    ])
+    with pytest.raises(RuntimeError, match="truncat"):
+        gen._call_gemini("sys", "user")
+
+    # AC4: env override trần > 65536 → kẹp về <=65536 (không để API từ chối).
+    gen = _fake_gen([_FakeResp([_FakePart("{}")], OK)])
+    gen._call_gemini("sys", "user", max_output_tokens=999999)
+    assert gen.client.models.calls[0]["max_output_tokens"] <= 65536
+
+    # AC5: thinking_budget=None → KHÔNG set thinking_config (giữ hành vi mặc định 15 site đang chạy tốt).
+    gen = _fake_gen([_FakeResp([_FakePart("{}")], OK)])
+    gen._call_gemini("sys", "user", max_output_tokens=4096)
+    assert gen.client.models.calls[0]["thinking_budget"] is None
+
+    # AC6 (WIRING): site sinh kịch bản Nghe truyền ĐÚNG hằng số trần/thinking (dạng dài nhất nhà máy).
+    rec = {}
+
+    class _RecStub:
+        client = object()
+        model_name = "stub"
+
+        def _call_gemini(self, system, user, max_output_tokens=None, thinking_budget=None):
+            rec["cap"], rec["think"] = max_output_tokens, thinking_budget
+            return json.dumps({"l1_scripts": [], "l2_transcript": "", "l2_gaps": []}, ensure_ascii=False)
+
+    seed = {"code": "LB1.2601", "l1_stems": ["a"] * 5, "l2_gaps": list(range(6, 16))}
+    boss_factory._real_lis_variant(_RecStub(), seed, 0)
+    assert rec["cap"] == boss_factory.LIS_MAX_OUTPUT_TOKENS      # trần cao (dạng dài)
+    assert rec["think"] == boss_factory.LIS_THINKING_BUDGET      # thinking nhỏ (nhường chỗ JSON)
