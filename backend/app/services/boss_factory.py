@@ -2282,8 +2282,9 @@ _CHECKER_SYSTEM = (
     "You are a meticulous VSTEP B1 (CEFR B1) English test reviewer. A colleague drafted the exam "
     "item below. Do NOT assume it is correct. Independently work out the answer YOURSELF from the "
     "item alone. Use ONLY the text/options (and passage/word box if given) — do NOT rely on outside "
-    "facts. Reason step by step FIRST; if something feels off, recheck before deciding. If more than "
-    "one option is genuinely defensible, say so in ambiguity_note instead of forcing a pick. Return "
+    "facts. Reason step by step FIRST; if something feels off, recheck before deciding. Always commit "
+    "to the SINGLE BEST option. Use ambiguity_note ONLY if two or more options are EQUALLY correct as "
+    "the best answer — NOT for an option that is merely grammatically possible but clearly weaker. Return "
     "ONLY JSON with fields IN THIS ORDER: {\"reasoning\": str, \"derived_answer\": <as instructed>, "
     "\"confidence\": <0-100 integer>, \"ambiguity_note\": str}."
 )
@@ -2328,9 +2329,12 @@ def _mcq_verdict(generator, stem, options: dict, marked, passage=None) -> dict:
                 "checker_call_error": None}
     agree = letter == str(marked).strip().upper()[:1]
     note = "khớp đáp án đã gắn" if agree else f"checker chọn {letter}, ta gắn {marked}"
-    if r.get("ambiguity"):         # checker thấy >1 phương án hợp lý → cần GV dù có khớp
-        agree = False
-        note += f" · checker báo mơ hồ: {r['ambiguity'][:80]}"
+    if r.get("ambiguity"):
+        # Ambiguity chỉ GHI CHÚ cho GV, KHÔNG tự flag khi đã KHỚP letter. ĐO THẬT (S55b, bộ B1 curated):
+        # ép agree=False ở đây làm false-positive 50% (model hay hedge "phương án khác cũng được" dù đã
+        # chọn ĐÚNG letter) → ngập GV. SUSPECT chỉ dành cho LỆCH letter / checker ngoài phương án / lỗi;
+        # GV vẫn thấy lưu ý trong note. Recall giữ 100% (đáp án sai = lệch letter → vẫn flag).
+        note += f" · checker lưu ý có phương án khác đáng cân nhắc: {r['ambiguity'][:70]}"
     return {"checked": True, "agree": agree, "checker_answer": letter, "confidence": conf,
             "note": note, "checker_call_error": None}
 
@@ -2413,6 +2417,9 @@ def _verify_r4_item(item, generator) -> dict:
             "note": ("mọi chỗ khớp" if all_agree else "có chỗ lệch/ngoài hộp — xem chi tiết"),
             "checker_call_error": None}
 
+
+# Các skill (tên bundle) có đáp án đóng → kiểm được bằng cổng. W/Nói/Nghe KHÔNG (ngoài phạm vi).
+VERIFY_SUPPORTED_SKILLS = ("reading_s1", "reading_s2_notice", "reading_s3_comprehension", "reading_s4_cloze")
 
 _VERIFY_DISPATCH = {
     "reading_s1": _verify_r1_item, "r1": _verify_r1_item,

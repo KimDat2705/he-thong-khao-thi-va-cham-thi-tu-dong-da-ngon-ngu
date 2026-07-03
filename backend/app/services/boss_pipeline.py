@@ -36,9 +36,11 @@ _EMPTY = (None, "", [], {})
 
 
 def run_bank_expansion(bank_raw=None, pool_speak=None, pool_lis=None, per_seed: int = 1,
-                       generator=None, limit=None) -> dict:
+                       generator=None, limit=None, verify: bool = False) -> dict:
     """Chạy TẤT CẢ dạng có seed từ các file ngân hàng → {skill: bundle}. generator=None → mock tất định.
-    limit = số seed lấy mỗi dạng (None = tất cả · 0 = lô rỗng). Dạng không có seed thì bỏ qua."""
+    limit = số seed lấy mỗi dạng (None = tất cả · 0 = lô rỗng). Dạng không có seed thì bỏ qua.
+    verify=True → chạy CỔNG KIỂM ĐÁP ÁN AI (SPEC-FACTORY-014) cho dạng đọc/cloze có đáp án đóng
+    (R1/R2/R3/R4) → gắn answer_verify + cờ SUSPECT vào item cho GV soát; W/Nói/Nghe bỏ qua."""
     out = {}
     if bank_raw:
         for skill, load, build, export in _RW:
@@ -46,7 +48,10 @@ def run_bank_expansion(bank_raw=None, pool_speak=None, pool_lis=None, per_seed: 
             if limit is not None:
                 seeds = seeds[:limit]
             if seeds:
-                out[skill] = export(build(seeds, per_seed=per_seed, generator=generator))
+                bundle = export(build(seeds, per_seed=per_seed, generator=generator))
+                if verify and skill in bf.VERIFY_SUPPORTED_SKILLS:
+                    bf.verify_bundle_answers(bundle["items"], skill, generator=generator)
+                out[skill] = bundle
     if pool_speak:
         seeds = bf.load_speak_seeds(pool_speak)
         seeds = seeds[:limit] if limit is not None else seeds
@@ -103,13 +108,19 @@ def roundtrip_check(bundle: dict, n_target: int = 0) -> dict:
     enough = (n_merge >= n_target) if n_target > 0 else (n_merge > 0)
     if n_target > 0 and not enough:
         issues.append(f"chỉ {n_merge} item merge-ready < {n_target} cần cho N biến thể")
+    # Trạng thái cổng kiểm đáp án AI (nếu đã bật verify) — KHÔNG chặn merge (structural), chỉ báo GV soát.
+    n_ver = sum(1 for it in items if (it.get("answer_verify") or {}).get("checked"))
+    n_susp = sum(1 for it in items if it.get("answer_verify_flag") == "SUSPECT")
     return {"skill": skill, "count": len(items), "count_qc_ok": n_qc, "count_merge_ready": n_merge,
-            "by_difficulty": by_diff, "enough_for_n": enough, "issues": issues}
+            "by_difficulty": by_diff, "enough_for_n": enough,
+            "count_answer_checked": n_ver, "count_answer_suspect": n_susp, "issues": issues}
 
 
 def roundtrip_report(bundles: dict, n_target: int = 0) -> dict:
     """roundtrip_check cho MỌI skill trong {skill: bundle} → {skill: report} + tổng merge-ready."""
     reports = {skill: roundtrip_check(b, n_target) for skill, b in bundles.items()}
     total_ready = sum(r["count_merge_ready"] for r in reports.values())
+    total_susp = sum(r.get("count_answer_suspect", 0) for r in reports.values())
     all_ok = all(r["enough_for_n"] and not r["issues"] for r in reports.values())
-    return {"skills": reports, "total_merge_ready": total_ready, "all_ok": all_ok}
+    return {"skills": reports, "total_merge_ready": total_ready,
+            "total_answer_suspect": total_susp, "all_ok": all_ok}

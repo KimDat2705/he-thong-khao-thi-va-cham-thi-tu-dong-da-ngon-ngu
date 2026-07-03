@@ -1007,6 +1007,25 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_014_answer_verify_gate"
       ],
       "notes": "S55 (sau FACTORY-013). Nghiên cứu (Workflow 3 agent: methodology + integration + synthesis): independent-solve giảm anchor/sycophancy (model sửa lỗi NGOÀI 81-91% vs lỗi CỦA MÌNH 18-50%); agreement-based (không tin confidence tự báo); flag-not-drop (GV cổng cuối); reasoning-first trong OUTPUT (thinking nhỏ 512, cap 4096 — SPEC-FACTORY-013). ⚠️ RỦI RO ghi rõ: cùng-model CHUNG điểm mù → PASS vẫn cần GV chấm mẫu; đáp-án-seed-sai + checker-cũng-sai = false-pass (chỉ GV bắt được); recall>precision (synonym R4 bị cờ oan = GV xử, không phải lỗi ship). Chưa đo precision/recall trên đề B1 THẬT (arxiv nguồn là MATH/GSM8K) → cần 1 mẫu gán nhãn tay (cấy N đáp án sai, đo tỉ lệ bắt) trước khi khẳng định định lượng. Checker dùng chung _call_gemini (independent-solve, temp mặc định, N=1 free-tier; self-consistency N>1 = mở rộng sau). CLI make_r*_variants.py có cờ --verify (mặc định TẮT). Skill dispatch nhận cả tên bundle (reading_s1..) lẫn alias (R1..)."
+    },
+    {
+      "id": "SPEC-FACTORY-015",
+      "domain": "FACTORY",
+      "title": "Tích hợp cổng kiểm đáp án AI vào orchestrator end-to-end + roundtrip (sau khi ĐO đạt)",
+      "statement": "Nối cổng kiểm đáp án (SPEC-FACTORY-014) vào orchestrator (SPEC-FACTORY-012): run_bank_expansion(..., verify=False) — khi verify=True, mỗi bundle dạng đọc/cloze có đáp án đóng (R1/R2/R3/R4, theo VERIFY_SUPPORTED_SKILLS) được chạy qua verify_bundle_answers → item gắn answer_verify + cờ SUSPECT cho GV; W/Nói/Nghe bỏ qua. roundtrip_check báo thêm count_answer_checked + count_answer_suspect (KHÔNG chặn merge — cờ SUSPECT là để GV soát đáp án, độc lập với merge-readiness cấu trúc); roundtrip_report tổng total_answer_suspect. CLI make_bank_expansion.py có cờ --verify (mặc định TẮT — giữ nguyên hành vi FACTORY-012) → xuất verify_report per dạng + in số item NGHI. LÀM SAU khi ĐO cổng trên bộ B1 curated (recall 100% / false-positive 10% sau khi vá ambiguity) — đúng logic 'đo trước, tích hợp sau'.",
+      "acceptance_criteria": [
+        "run_bank_expansion(..., verify=True) gắn answer_verify cho item các dạng trong VERIFY_SUPPORTED_SKILLS (R1/R2/R3/R4); verify=False (mặc định) → KHÔNG gắn (giữ nguyên hành vi FACTORY-012). generator=None → verify mock (đồng thuận).",
+        "roundtrip_check trả thêm count_answer_checked + count_answer_suspect; cờ SUSPECT KHÔNG làm giảm count_merge_ready (merge-readiness cấu trúc độc lập với kiểm đáp án).",
+        "roundtrip_report tổng hợp total_answer_suspect trên mọi dạng.",
+        "make_bank_expansion.py --verify chạy cổng + xuất <skill>_verify_report.md cho dạng đọc/cloze + in số item NGHI; không --verify → không đụng.",
+        "Test offline (mock + cờ SUSPECT gắn tay) phủ: có answer_verify khi verify=True, đếm suspect đúng, không chặn merge, verify=False giữ nguyên."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_015_orchestrator_verify_integration"
+      ],
+      "notes": "S55b (sau khi ĐO FACTORY-014). ĐO THẬT trên bộ B1 curated 10 item không-mơ-hồ (gemini-3.5-flash): recall 100% (bắt mọi đáp án cài sai), false-positive BAN ĐẦU 50% → chẩn: code ép agree=False khi checker báo ambiguity DÙ đã khớp letter (model hay hedge) → VÁ (ambiguity chỉ ghi chú, không flag khi khớp; siết prompt checker) → FP còn 10% (1 FP là checker miss ngẫu nhiên 1 R3 → trả [None] → SUSPECT = hành vi ĐÚNG). ⇒ cổng đáng tin để tích hợp. Đây là minh chứng 'đo-trước-tích-hợp-sau': tránh ngập GV 50% báo động giả. ⚠️ n=10 curated (chưa phải đề sếp THẬT — bank_raw.json ĐÃ xác nhận truy cập được qua Drive, chạy sampled trên đề thật là bước sau). Verify KHÔNG nối web (offline/batch)."
     }
   ]
 }

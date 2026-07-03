@@ -1331,9 +1331,10 @@ def test_SPEC_FACTORY_014_answer_verify_gate():
     it = boss_factory.verify_bundle_answers([r1("B")], "R1", generator=stub("E"))[0]
     assert it["answer_verify_flag"] == "SUSPECT" and "thuộc phương án" in it["answer_verify"]["note"]
 
-    # (4b) MƠ HỒ: checker khớp "B" NHƯNG báo ambiguity → vẫn NGHI (GV quyết).
+    # (4b) MƠ HỒ khi ĐÃ KHỚP letter: ambiguity chỉ GHI CHÚ, KHÔNG flag (đo THẬT: ép flag → false-positive 50%).
     it = boss_factory.verify_bundle_answers([r1("B")], "R1", generator=stub("B", "A cũng hợp lý"))[0]
-    assert it["answer_verify"]["agree"] is False and it["answer_verify_flag"] == "SUSPECT"
+    assert it["answer_verify"]["agree"] is True and "answer_verify_flag" not in it
+    assert "phương án khác" in it["answer_verify"]["note"]
 
     # (5) GRACEFUL: checker raise → checked=False + checker_call_error + cờ; lô 2 item vẫn đủ.
     class _Raise:
@@ -1385,3 +1386,30 @@ def test_SPEC_FACTORY_014_answer_verify_gate():
     rep = boss_factory.verify_report(verified)
     assert "SPEC-FACTORY-014" in rep and "NGHI" in rep
     assert boss_factory.verify_cell(verified[0]) == "⚠ NGHI" and boss_factory.verify_cell(verified[1]) == "PASS"
+
+
+def test_SPEC_FACTORY_015_orchestrator_verify_integration():
+    """SPEC-FACTORY-015: tích hợp cổng kiểm đáp án vào orchestrator. verify=True → item đọc/cloze có
+    answer_verify; roundtrip báo count_answer_checked/suspect (KHÔNG chặn merge). verify=False → giữ nguyên."""
+    from app.services import boss_pipeline
+
+    bank_raw = [{"ma_de": "2601", "s1": {"1": {"stem": "I ...... home.",
+                "options": {"A": "go", "B": "goes", "C": "went", "D": "gone"}, "answer": "A"}}}]
+
+    # verify=True + mock (generator=None) → item có answer_verify (mock đồng thuận), suspect=0.
+    bundles = boss_pipeline.run_bank_expansion(bank_raw, per_seed=1, generator=None, verify=True)
+    items = bundles["reading_s1"]["items"]
+    assert items and all("answer_verify" in it for it in items)
+    rt = boss_pipeline.roundtrip_check(bundles["reading_s1"], n_target=1)
+    assert rt["count_answer_checked"] == len(items) and rt["count_answer_suspect"] == 0
+    assert rt["count_merge_ready"] >= 1                       # verify KHÔNG phá merge-ready
+
+    # roundtrip đếm ĐÚNG khi có item bị cờ SUSPECT (gắn tay) → KHÔNG chặn merge (structural).
+    items[0]["answer_verify_flag"] = "SUSPECT"
+    rt2 = boss_pipeline.roundtrip_check(bundles["reading_s1"], n_target=1)
+    assert rt2["count_answer_suspect"] == 1 and rt2["count_merge_ready"] == rt["count_merge_ready"]
+    assert boss_pipeline.roundtrip_report(bundles, n_target=1)["total_answer_suspect"] >= 1
+
+    # verify=False (mặc định) → KHÔNG gắn answer_verify (giữ nguyên hành vi FACTORY-012).
+    plain = boss_pipeline.run_bank_expansion(bank_raw, per_seed=1, generator=None, verify=False)
+    assert all("answer_verify" not in it for it in plain["reading_s1"]["items"])
