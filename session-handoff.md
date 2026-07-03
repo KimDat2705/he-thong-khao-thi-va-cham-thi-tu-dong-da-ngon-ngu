@@ -1,6 +1,6 @@
 # Session Handoff — CHỐT PHIÊN 03/07/2026 (S54: NGHE HARDENING — SPEC-FACTORY-009)
 
-> **🔖 TRẠNG THÁI CHỐT (clean-state đã verify):** pytest **75/0** (+3 test 009, +1 test 010), traceability sạch, ruff `app/`+CLI sạch, architecture PASS. Spec **51 — 50 active / 1 planned** (SCALE-003); **FACTORY 10/10 active**. Base `requirements.txt` KHÔNG thêm dep (lameenc OPTIONAL ở `requirements-audio.txt`). FACTORY-009 đã commit+push (`origin/main`=`058e0a2`, CI ✅ + LIVE `/health` 200); FACTORY-010 commit sắp tạo, CHƯA push (chờ Đạt OK). Demo LIVE không đụng.
+> **🔖 TRẠNG THÁI CHỐT (clean-state đã verify):** pytest **75/0** (+3 test 009, +1 test 010), traceability sạch, ruff `app/`+CLI sạch, architecture PASS. Spec **51 — 50 active / 1 planned** (SCALE-003); **FACTORY 10/10 active**. Base `requirements.txt` KHÔNG thêm dep (lameenc OPTIONAL ở `requirements-audio.txt`). FACTORY-009 `058e0a2` + FACTORY-010 `7000904` **ĐÃ PUSH `origin/main`** (Đạt duyệt; CI ✅ + LIVE `/health` 200). ⚠️ `backend/test_r3.docx` = rác untracked CÓ TỪ TRƯỚC phiên này (không do phiên tạo) — cần xóa/gitignore. Demo LIVE không đụng.
 > **▶ ĐẦU PHIÊN SAU LÀM GÌ:** (1) **ẢNH chọn-tranh L1** (5 câu × 3 ảnh A/B/C) — slice riêng; CHỐT model ảnh trước (`gemini-2.5-flash-image` doc-'legacy' vs Nano Banana 2 Lite); (2) render THẬT 1 bài Nghe đầy đủ để **CALIBRATE** thời lượng (giọng ~210wpm → có thể ~14', tinh chỉnh content/pause đạt ~17'); (3) chốt **D4** (GV ký + soát chéo)/**D5** (sản lượng) + xin sếp 1 record `bank_raw` mẫu + xác nhận D2(a); (4) ảnh R2/R3 slice riêng; (5) push commit FACTORY-010.
 
 > **🆕 S54 (Claude, 03/07) — NGHE HARDENING (mục 1 handoff S53) → SPEC-FACTORY-009 (đọc TRƯỚC):**
@@ -14,7 +14,7 @@
 > - **Chọn việc theo kế hoạch §9** (Đạt uỷ quyền tự quyết): sau Nghe-hardening, việc hợp logic nhất = helper render-từ-JSON — tự chủ (0 quota/không chờ sếp/không cần chốt model), de-risk điểm treo LỚN nhất của bàn giao (D2), phục vụ cả 8 dạng.
 > - **✅ TRIỂN KHAI** `boss_render.py`: `render_bundle_docx` nhận bundle (export_*_bundle 8 skill) → 1 `.docx` = phần đề (đọc-được) + phần đáp án (GV soát) + ô GV ký; dispatcher theo `skill`; part ảnh = placeholder tham chiếu. + `render_bundle_file` + CLI `make_render_docx.py` + test 8 skill. python-docx (base dep, 0 dep mới), OFFLINE. Chứng minh JSON đủ dựng đề + spec mẫu để đối tác copy nhánh render-từ-JSON (KHÔNG thay pipeline sếp).
 > - **Nghiệm thu:** pytest **75/0**, ruff/arch/traceability sạch. **VERIFY round-trip THẬT** (boss_factory build mock → export → render → mở lại .docx: R1 đủ options+đáp án+ô ký; Nghe PART1+placeholder ảnh+câu6-15+đáp án). **Review đối kháng 3 lăng kính (21 agent, 18 thô→16 confirmed→vá):** 4 bug crash/robustness (w2 points scalar TypeError; note `runs[0]` IndexError + note toàn-trắng; `_opts` options-list → isinstance guard) + 4 fidelity (R4 word_box rỗng → suy từ đáp án; **R3 đánh số theo đề THẬT 16-20**; Speaking bullets; Nghe ghi rõ câu 6-15) + siết test (đáp án đầy đủ multi-answer, S3 2 câu, guard input méo).
-> - **⚠️ CHƯA COMMIT/PUSH** FACTORY-010 (chờ Đạt duyệt). Ảnh L1 vẫn hoãn.
+> - **✅ ĐÃ COMMIT+PUSH** FACTORY-010 (`7000904`, Đạt duyệt 03/07). Ảnh L1 vẫn hoãn.
 
 # Session Handoff — CHỐT PHIÊN 02/07/2026 (S53: D2 + 8 SLICE → HOÀN TẤT 8/8 DẠNG NGÂN HÀNG B1)
 
