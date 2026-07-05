@@ -1413,3 +1413,42 @@ def test_SPEC_FACTORY_015_orchestrator_verify_integration():
     # verify=False (mặc định) → KHÔNG gắn answer_verify (giữ nguyên hành vi FACTORY-012).
     plain = boss_pipeline.run_bank_expansion(bank_raw, per_seed=1, generator=None, verify=False)
     assert all("answer_verify" not in it for it in plain["reading_s1"]["items"])
+
+
+def test_factory_sample_fixtures_cli_end_to_end(tmp_path, monkeypatch):
+    """Bộ dữ liệu mẫu tests/fixtures/factory_sample chạy được end-to-end qua CLI make_bank_expansion
+    (MOCK) → xuất đủ 8 dạng bundle + .docx. GUARD fixture khỏi lệch schema + phủ make_bank_expansion.main
+    (arg-parse + file I/O + render). Ép MOCK (không gọi mạng) dù local có GEMINI_API_KEY."""
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[1] / "scripts" / "make_bank_expansion.py"
+    spec = importlib.util.spec_from_file_location("_mbe_test", script)
+    mbe = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mbe)
+
+    class _MockGen:                         # client=None → nhánh MOCK tất định, không mạng
+        client = None
+        model_name = None
+
+    monkeypatch.setattr(mbe, "B1QuestionGenerator", _MockGen)
+
+    fx = Path(__file__).resolve().parent / "fixtures" / "factory_sample"
+    out = tmp_path / "out"
+    monkeypatch.setattr(sys, "argv", [
+        "make_bank_expansion.py",
+        "--bank-raw", str(fx / "bank_raw.json"),
+        "--pool-speak", str(fx / "pool_speak.json"),
+        "--pool-lis", str(fx / "pool_lis.json"),
+        "--per-seed", "1", "--n-target", "1", "--out", str(out),
+    ])
+    mbe.main()                              # không raise = CLI chạy trọn
+
+    expected = ["reading_s1", "reading_s2_notice", "reading_s3_comprehension", "reading_s4_cloze",
+                "writing_w1_rewrite", "writing_w2_letter", "speaking", "listening"]
+    for sk in expected:
+        assert (out / f"{sk}_bundle.json").is_file(), f"thiếu bundle {sk}"
+        assert (out / f"{sk}.docx").is_file(), f"thiếu .docx {sk}"
+    r1 = json.loads((out / "reading_s1_bundle.json").read_text(encoding="utf-8"))
+    assert r1["count"] >= 1 and "s1_item" in r1["items"][0]        # fixture parse + sinh đúng shape

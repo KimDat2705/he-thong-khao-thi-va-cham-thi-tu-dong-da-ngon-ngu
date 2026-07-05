@@ -1,0 +1,81 @@
+[
+  {
+    "ma_de": "EB1.2901",
+    "s1": {
+      "1": {"stem": "She ...... to school every day.", "options": {"A": "go", "B": "goes", "C": "going", "D": "went"}, "answer": "B"},
+      "2": {"stem": "He has lived in this town ...... 2015.", "options": {"A": "for", "B": "since", "C": "from", "D": "at"}, "answer": "B"},
+      "3": {"stem": "If it ...... tomorrow, we will stay at home.", "options": {"A": "rain", "B": "rains", "C": "rained", "D": "will rain"}, "answer": "B"}
+    },
+    "s2_raw": [
+      {"kind": "p", "text": "Section 2 Questions 11-15 (5 points)"},
+      {"kind": "p", "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."},
+      {"kind": "tbl", "text": "11. No parking between 8 a.m. and 6 p.m. on weekdays. A. You can never park on this street. B. Parking is free at the weekend only. C. You may park here at night on weekdays. 12. The library closes early at 4 p.m. every Friday. A. The library is shut all day on Friday. B. On Friday the library shuts before its usual time. C. The library opens later than usual on Friday. 13. Please keep this door closed at all times. A. Open the door only in an emergency. B. This door must always be kept shut. C. Please use the other door to come in."}
+    ],
+    "s2_answers": {"11": "C", "12": "B", "13": "B"},
+    "s3_raw": [
+      {"kind": "p", "text": "Section 3 Questions 16-20 (5 points)"},
+      {"kind": "p", "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."},
+      {"kind": "p", "text": ""},
+      {"kind": "p", "text": "Minh started a small garden club at his school last year. At first only three students joined, but now more than twenty come every week. They grow vegetables together and give them to a local food bank. Minh says the best part of the club is working outdoors with his friends, not the vegetables themselves."},
+      {"kind": "p", "text": ""},
+      {"kind": "p", "text": "16. How many students come to the club now?"},
+      {"kind": "p", "text": "A. exactly three"},
+      {"kind": "p", "text": "B. fewer than ten"},
+      {"kind": "p", "text": "C. more than twenty"},
+      {"kind": "p", "text": "D. nobody comes any more"},
+      {"kind": "p", "text": ""},
+      {"kind": "p", "text": "17. What do the students do with the vegetables?"},
+      {"kind": "p", "text": "A. they sell them at school"},
+      {"kind": "p", "text": "B. they give them to a food bank"},
+      {"kind": "p", "text": "C. they eat them during the club"},
+      {"kind": "p", "text": "D. they take them home"}
+    ],
+    "s3_answers": {"16": "C", "17": "B"},
+    "s4_raw": [
+      {"kind": "p", "text": "Section 4 Questions 21-30 (10 points)"},
+      {"kind": "p", "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."},
+      {"kind": "tbl", "text": "school by bus every walk park read book weather sunny warm play friend happy often"},
+      {"kind": "p", "text": "MY DAY"},
+      {"kind": "p", "text": "I go to (21) ...... (22) ...... (23) ...... day. After class I sometimes (24) ...... to the (25) ...... to (26) ...... a (27) ...... in the sun. The (28) ...... is (29) ...... and (30) ...... today."}
+    ],
+    "s4_answers": {"21": "school", "22": "by", "23": "every", "24": "walk", "25": "park", "26": "read", "27": "book", "28": "weather", "29": "sunny", "30": "warm"},
+    "w1_raw": [
+      {"kind": "p", "text": "Section 1 (10 points)"},
+      {"kind": "p", "text": "Finish each of the following sentences so that it means the same as the sentence before it."},
+      {"kind": "p", "text": ""},
+      {"kind": "p", "text": "The film was so boring that we left early."},
+      {"kind": "p", "text": "It was such ______"},
+      {"kind": "p", "text": "You should book the tickets now."},
+      {"kind": "p", "text": "The tickets ______"},
+      {"kind": "p", "text": "I have never eaten such delicious food."},
+      {"kind": "p", "text": "This is the most ______"}
+    ],
+    "w1_answers": {
+      "1": "It was such a boring film that we left early.",
+      "2": "The tickets should be booked now.",
+      "3": "This is the most delicious food I have ever eaten."
+    },
+    "w2_raw": [
+      {"kind": "p", "text": "Section 2 (20 points)"},
+      {"kind": "p", "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."},
+      {"kind": "p", "text": ""},
+      {"kind": "p", "text": "I've just moved to a new school and I don't know anyone yet."},
+      {"kind": "p", "text": "How did you make friends when you were new? What should I do at the weekend?"},
+      {"kind": "p", "text": ""},
+      {"kind": "p", "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."},
+      {"kind": "p", "text": "--- The end ---"}
+    ]
+  },
+  {
+    "ma_de": "EB1.2902",
+    "s1": {
+      "1": {"stem": "Neither of the answers ...... correct.", "options": {"A": "are", "B": "is", "C": "were", "D": "have been"}, "answer": "B"},
+      "2": {"stem": "You ...... smoke here; it is forbidden.", "options": {"A": "should not", "B": "do not have to", "C": "must not", "D": "need not"}, "answer": "C"}
+    },
+    "s2_raw": [
+      {"kind": "p", "text": "Section 2 Questions 11-15 (5 points)"},
+      {"kind": "tbl", "text": "11. Last person to leave, please switch off the lights. A. Turn the lights on when you arrive. B. Do not leave the lights on in an empty room. C. Leave the lights on all night. 12. Buy one coffee, get the second free until 10 a.m. A. Coffee is free all day. B. You pay for both coffees. C. The offer ends at ten in the morning. 13. Wet floor: please walk carefully. A. The floor has just been cleaned and is slippery. B. Do not walk on this floor at all. C. The floor is being repaired."}
+    ],
+    "s2_answers": {"11": "B", "12": "C", "13": "A"}
+  }
+]

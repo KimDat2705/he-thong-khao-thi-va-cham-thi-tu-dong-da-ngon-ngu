@@ -1,0 +1,20 @@
+{
+  "SB1.2901": {
+    "code": "SB1.2901",
+    "src_code": "SB1.2901",
+    "set_file": "set1.docx",
+    "part2_topic": "Describe a book you enjoyed reading recently",
+    "domain_guess": "Vui chơi-giải trí",
+    "part1": ["Do you like reading?", "What kind of books do you usually read?"],
+    "part3": ["Why do some people prefer e-books to paper books?", "How can reading help young people?"]
+  },
+  "SB1.2902": {
+    "code": "SB1.2902",
+    "src_code": "SB1.2902",
+    "set_file": "set1.docx",
+    "part2_topic": "Describe a teacher who influenced you",
+    "domain_guess": "Giáo dục",
+    "part1": ["Do you enjoy studying?", "What is your favourite subject at school?"],
+    "part3": ["How has education changed in recent years?", "Why is it important to keep learning as an adult?"]
+  }
+}

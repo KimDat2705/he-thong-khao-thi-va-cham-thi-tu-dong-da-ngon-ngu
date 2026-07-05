@@ -45,6 +45,8 @@ def main():
 
     gen = B1QuestionGenerator()
     print("Chế độ sinh:", ("REAL Gemini (" + str(gen.model_name) + ")") if gen.client else "MOCK")
+    if args.verify and not gen.client:
+        print("⚠ Bỏ qua kiểm đáp án (--verify): đang chạy MOCK — chưa có GEMINI_API_KEY.")
     bundles = boss_pipeline.run_bank_expansion(
         _load(args.bank_raw), _load(args.pool_speak), _load(args.pool_lis),
         per_seed=args.per_seed, generator=gen, limit=args.limit, verify=args.verify and bool(gen.client))

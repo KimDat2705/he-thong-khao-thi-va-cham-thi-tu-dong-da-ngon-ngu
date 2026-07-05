@@ -1,0 +1,36 @@
+[
+  {
+    "code": "LB1.2901",
+    "audio_name": "LB1.2901.mp3",
+    "l1_stems": [
+      "Where are the two speakers?",
+      "What will the woman do next?",
+      "What time does the event start?",
+      "How does the man feel about the trip?",
+      "What did they decide to buy?"
+    ],
+    "l2_gaps": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    "answers": {
+      "1": "A", "2": "B", "3": "C", "4": "A", "5": "B",
+      "6": "garden", "7": "Tuesday", "8": "morning", "9": "library", "10": "free",
+      "11": "bus", "12": "museum", "13": "ten", "14": "tickets", "15": "weekend"
+    }
+  },
+  {
+    "code": "LB1.2902",
+    "audio_name": "LB1.2902.mp3",
+    "l1_stems": [
+      "What are the friends planning to do?",
+      "Which bag does the boy choose?",
+      "Where will they meet on Saturday?",
+      "What is the weather like now?",
+      "What time does the shop open?"
+    ],
+    "l2_gaps": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    "answers": {
+      "1": "B", "2": "A", "3": "A", "4": "C", "5": "A",
+      "6": "blue", "7": "Friday", "8": "park", "9": "phone", "10": "coffee",
+      "11": "train", "12": "cheap", "13": "nine", "14": "map", "15": "summer"
+    }
+  }
+]
