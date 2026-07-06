@@ -358,6 +358,49 @@ export async function getEnrichTask(jobId: string): Promise<EnrichJobStatus> {
   );
 }
 
+// SPEC-FACTORY-016: nhà máy sinh câu (bám seed đề thật + cổng kiểm đáp án AI) → ngân hàng.
+// Chạy nền, trả job_id để poll qua getFactoryTask(). Phạm vi hiện tại: Đọc R1–R4.
+export interface FactoryJobStatus {
+  job_id: string;
+  status: string; // pending | running | completed | error
+  skill?: string;
+  requested: number;
+  generated_count: number;
+  saved_questions?: number;
+  saved_groups?: number;
+  qc_ok?: number;
+  answer_suspect?: number;
+  error?: string | null;
+}
+
+export async function submitFactoryJob(payload: {
+  skill: string;
+  limit: number;
+  per_seed: number;
+  engine: string;
+  verify: boolean;
+}): Promise<{ job_id: string; status: string }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/factory/generate-async`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export async function getFactoryTask(jobId: string): Promise<FactoryJobStatus> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/factory/tasks/${encodeURIComponent(jobId)}`, {
+      method: "GET",
+      headers: { ...authHeaders() },
+    }),
+  );
+}
+
 // SPEC-BANK-007: paraphrase an existing bank question (the "seed") into N fresh
 // draft variants — reworded stem + distractors, new image for picture items,
 // CEFR-B1 difficulty label; each variant links back via source_question_id.

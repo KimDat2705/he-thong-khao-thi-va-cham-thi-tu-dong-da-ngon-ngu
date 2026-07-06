@@ -11,12 +11,23 @@ import {
   getBankStats,
   enrichBankQuestionsAsync,
   getEnrichTask,
+  submitFactoryJob,
+  getFactoryTask,
+  type FactoryJobStatus,
   paraphraseBankQuestion,
   getToken,
   clearToken,
   audioSrc,
   imageSrc,
 } from "@/lib/api";
+
+// SPEC-FACTORY-016: dạng câu nhà máy sinh được (Đọc R1–R4) + part tương ứng để lọc sau khi sinh.
+const FACTORY_SKILLS: { value: string; label: string; part: number }[] = [
+  { value: "reading_s1", label: "R1 · Đọc phần 1 — trắc nghiệm (4 phương án)", part: 1 },
+  { value: "reading_s2_notice", label: "R2 · Đọc phần 2 — thông báo (3 phương án)", part: 2 },
+  { value: "reading_s3_comprehension", label: "R3 · Đọc phần 3 — đoạn văn + câu hỏi", part: 3 },
+  { value: "reading_s4_cloze", label: "R4 · Đọc phần 4 — điền từ vào chỗ trống", part: 4 },
+];
 
 export default function BankAdminPage() {
   const router = useRouter();
@@ -56,6 +67,15 @@ export default function BankAdminPage() {
   // BANK-007 paraphrase states
   const [paraphrasing, setParaphrasing] = useState<boolean>(false);
   const [paraphraseCount, setParaphraseCount] = useState<number>(3);
+
+  // Nhà máy sinh câu (SPEC-FACTORY-016)
+  const [factorySkill, setFactorySkill] = useState<string>("reading_s1");
+  const [factoryLimit, setFactoryLimit] = useState<number>(3);
+  const [factoryPerSeed, setFactoryPerSeed] = useState<number>(1);
+  const [factoryEngine, setFactoryEngine] = useState<string>("gemini");
+  const [factoryVerify, setFactoryVerify] = useState<boolean>(true);
+  const [factoryRunning, setFactoryRunning] = useState<boolean>(false);
+  const [factoryProgress, setFactoryProgress] = useState<string>("");
 
   // Guard authentication
   useEffect(() => {
@@ -249,6 +269,65 @@ export default function BankAdminPage() {
     }
   }
 
+  // SPEC-FACTORY-016: chạy nhà máy sinh câu (bám đề mẫu + cổng kiểm đáp án) → lưu ngân hàng Nháp.
+  async function handleFactory() {
+    setFactoryRunning(true);
+    setError(null);
+    setSuccess(null);
+    setFactoryProgress("Đang gửi yêu cầu tới nhà máy...");
+    try {
+      const { job_id } = await submitFactoryJob({
+        skill: factorySkill,
+        limit: factoryLimit,
+        per_seed: factoryPerSeed,
+        engine: factoryEngine,
+        verify: factoryVerify,
+      });
+
+      const maxAttempts = 120; // 120 * 2.5s = 5 phút
+      let done: FactoryJobStatus | null = null;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        const task = await getFactoryTask(job_id);
+        if (task.status === "completed") {
+          done = task;
+          break;
+        }
+        if (task.status === "error") {
+          throw new Error(task.error || "Nhà máy sinh câu thất bại.");
+        }
+        setFactoryProgress(`Nhà máy đang chạy nền... (${task.status})`);
+        if (attempt === maxAttempts - 1) {
+          throw new Error("Quá thời gian chờ. Job vẫn chạy nền — kiểm tra lại danh sách Nháp sau ít phút.");
+        }
+      }
+
+      const saved = (done?.saved_questions ?? 0) + (done?.saved_groups ?? 0);
+      const suspect = done?.answer_suspect ?? 0;
+      setSuccess(
+        `Nhà máy đã sinh & lưu ${saved} câu/nhóm câu vào ngân hàng (dạng Nháp).` +
+          (factoryVerify ? ` Cổng kiểm đáp án gắn cờ ⚠ NGHI cho ${suspect} câu trong lô vừa sinh — giáo viên soát kỹ.` : ""),
+      );
+      setExamType("VSTEP_B1");
+      setStatus("draft");
+      const sk = FACTORY_SKILLS.find((s) => s.value === factorySkill);
+      setPart(sk ? sk.part : "");
+      setPage(1);
+      await fetchData();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
+    } finally {
+      setFactoryRunning(false);
+      setFactoryProgress("");
+    }
+  }
+
   function onLogout() {
     clearToken();
     router.push("/login");
@@ -431,6 +510,103 @@ export default function BankAdminPage() {
         {enriching && (
           <p className="text-[11px] text-blue-600 mt-2 italic animate-pulse">
             {enrichProgress || "* AI đang xử lý nền..."} Sinh lô lớn (tới 50 câu, kèm ảnh Imagen & phát âm TTS cho phần nghe) có thể mất vài phút; câu nháp sẽ xuất hiện khi hoàn tất.
+          </p>
+        )}
+      </div>
+
+      {/* Nhà máy sinh câu (SPEC-FACTORY-016) — bám đề thật + cổng kiểm đáp án AI */}
+      <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
+        <h3 className="text-sm font-semibold text-emerald-900 mb-3 flex items-center gap-1.5">
+          <span>🏭</span> Nhà máy sinh câu — bám đề thật + cổng kiểm đáp án AI
+        </h3>
+        <p className="text-xs text-emerald-700 mb-4">
+          Sinh câu Đọc (R1–R4) từ <b>đề mẫu</b> làm gốc (không bịa nội dung), rồi một AI khác <b>giải độc lập</b> để
+          soát đáp án — câu nghi ngờ được gắn cờ <b>⚠ NGHI</b> trong phần giải thích. Câu sinh vào ngân hàng dạng
+          {" "}<b>Nháp</b> để giáo viên duyệt.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-gray-500 uppercase">Dạng câu</label>
+            <select
+              value={factorySkill}
+              onChange={(e) => setFactorySkill(e.target.value)}
+              disabled={factoryRunning}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
+            >
+              {FACTORY_SKILLS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Số đề mẫu</label>
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={factoryLimit}
+              onChange={(e) => setFactoryLimit(Math.min(30, Math.max(1, Number(e.target.value))))}
+              disabled={factoryRunning}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Biến thể/đề</label>
+            <input
+              type="number"
+              min={1}
+              max={3}
+              value={factoryPerSeed}
+              onChange={(e) => setFactoryPerSeed(Math.min(3, Math.max(1, Number(e.target.value))))}
+              disabled={factoryRunning}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Engine</label>
+            <select
+              value={factoryEngine}
+              onChange={(e) => setFactoryEngine(e.target.value)}
+              disabled={factoryRunning}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
+            >
+              <option value="gemini">Gemini (thật)</option>
+              <option value="mock">Mock (thử luồng)</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+          <label className="flex items-center gap-2 text-xs font-medium text-emerald-800">
+            <input
+              type="checkbox"
+              checked={factoryVerify}
+              onChange={(e) => setFactoryVerify(e.target.checked)}
+              disabled={factoryRunning}
+              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            Bật cổng kiểm đáp án AI (soát đáp án trước khi tới giáo viên)
+          </label>
+          <button
+            onClick={handleFactory}
+            disabled={factoryRunning}
+            className="rounded-md bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:bg-emerald-300 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {factoryRunning ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span>Đang chạy nhà máy...</span>
+              </>
+            ) : (
+              <span>🏭 Chạy nhà máy sinh câu</span>
+            )}
+          </button>
+        </div>
+        {factoryRunning && (
+          <p className="text-[11px] text-emerald-600 mt-2 italic animate-pulse">
+            {factoryProgress || "Nhà máy đang chạy nền..."} Sinh + kiểm đáp án có thể mất vài phút; câu Nháp sẽ hiện bên dưới khi xong.
           </p>
         )}
       </div>

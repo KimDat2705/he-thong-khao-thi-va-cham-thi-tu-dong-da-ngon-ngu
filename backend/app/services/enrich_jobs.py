@@ -177,3 +177,70 @@ def dispatch_enrich_job(
         args=(job_id, part, count, topic, difficulty),
         daemon=True,
     ).start()
+
+
+# ----------------------------------------------------------------------------
+# NHÀ MÁY SINH CÂU (boss_factory) → ngân hàng. Tái dùng nguyên job store ở trên.
+# Khác /enrich thường: sinh biến thể BÁM SEED thật + qua CỔNG KIỂM ĐÁP ÁN AI (R1–R4) trước khi lưu.
+# Không có Celery task riêng → luôn chạy trong daemon thread (Render free không có worker).
+# ----------------------------------------------------------------------------
+
+def run_factory_job(
+    job_id: str,
+    skill: str,
+    limit: int = 3,
+    per_seed: int = 1,
+    engine: str = "gemini",
+    verify: bool = True,
+) -> None:
+    """Chạy một lượt nhà máy → lưu ngân hàng, ghi kết quả vào job store.
+
+    engine='mock' → generator=None (không gọi Gemini, chỉ test luồng); ngược lại B1QuestionGenerator.
+    Mở DB session riêng (chạy ngoài request). Test trỏ SessionLocal vào engine test để soi câu đã lưu.
+    """
+    from app.services import factory_service
+    from app.services.b1_question_gen import B1QuestionGenerator
+
+    _set(job_id, status="running")
+    db = SessionLocal()
+    try:
+        generator = None if engine == "mock" else B1QuestionGenerator()
+        result = factory_service.run_factory_to_bank(
+            db, skill, limit=limit, per_seed=per_seed, verify=verify, generator=generator
+        )
+        _set(
+            job_id,
+            status="completed",
+            generated_count=result["saved_questions"] + result["saved_groups"],
+            skill=skill,
+            saved_questions=result["saved_questions"],
+            saved_groups=result["saved_groups"],
+            qc_ok=result["qc_ok"],
+            answer_suspect=result["answer_suspect"],
+        )
+        logger.info(f"Factory job {job_id} completed: {result}")
+    except Exception as exc:  # surface any failure to the client
+        db.rollback()
+        _set(job_id, status="error", error=str(exc))
+        logger.error(f"Factory job {job_id} failed: {exc}")
+    finally:
+        db.close()
+
+
+def dispatch_factory_job(
+    job_id: str,
+    skill: str,
+    limit: int,
+    per_seed: int,
+    engine: str,
+    verify: bool,
+) -> None:
+    """Khởi chạy factory job trên daemon thread (hoặc inline khi RUN_JOBS_INLINE cho test)."""
+    if RUN_JOBS_INLINE:
+        run_factory_job(job_id, skill, limit, per_seed, engine, verify)
+        return
+    threading.Thread(
+        target=run_factory_job,
+        args=(job_id, skill, limit, per_seed, engine, verify),
+        daemon=True,
+    ).start()

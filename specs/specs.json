@@ -1026,6 +1026,26 @@
         "tests/test_specs_factory.py::test_SPEC_FACTORY_015_orchestrator_verify_integration"
       ],
       "notes": "S55b (sau khi ĐO FACTORY-014). ĐO THẬT trên bộ B1 curated 10 item không-mơ-hồ (gemini-3.5-flash): recall 100% (bắt mọi đáp án cài sai), false-positive BAN ĐẦU 50% → chẩn: code ép agree=False khi checker báo ambiguity DÙ đã khớp letter (model hay hedge) → VÁ (ambiguity chỉ ghi chú, không flag khi khớp; siết prompt checker) → FP còn 10% (1 FP là checker miss ngẫu nhiên 1 R3 → trả [None] → SUSPECT = hành vi ĐÚNG). ⇒ cổng đáng tin để tích hợp. Đây là minh chứng 'đo-trước-tích-hợp-sau': tránh ngập GV 50% báo động giả. ⚠️ n=10 curated (chưa phải đề sếp THẬT — bank_raw.json ĐÃ xác nhận truy cập được qua Drive, chạy sampled trên đề thật là bước sau). Verify KHÔNG nối web (offline/batch). ✅ ĐÃ ĐO TRÊN ĐỀ SẾP THẬT (S55c, 14 item R1/R2/R3 trích từ bank_raw.json qua Drive connector, gemini-3.5-flash): recall 100% (14/14 bắt đáp án cài sai); R1/R2 (10 item) 0 false-positive; R3 (4 item) 2 flag khi để đáp án thật — cả 2 GIẢI THÍCH ĐƯỢC (1 do passage bị cắt ngắn cho input đo → checker báo 'không trả lời được từ passage'=đúng, production dùng passage đầy đủ; 1 item khó/tranh cãi 'why written'→flag GV=đúng mục đích). KHÔNG phát hiện lỗi đáp án bank rõ ràng. Harness tái dùng scripts/eval_answer_gate.py (bộ curated + --items cho đề ngoài; KHÔNG chứa dữ liệu đối tác)."
+    },
+    {
+      "id": "SPEC-FACTORY-016",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh câu (boss_factory) chạy trên WEB → lưu ngân hàng câu hỏi (Đọc R1-R4)",
+      "statement": "Đưa nhà máy sinh câu lên web: factory_service.run_factory_to_bank(db, skill, generator=None|B1QuestionGenerator) nạp seed mẫu tổng hợp → sinh biến thể bám seed (boss_factory.build_r*_variants) → cổng kiểm đáp án AI (verify_bundle_answers cho R1-R4) → factory_to_bank.bundle_items_to_rows chuyển sang shape parser.save_parsed_items → lưu ngân hàng DB dạng nháp (status=draft, exam_type=VSTEP_B1) cho GV soát/duyệt tại /admin/bank. Cờ cổng kiểm (NGHI/PASS) nhét vào explanation (không thêm cột DB). API async admin/teacher: POST /api/v1/factory/generate-async trả job_id (chạy nền, tái dùng enrich_jobs), GET /api/v1/factory/tasks/{job_id} poll. Phạm vi ĐỌC R1-R4 (Viết/Nói/Nghe slice sau). KHÔNG xuất .docx/excel, KHÔNG sinh đề (việc của đối tác).",
+      "acceptance_criteria": [
+        "run_factory_to_bank cho reading_s1/reading_s2_notice/reading_s3_comprehension/reading_s4_cloze (generator=None → mock) lưu câu vào ngân hàng: R1/R2 câu đơn part 1/2 type choice, R3/R4 nhóm QuestionGroup part 3/4 (R3 con choice, R4 con fill), tất cả status=draft + exam_type=VSTEP_B1; trả saved_questions/saved_groups/answer_suspect.",
+        "verify=True gắn cổng kiểm đáp án: item khớp → explanation chứa 'PASS'; item lệch/checker ngoài phương án → answer_verify_flag=SUSPECT + explanation chứa 'NGHI'. bundle_items_to_rows chỉ đẩy item qua QC (qc_ok) vào ngân hàng; item NGHI vẫn VÀO (không tự xoá — GV là cổng cuối).",
+        "API POST /api/v1/factory/generate-async (admin/teacher) trả job_id + chặn skill lạ (400); GET /api/v1/factory/tasks/{job_id} poll (job lạ 404); phân quyền candidate 403 / ẩn danh 401 trên cả POST lẫn GET.",
+        "Job chạy nền (dispatch_factory_job; RUN_JOBS_INLINE cho test) hoàn tất → câu draft thật sự ghi vào ngân hàng (không tautology).",
+        "Test offline tất định: mock cho luồng sinh+lưu, _StubChecker (derived_answer ngoài options) cho cổng kiểm đáp án → SUSPECT."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_016_factory_to_bank_web",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_016_api_gating_and_inline_job"
+      ],
+      "notes": "S56 (06/07). Đạt chốt đưa nhà máy sinh câu lên web LIVE để đối tác test (không để offline). Phạm vi cắt theo Đạt: CHỈ sinh câu vào ngân hàng, BỎ xuất .docx/excel; sinh đề tự động = việc sếp. Seed = bộ mẫu tổng hợp backend/tests/fixtures/factory_sample (an toàn công khai); đổi đề thật đối tác = thay file. Nhà máy 8 dạng nhưng web slice đầu chỉ R1-R4 (Đọc, map sạch + có cổng kiểm đáp án); W/Nói/Nghe slice sau (Nghe kéo audio nặng → hỏi Đạt trước)."
     }
   ]
 }
