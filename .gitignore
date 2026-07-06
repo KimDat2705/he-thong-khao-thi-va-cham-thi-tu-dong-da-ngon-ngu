@@ -10,3 +10,8 @@ Thumbs.db
 
 # Generated AI Images
 /backend/static/img/l1_*
+
+# San pham nha may sinh cau (artifact, sinh lai duoc — khong commit)
+/san_pham_de_mau/
+/backend/out_test_*/
+/backend/bank_expansion/
