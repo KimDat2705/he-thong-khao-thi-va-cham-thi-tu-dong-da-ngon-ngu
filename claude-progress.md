@@ -1058,3 +1058,12 @@
 - **Verification**: pytest 90/0 (87→90), ruff sạch, tsc FE 0 lỗi. VERIFY TRÌNH DUYỆT LOCAL THẬT ×2 (uvicorn + SQLite dev + mock): khối #213 5 câu/5 seed + "PASS — mock (offline)" từng câu + modal pre-wrap; W2 note GV; console 0 lỗi.
 - **Status**: ⚠️ CHƯA COMMIT (chờ Đạt duyệt). origin/main vẫn bf26ab8.
 - **Next steps**: Đạt duyệt → commit/push/CI/LIVE; Đạt tạo account Supabase (D1 KHẨN) → Slice 4; Slice 2 Nói → Slice 3 Nghe text-only (3 guard) ‖ Slice 5 TTS A/B; D2/D3/D5 chốt trước Slice 6.
+
+### Session 57b -- 2026-07-07 (Slice 4: Supabase persist — SPEC-FACTORY-020)
+- **What was done**:
+  - Đạt duyệt push Slice 1 (a92764d, CI success) + tạo Supabase (project tdu-b1 Singapore, bucket media) + đưa 3 giá trị (chuỗi Session-Pooler %40 chuẩn).
+  - CODE: config validator postgres://→postgresql:// + DB_POOL_SIZE/DB_MAX_OVERFLOW env (5+10=cap Supavisor free) + SUPABASE_* settings; media_store.py (upload Storage upsert → public URL, MediaStoreError khi thiếu config, 0 dep mới); render.yaml DATABASE_URL sync:false + env Supabase; keepalive.yml cron 3×/tuần (wake Render + chống Supabase pause); cloud_bootstrap 4 vá (guard RENDER-thiếu-env exit 1, gate đếm-đủ-50-câu, TÁCH bù-asset-disk khỏi seed-DB, chẩn đoán OperationalError).
+  - REVIEW ĐỐI KHÁNG (14 agent, 3 lăng kính×verify): 10 CONFIRMED/1 refuted → vá 8; ghi nhận 2 việc slice riêng (refactor connection luồng chấm inline ~7-submit-chụm; quy trình alembic cho DB bền).
+- **Verification**: pytest 91/0, ruff app/ sạch. VERIFY THẬT: kết nối pooler (PG 17.6); bootstrap thật → Supabase có 9 bảng + đề 2601 (50 câu) + admin; app trỏ Supabase 200 (health/exams/login); Storage upload + public GET 200; mô phỏng build-mới disk-rỗng → restore audio không re-seed; guard exit 1.
+- **Status**: ⚠️ CHƯA COMMIT — chờ Đạt đặt 3 env ở Render dashboard rồi push (guard sẽ chặn build nếu quên env).
+- **Next steps**: Đạt đặt env → push → verify LIVE (log 'DB backend: postgresql', câu draft sống qua spin-down 15', audio đề 2601); khuyến nghị rotate secrets sau khi ổn định; Slice 2 Nói → Slice 3 Nghe text-only ‖ Slice 5 TTS A/B.
