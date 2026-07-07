@@ -1087,3 +1087,13 @@
 - **Verification**: pytest 94/0, ruff app/+harness sạch. Audio sinh thật ngoài CI (nghe-tai).
 - **Status**: chờ Đạt+GV nghe tts_samples/ chấm 10 tiêu chí → chọn giọng → tích hợp (spec sau: LIS_STYLE_PREAMBLE + cache-key + ép pace).
 - **Next steps**: sau khi chọn giọng → tích hợp; rồi Slice 3 Nghe text-only (3 guard). D2/D3/D5 trước Slice 6.
+
+### Session 57e -- 2026-07-07 (Tích hợp giọng C vào Nghe — SPEC-FACTORY-022)
+- **What was done**:
+  - Đạt nghe A/B chọn mẫu C (v4 = Sulafat/Charon + style-preamble British + inline tags). Tích hợp vào boss_factory Nghe production: LIS_VOICES→Sulafat/Charon, LIS_STYLE_PREAMBLE (generic, ép đọc chậm), _lis_pace_tags chèn [short pause], cache-key BỔ SUNG style_preamble (chống dùng lại audio cũ sai giọng), thread style_preamble qua _lis_tts/_tts_with_retry/_lis_tts_cached/build_listening_audio.
+  - VERIFY THẬT: giọng đổi đúng Sulafat/Charon; đo ~167wpm (mốc C cũ ~215) → style-preamble ÉP CHẬM VỀ CHUẨN B1 (150-167) bằng $0, KHÔNG cần time-stretch/dep (giải lo Đạt 'quá nhiều từ/nhanh'). Mẫu tts_samples/giong_TICH_HOP_C.mp3.
+  - Review đối kháng 11 agent: 4 confirmed/4 refuted → vá hết. Đắt nhất [MED]: giọng MONO hard-code 'Puck' (giọng bị loại) → ~83% bài (Part Two + lời dẫn) đọc giọng cũ → thêm LIS_MONO_VOICE='Sulafat'. +[LOW] đồng bộ chuỗi thời lượng/wpm GV + logger.warning; sửa test 021 stale.
+  - +test 022 (cache-key theo preamble) + spec 022. pytest 95/0.
+- **Verification**: pytest 95/0, ruff sạch, verify audio thật (giọng + ~167wpm).
+- **Status**: chờ commit. Nghe production OFFLINE (chưa web) → không đụng LIVE.
+- **Next steps**: ⚠️ HỆ QUẢ giọng ~167wpm chậm hơn → trọn bài dài ~19-21' (vượt 16-18') → Slice 6 re-calibrate content/pause. Slice tiếp: 3-Nghe-text-only ‖ (Slice 6 Nghe full media, D2/D3/D5).

@@ -1,4 +1,13 @@
-# Session Handoff — PHIÊN 07/07/2026 (S57d: SLICE 5 — HARNESS ĐO GIỌNG TTS A/B — SPEC-FACTORY-021)
+# Session Handoff — PHIÊN 07/07/2026 (S57e: TÍCH HỢP GIỌNG C VÀO NGHE — SPEC-FACTORY-022)
+
+> **🔖 TRẠNG THÁI (S57e):** pytest **95/0** (+1 test 022), ruff sạch, spec **62 — 61 active/1 planned**. Chờ commit+push. Review đối kháng 11 agent: 4 confirmed → VÁ HẾT.
+> - **ĐẠT CHỌN GIỌNG C** (nghe A/B tts_samples): C = v4 = **Sulafat (nữ warm) + Charon (nam informative)** + style-preamble British + inline pace tags. Bỏ baseline "đều đều".
+> - **✅ TÍCH HỢP vào boss_factory Nghe production:** LIS_VOICES→Sulafat/Charon; +LIS_STYLE_PREAMBLE (generic, không hard-code tên speaker, ÉP ĐỌC CHẬM); +LIS_MONO_VOICE='Sulafat' (giọng đơn: lời dẫn + monologue L2); _lis_pace_tags chèn [short pause]; **cache-key _lis_tts_cached BỔ SUNG style_preamble** (chống dùng lại audio cũ sai giọng); thread style_preamble qua _lis_tts/_tts_with_retry/build_listening_audio (param optional, caller khác không đổi).
+> - **VERIFY THẬT (local):** giọng đổi đúng Sulafat/Charon; **đo ~167wpm** (mốc C cũ ~215) → style-preamble ÉP CHẬM VỀ CHUẨN B1 (150-167) bằng **$0, KHÔNG cần time-stretch/dependency** — giải trực tiếp lo Đạt "quá nhiều từ/nhanh khó bắt keyword". Mẫu `tts_samples/giong_TICH_HOP_C.mp3` để Đạt đối chiếu.
+> - **REVIEW 4 CONFIRMED → VÁ:** [MED] giọng MONO hard-code 'Puck' (giọng BỊ LOẠI) → ~83% bài (TRỌN Part Two + lời dẫn) đọc giọng cũ → LIS_MONO_VOICE='Sulafat' (VÁ QUAN TRỌNG); [LOW×3] đồng bộ chuỗi thời lượng/wpm GV + logger.warning + sửa test 021 stale.
+> - **▶ CÒN LẠI:** commit+push (Nghe production OFFLINE → không đụng LIVE). **⚠️ HỆ QUẢ giọng ~167wpm chậm hơn 210 cũ → trọn bài Nghe DÀI hơn ~17' (~19-21', vượt 16-18') → Slice 6 (render full bài) PHẢI ĐO lại + giảm content word-count HOẶC hạ pause.** Slice tiếp: **Slice 3 Nghe text-only** (3 guard) ‖ Slice 6 Nghe full media (D2 billing ảnh/D3 chi TTS/D5 audio-generate trước Slice 6).
+
+# Session Handoff — PHIÊN 07/07/2026 (S57d: SLICE 5 — HARNESS ĐO GIỌNG TTS A/B — SPEC-FACTORY-021, ĐÃ PUSH `c466d65`)
 
 > **🔖 TRẠNG THÁI (S57d):** pytest **94/0** (+1 test 021), ruff sạch, spec **61 — 60 active/1 planned**. Chờ commit+push.
 > - **CHỐT THỨ TỰ (Claude quyết theo yêu cầu Đạt "nghiên cứu bước nào trước tối ưu"):** làm **TTS A/B TRƯỚC** Slice 3 Nghe-text. Lý do: (1) giọng "đều đều" là mối lo #1 của Đạt; (2) kết quả nghe-thử là **quyết định CHẶN** cho cách render audio Slice 6 — nếu giọng máy không đạt phải đổi hướng (giọng người thật/TTS phí), biết trước tránh làm lại; (3) Slice 3 text-only tạo "hàng tồn" chưa dùng được tới khi có audio.
