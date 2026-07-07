@@ -1067,3 +1067,13 @@
 - **Verification**: pytest 91/0, ruff app/ sạch. VERIFY THẬT: kết nối pooler (PG 17.6); bootstrap thật → Supabase có 9 bảng + đề 2601 (50 câu) + admin; app trỏ Supabase 200 (health/exams/login); Storage upload + public GET 200; mô phỏng build-mới disk-rỗng → restore audio không re-seed; guard exit 1.
 - **Status**: ⚠️ CHƯA COMMIT — chờ Đạt đặt 3 env ở Render dashboard rồi push (guard sẽ chặn build nếu quên env).
 - **Next steps**: Đạt đặt env → push → verify LIVE (log 'DB backend: postgresql', câu draft sống qua spin-down 15', audio đề 2601); khuyến nghị rotate secrets sau khi ổn định; Slice 2 Nói → Slice 3 Nghe text-only ‖ Slice 5 TTS A/B.
+
+### Session 57c -- 2026-07-07 (Slice 2: Nói lên web — SPEC-FACTORY-018)
+- **What was done**:
+  - factory_service +skill 'speaking' (load_speak_seeds/build_speak_variants) + _load_seed_bank(skill) chọn file seed theo skill (Nói=pool_speak.json DICT, Đọc/Viết=bank_raw.json) qua _SKILL_SEED_FILE; SKILL_LABELS/SKILL_PARTS['speaking']=[11].
+  - factory_to_bank._speak_rows: mỗi thẻ CHỈ import part2_topic → 1 Question part 11 type='speaking' (content=đề nói+hướng dẫn, reference_answer=None, options={}, topic=domain, note MANUAL_REVIEW GV soát tay); part1/part3 KHÔNG import. +_DISPATCH['speaking'].
+  - FE không cần sửa (dropdown tự hiện qua /skills từ Slice 1). specs +SPEC-FACTORY-018; tests +2 (speaking_to_bank, speaking_skill_metadata); sửa test 017 skills dùng subset.
+  - D4 Đạt duyệt: part2_topic → part 11 (Topic Development, gần cue-card PET nhất). grade_speaking không phân biệt part → content+reference_answer=None chấm được.
+- **Verification**: pytest 93/0, ruff app/ sạch, architecture PASS. Smoke API server local: login admin → /skills trả speaking part 11 gate manual → sinh 2 câu Nói mock vào bank (0 nghi). Review đối kháng 3 lăng kính (5 agent): 0 finding confirmed (2 low bị bác).
+- **Status**: chờ commit + push → verify LIVE speaking Gemini thật.
+- **Next steps**: Slice 3 Nghe text-only (3 guard) ‖ Slice 5 TTS A/B; D2/D3/D5 trước Slice 6.
