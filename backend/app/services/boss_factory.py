@@ -2418,14 +2418,104 @@ def _verify_r4_item(item, generator) -> dict:
             "checker_call_error": None}
 
 
-# Các skill (tên bundle) có đáp án đóng → kiểm được bằng cổng. W/Nói/Nghe KHÔNG (ngoài phạm vi).
-VERIFY_SUPPORTED_SKILLS = ("reading_s1", "reading_s2_notice", "reading_s3_comprehension", "reading_s4_cloze")
+_W1_CHECKER_SYSTEM = (
+    "You are a meticulous VSTEP B1 (CEFR B1) English test reviewer. A colleague drafted a Writing "
+    "Part 1 item (sentence transformation). Do NOT assume their model answer exists or is correct — "
+    "you are NOT shown it. Independently rewrite the original sentence YOURSELF so it keeps the same "
+    "meaning and begins EXACTLY with the given start (fill the blank). Reason step by step FIRST. "
+    "Return ONLY JSON with fields IN THIS ORDER: {\"reasoning\": str, "
+    "\"derived_answer\": \"<the FULL rewritten sentence>\", \"confidence\": <0-100 integer>}."
+)
+
+# Vòng 2 (chỉ khi 2 bản viết-lại KHÁC mặt chữ): giám khảo so ĐỐI XỨNG — không nói bản nào là của ta
+# (khác anti-anchor vòng solve: đây là kiểm ngữ pháp/nghĩa, thấy cả 2 bản nhưng không thiên vị bản nào).
+_W1_JUDGE_SYSTEM = (
+    "You are a strict VSTEP B1 (CEFR B1) English examiner. Two independent model answers rewrite the "
+    "same original sentence; each must begin with the given start, keep the meaning of the original, "
+    "and be grammatically correct English. Judge EACH answer on its own merits. Return ONLY JSON with "
+    "fields IN THIS ORDER: {\"reasoning\": str, \"answer_a_correct\": bool, \"answer_b_correct\": bool, "
+    "\"note\": str}."
+)
+
+
+def _verify_w1_item(item, generator) -> dict:
+    """W1 (viết lại câu — CÓ câu mẫu đóng): checker viết lại ĐỘC LẬP (không thấy câu mẫu ta gắn).
+
+    Trùng mặt chữ (chuẩn hoá) → PASS 1 call. Khác mặt chữ ≠ sai (nhiều cách viết lại đúng) → vòng 2:
+    giám khảo so ĐỐI XỨNG 2 bản (A=checker, B=câu mẫu ta) — câu mẫu bị chê sai ngữ pháp/lệch nghĩa →
+    SUSPECT cho GV (KHÔNG tự xoá). Lý do có cổng: qc_w1 chỉ prefix-match token, câu mẫu sai ngữ pháp
+    vẫn PASS QC và thành reference_answer chấm thí sinh (lan vào điểm thi)."""
+    w = item.get("w1_item") or {}
+    original = str(w.get("original") or "").strip()
+    prompt = str(w.get("prompt") or "").strip()
+    answer = str(w.get("answer") or "").strip()
+    if not (original and prompt and answer):
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                "note": "item W1 thiếu original/prompt/answer — không kiểm được", "checker_call_error": None}
+    user = (f"Original sentence:\n{original}\n\nGiven start (complete it, keep the meaning):\n{prompt}\n\n"
+            "derived_answer must be the FULL rewritten sentence, beginning with the given start.")
+    try:
+        raw = generator._call_gemini(_W1_CHECKER_SYSTEM, user,
+                                     max_output_tokens=CHECKER_MAX_OUTPUT_TOKENS,
+                                     thinking_budget=CHECKER_THINKING_BUDGET)
+        data = _loads_lenient(raw)
+    except Exception as e:
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": None,
+                "note": "checker lỗi/không parse được", "checker_call_error": str(e)}
+    derived = str(data.get("derived_answer") or "").strip() if isinstance(data, dict) else ""
+    conf = data.get("confidence") if isinstance(data, dict) else None
+    if not derived:
+        return {"checked": False, "agree": False, "checker_answer": None, "confidence": conf,
+                "note": "checker không trả câu viết lại", "checker_call_error": None}
+
+    def _sent_norm(s):
+        # lower + gộp space + BỎ dấu KẾT câu ('every day.' == 'every day') nhưng GIỮ dấu NỘI câu
+        # (phẩy/nháy đổi nghĩa — vd mệnh đề quan hệ không xác định): lệch dấu nội câu → vòng 2 giám khảo
+        # quyết, KHÔNG short-circuit PASS (review đối kháng S57: lớp false-PASS dấu-phẩy-đổi-nghĩa).
+        return _norm_topic(s).rstrip(" .!?")
+
+    if _sent_norm(derived) == _sent_norm(answer):
+        return {"checked": True, "agree": True, "checker_answer": derived, "confidence": conf,
+                "note": "checker viết lại độc lập TRÙNG câu mẫu", "checker_call_error": None}
+    user2 = (f"Original sentence:\n{original}\n\nGiven start:\n{prompt}\n\n"
+             f"Answer A:\n{derived}\n\nAnswer B:\n{answer}\n\n"
+             "For EACH answer judge: begins with the given start? keeps the meaning? grammatically correct?")
+    try:
+        raw2 = generator._call_gemini(_W1_JUDGE_SYSTEM, user2,
+                                      max_output_tokens=CHECKER_MAX_OUTPUT_TOKENS,
+                                      thinking_budget=CHECKER_THINKING_BUDGET)
+        d2 = _loads_lenient(raw2)
+    except Exception as e:
+        return {"checked": False, "agree": False, "checker_answer": derived, "confidence": conf,
+                "note": f"giám khảo vòng 2 lỗi (bản checker: {derived[:60]})", "checker_call_error": str(e)}
+    # Nhận cả "true" dạng chuỗi (judge JSON kiểu lỏng) — mặc định mọi giá trị khác vẫn là SUSPECT
+    # (review đối kháng S57: `is True` bắt SUSPECT oan khi judge trả "true"/1 → false-positive).
+    raw_b = d2.get("answer_b_correct") if isinstance(d2, dict) else None
+    ok_ours = raw_b is True or (isinstance(raw_b, str) and raw_b.strip().lower() == "true")
+    jnote = str(d2.get("note") or "").strip()[:90] if isinstance(d2, dict) else ""
+    if ok_ours:
+        note = f"checker viết bản khác nhưng giám khảo xác nhận câu mẫu ĐÚNG (bản checker: {derived[:60]})"
+        return {"checked": True, "agree": True, "checker_answer": derived, "confidence": conf,
+                "note": note + (f" · {jnote}" if jnote else ""), "checker_call_error": None}
+    # LÝ DO giám khảo bác đặt TRƯỚC bản checker — explanation phía web cắt bớt đuôi, thông tin
+    # then chốt cho GV phải đứng đầu chuỗi (review đối kháng S57).
+    note = "giám khảo KHÔNG xác nhận câu mẫu" + (f": {jnote}" if jnote else "") \
+        + f" (bản checker: {derived[:60]})"
+    return {"checked": True, "agree": False, "checker_answer": derived, "confidence": conf,
+            "note": note, "checker_call_error": None}
+
+
+# Các skill (tên bundle) có đáp án đóng → kiểm được bằng cổng: R1-R4 (MCQ/cloze) + W1 (câu mẫu,
+# SPEC-FACTORY-017). W2/Nói/Nghe KHÔNG có đáp án đóng duy nhất (tự luận/audio) — GV soát tay.
+VERIFY_SUPPORTED_SKILLS = ("reading_s1", "reading_s2_notice", "reading_s3_comprehension",
+                           "reading_s4_cloze", "writing_w1_rewrite")
 
 _VERIFY_DISPATCH = {
     "reading_s1": _verify_r1_item, "r1": _verify_r1_item,
     "reading_s2_notice": _verify_r2_item, "r2": _verify_r2_item,
     "reading_s3_comprehension": _verify_r3_item, "r3": _verify_r3_item,
     "reading_s4_cloze": _verify_r4_item, "r4": _verify_r4_item,
+    "writing_w1_rewrite": _verify_w1_item, "w1": _verify_w1_item,
 }
 
 

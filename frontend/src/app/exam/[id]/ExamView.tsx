@@ -16,7 +16,7 @@ function Question({ q, showAnswers }: { q: QuestionOut; showAnswers: boolean }) 
   const hasOptions = q.options && Object.keys(q.options).length > 0;
   return (
     <div className="rounded-md border border-gray-200 p-4">
-      <div className="text-sm font-medium">
+      <div className="whitespace-pre-wrap text-sm font-medium">
         {q.content?.trim() ? q.content : <span className="text-gray-400">[Câu hình ảnh — nhìn ảnh và nghe audio]</span>}
       </div>
       {img && (
@@ -43,7 +43,7 @@ function Question({ q, showAnswers }: { q: QuestionOut; showAnswers: boolean }) 
         </ul>
       ) : (
         showAnswers && q.reference_answer && (
-          <div className="mt-2 text-sm text-green-700">Đáp án đúng: <b>{q.reference_answer}</b></div>
+          <div className="mt-2 whitespace-pre-wrap text-sm text-green-700">Đáp án đúng: <b>{q.reference_answer}</b></div>
         )
       )}
     </div>

@@ -39,8 +39,9 @@ def run_bank_expansion(bank_raw=None, pool_speak=None, pool_lis=None, per_seed: 
                        generator=None, limit=None, verify: bool = False) -> dict:
     """Chạy TẤT CẢ dạng có seed từ các file ngân hàng → {skill: bundle}. generator=None → mock tất định.
     limit = số seed lấy mỗi dạng (None = tất cả · 0 = lô rỗng). Dạng không có seed thì bỏ qua.
-    verify=True → chạy CỔNG KIỂM ĐÁP ÁN AI (SPEC-FACTORY-014) cho dạng đọc/cloze có đáp án đóng
-    (R1/R2/R3/R4) → gắn answer_verify + cờ SUSPECT vào item cho GV soát; W/Nói/Nghe bỏ qua."""
+    verify=True → chạy CỔNG KIỂM ĐÁP ÁN AI cho dạng có đáp án đóng: R1/R2/R3/R4 (SPEC-FACTORY-014)
+    + W1 (SPEC-FACTORY-017, ~1-2 call Gemini/câu) → gắn answer_verify + cờ SUSPECT vào item cho GV
+    soát; W2/Nói/Nghe bỏ qua (không có đáp án đóng duy nhất)."""
     out = {}
     if bank_raw:
         for skill, load, build, export in _RW:

@@ -358,8 +358,27 @@ export async function getEnrichTask(jobId: string): Promise<EnrichJobStatus> {
   );
 }
 
-// SPEC-FACTORY-016: nhà máy sinh câu (bám seed đề thật + cổng kiểm đáp án AI) → ngân hàng.
-// Chạy nền, trả job_id để poll qua getFactoryTask(). Phạm vi hiện tại: Đọc R1–R4.
+// SPEC-FACTORY-016/017: nhà máy sinh câu (bám seed đề thật + cổng kiểm đáp án AI) → ngân hàng.
+// Chạy nền, trả job_id để poll qua getFactoryTask(). Phạm vi: Đọc R1–R4 + Viết W1/W2.
+
+// SPEC-FACTORY-017: danh sách dạng câu lấy TỪ BACKEND (FE không hardcode) — parts để auto-chuyển
+// bộ lọc sau khi sinh; gate 'ai' (có cổng kiểm đáp án) | 'manual' (tự luận — GV soát tay).
+export interface FactorySkillInfo {
+  skill: string;
+  label: string;
+  parts: number[];
+  gate: "ai" | "manual";
+}
+
+export async function getFactorySkills(): Promise<{ skills: FactorySkillInfo[] }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/factory/skills`, {
+      method: "GET",
+      headers: { ...authHeaders() },
+    }),
+  );
+}
+
 export interface FactoryJobStatus {
   job_id: string;
   status: string; // pending | running | completed | error

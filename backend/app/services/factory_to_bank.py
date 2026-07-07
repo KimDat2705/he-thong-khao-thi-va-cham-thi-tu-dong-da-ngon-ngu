@@ -3,14 +3,16 @@
 Đầu ra khớp shape mà ``parser.save_parsed_items`` mong đợi (câu đơn lẻ + nhóm passage),
 để tái dùng nguyên cơ chế lưu-nháp + chống-trùng (content_hash) + tạo QuestionGroup có sẵn.
 
-Phạm vi hiện tại: ĐỌC R1–R4 (map sạch vào Question/QuestionGroup + có cổng kiểm đáp án AI).
-Viết/Nói/Nghe = slice sau (Đạt duyệt riêng vì Nghe kéo theo audio nặng).
+Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017). Nói/Nghe = slice sau
+(Đạt duyệt riêng vì Nghe kéo theo audio nặng).
 
 Cờ cổng kiểm đáp án (⚠ NGHI / ✅ PASS) được nhét vào ``explanation`` để giáo viên thấy NGAY trong
-ngân hàng — KHÔNG thêm cột DB mới (không cần migration).
+ngân hàng — KHÔNG thêm cột DB mới (không cần migration). Dạng KHÔNG có cổng kiểm (W2 tự luận) →
+converter TỰ chèn note "GV soát tay" (deterministic — không phụ thuộc cờ verify/nhánh nào khác).
 """
 import hashlib
 import re
+from collections import Counter
 from typing import Optional
 
 from app.services import boss_factory
@@ -168,11 +170,127 @@ def _r4_rows(items: list) -> list:
     return rows
 
 
+# Khối W1 chuẩn = 5 câu viết-lại / 1 mục đề (đúng format đề 2601 thật: parser gộp cả Section 1
+# thành MỘT Question part 5; blueprint part 5 count=1 → đề generate lấy nguyên khối).
+W1_BLOCK_SIZE = 5
+W1_BLOCK_INSTRUCTION = (
+    "Finish each of the following sentences in such a way that it means the same as the "
+    "sentence printed before it."
+)
+# Note GV cho dạng KHÔNG có cổng kiểm đáp án AI (W2 tự luận) — converter chèn thẳng, deterministic.
+MANUAL_REVIEW_NOTE = (
+    "[✍ CHƯA QUA CỔNG KIỂM ĐÁP ÁN AI — dạng tự luận không có đáp án đóng; "
+    "GIÁO VIÊN SOÁT TAY nội dung trước khi duyệt]"
+)
+
+
+def _block_diff(chunk: list) -> str:
+    """Độ khó đại diện cho 1 khối nhiều câu: lấy mức xuất hiện nhiều nhất trong khối."""
+    return Counter(_diff(it) for it in chunk).most_common(1)[0][0]
+
+
+def _w1_rows(items: list) -> list:
+    """W1 (Viết phần 1, viết lại câu) → khối 5 câu / 1 Question part 5, type writing (format đề 2601).
+
+    content = hướng dẫn + '<i>. <câu gốc>' + dòng phần-đầu-cho-sẵn; reference_answer = câu mẫu đánh số
+    (grade_writing nhận qua prompt_requirements + reference_answer). Khối cuối thiếu câu (<5) vẫn vào
+    ngân hàng kèm CẢNH BÁO rõ trong explanation — GV quyết (sinh lô nhỏ mà bỏ hết = nhà máy 'câm').
+    Cổng kiểm W1 chạy TỪNG câu trước khi gộp → explanation liệt kê kết quả kiểm theo câu.
+    """
+    rows = []
+    ok_items = [it for it in items if str(((it.get("w1_item") or {}).get("answer")) or "").strip()
+                and str(((it.get("w1_item") or {}).get("original")) or "").strip()
+                and str(((it.get("w1_item") or {}).get("prompt")) or "").strip()]
+    # Xếp XEN KẼ theo nguon_seed (round-robin) trước khi cắt khối: build_w1_variants trả biến thể
+    # CÙNG seed nằm liền kề (cùng điểm ngữ pháp) — cắt tuần tự sẽ dồn 2-3 câu cùng dạng vào 1 khối,
+    # lệch chuẩn đề W1 thật (5 câu = 5 phép biến đổi khác nhau). Review đối kháng S57.
+    buckets: dict = {}
+    for it in ok_items:
+        buckets.setdefault(str(it.get("nguon_seed") or "?"), []).append(it)
+    interleaved = []
+    while any(buckets.values()):
+        for k in list(buckets):
+            if buckets[k]:
+                interleaved.append(buckets[k].pop(0))
+    for start in range(0, len(interleaved), W1_BLOCK_SIZE):
+        chunk = interleaved[start:start + W1_BLOCK_SIZE]
+        content_lines, answer_lines, verify_lines = [W1_BLOCK_INSTRUCTION, ""], [], []
+        for i, it in enumerate(chunk, 1):
+            w = it["w1_item"]
+            content_lines.append(f"{i}. {str(w['original']).strip()}")
+            content_lines.append(str(w["prompt"]).strip())
+            answer_lines.append(f"{i}. {str(w['answer']).strip()}")
+            cell = boss_factory.verify_cell(it)  # "" | PASS | ⚠ NGHI | CHƯA KIỂM
+            note = str((it.get("answer_verify") or {}).get("note") or "").strip()
+            # Note hiển thị CẢ khi PASS (như _verify_prefix R1-R4) — đặc biệt giữ chỉ dấu
+            # 'mock (offline)' để khối mock KHÔNG hiển thị như đã-qua-kiểm-AI-thật.
+            verify_lines.append(f"{i}) {cell or 'chưa bật kiểm'}" + (f" — {note[:160]}" if note else ""))
+        n_suspect = sum(1 for it in chunk if it.get("answer_verify_flag") == "SUSPECT")
+        exp_parts = []
+        if n_suspect:
+            exp_parts.append(f"[⚠ CỔNG KIỂM ĐÁP ÁN AI: {n_suspect}/{len(chunk)} câu NGHI — giáo viên soát kỹ câu mẫu]")
+        else:
+            exp_parts.append("[Cổng kiểm đáp án AI theo câu — GV vẫn duyệt câu mẫu trước khi dùng]")
+        exp_parts.append("Kiểm theo câu: " + " · ".join(verify_lines))
+        if len(chunk) < W1_BLOCK_SIZE:
+            exp_parts.append(f"⚠ Khối chỉ có {len(chunk)}/{W1_BLOCK_SIZE} câu (lô sinh lẻ) — "
+                             "đề chuẩn cần đủ 5 câu; GV cân nhắc trước khi duyệt.")
+        srcs = [str(it.get("nguon_seed") or "?") for it in chunk]
+        n_dup_seed = len(srcs) - len(set(srcs))
+        if n_dup_seed:
+            exp_parts.append(f"⚠ Khối có {n_dup_seed} câu TRÙNG nguồn seed (biến thể cùng điểm ngữ pháp) — "
+                             "GV soát độ đa dạng dạng biến đổi trong khối.")
+        exp_parts.append("Nguồn seed: " + ", ".join(srcs))
+        rows.append({
+            "part": 5, "type": "writing", "content": "\n".join(content_lines),
+            "audio_url": None, "image_url": None, "options": {},
+            "reference_answer": "\n".join(answer_lines),
+            "difficulty": _block_diff(chunk), "clo": None, "topic": None,
+            "explanation": "\n".join(exp_parts),
+        })
+    return rows
+
+
+def _w2_rows(items: list) -> list:
+    """W2 (Viết phần 2, thư ~100 từ, KHÔNG đáp án) → 1 Question part 6 / đề, type writing.
+
+    content = vai + bối cảnh + các ý phải trả lời + hướng dẫn (đủ cho grade_writing chấm theo
+    prompt_requirements); reference_answer=None (tự luận). Converter chèn note GV-soát-tay.
+    """
+    rows = []
+    for it in items:
+        w = it.get("w2_item") or {}
+        role = str(w.get("role") or "").strip()
+        situation = str(w.get("situation") or "").strip()
+        if not role or not situation:
+            continue
+        points = [str(p).strip() for p in (w.get("points") or []) if str(p).strip()]
+        instruction = str(w.get("instruction") or "").strip()
+        content_parts = [role, "", situation]
+        if points:
+            content_parts += [""] + [f"- {p}" for p in points]
+        if instruction:
+            content_parts += ["", instruction]
+        base = str(it.get("explanation") or "").strip()
+        exp = MANUAL_REVIEW_NOTE + (f"\n{base}" if base else "") + \
+            f"\nNguồn seed: {it.get('nguon_seed') or '?'}"
+        rows.append({
+            "part": 6, "type": "writing", "content": "\n".join(content_parts),
+            "audio_url": None, "image_url": None, "options": {},
+            "reference_answer": None,
+            "difficulty": _diff(it), "clo": None, "topic": w.get("domain_guess"),
+            "explanation": exp,
+        })
+    return rows
+
+
 _DISPATCH = {
     "reading_s1": _r1_rows,
     "reading_s2_notice": _r2_rows,
     "reading_s3_comprehension": _r3_rows,
     "reading_s4_cloze": _r4_rows,
+    "writing_w1_rewrite": _w1_rows,
+    "writing_w2_letter": _w2_rows,
 }
 
 

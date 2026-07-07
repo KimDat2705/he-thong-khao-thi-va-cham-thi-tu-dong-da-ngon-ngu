@@ -1303,7 +1303,8 @@ def test_SPEC_FACTORY_013_gemini_truncation_guard():
 def test_SPEC_FACTORY_014_answer_verify_gate():
     """SPEC-FACTORY-014: cổng kiểm đáp án AI đối kháng (independent-solve). PASS khi checker khớp;
     cờ SUSPECT khi lệch / checker chọn ngoài phương án (ảo giác) / mơ hồ / lỗi; graceful (không crash
-    lô); bỏ qua skill không có đáp án đóng (W/Nói). Dùng _StubGen (nhánh real, payload cố định)."""
+    lô); bỏ qua skill không có đáp án đóng (W2/Nói/Nghe — W1 có cổng riêng từ SPEC-FACTORY-017).
+    Dùng _StubGen (nhánh real, payload cố định)."""
     def stub(derived, ambiguity=""):
         return _StubGen({"reasoning": "x", "derived_answer": derived,
                          "confidence": 88, "ambiguity_note": ambiguity})
@@ -1376,8 +1377,9 @@ def test_SPEC_FACTORY_014_answer_verify_gate():
     it = boss_factory.verify_bundle_answers([r4()], "reading_s4_cloze", generator=stub({"21": "fact", "22": "very"}))[0]
     assert it["answer_verify_flag"] == "SUSPECT"      # synonym ∈ hộp nhưng khác key → KHÔNG tự nhận
 
-    # (8) BỎ QUA skill không có đáp án đóng (W1): checked=False + KHÔNG cờ.
-    it = boss_factory.verify_bundle_answers([{"w1_item": {}, "nguon_seed": "x"}], "W1", generator=stub("A"))[0]
+    # (8) BỎ QUA skill không có đáp án đóng (W2 tự luận): checked=False + KHÔNG cờ.
+    # (W1 từ SPEC-FACTORY-017 CÓ cổng riêng — test ở test_specs_factory_web.py.)
+    it = boss_factory.verify_bundle_answers([{"w2_item": {}, "nguon_seed": "x"}], "W2", generator=stub("A"))[0]
     assert it["answer_verify"]["checked"] is False and "answer_verify_flag" not in it
 
     # (9) NON-BREAKING: export + report + cell chạy; report liệt kê item NGHI.

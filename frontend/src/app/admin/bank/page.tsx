@@ -13,6 +13,8 @@ import {
   getEnrichTask,
   submitFactoryJob,
   getFactoryTask,
+  getFactorySkills,
+  type FactorySkillInfo,
   type FactoryJobStatus,
   paraphraseBankQuestion,
   getToken,
@@ -21,12 +23,13 @@ import {
   imageSrc,
 } from "@/lib/api";
 
-// SPEC-FACTORY-016: dạng câu nhà máy sinh được (Đọc R1–R4) + part tương ứng để lọc sau khi sinh.
-const FACTORY_SKILLS: { value: string; label: string; part: number }[] = [
-  { value: "reading_s1", label: "R1 · Đọc phần 1 — trắc nghiệm (4 phương án)", part: 1 },
-  { value: "reading_s2_notice", label: "R2 · Đọc phần 2 — thông báo (3 phương án)", part: 2 },
-  { value: "reading_s3_comprehension", label: "R3 · Đọc phần 3 — đoạn văn + câu hỏi", part: 3 },
-  { value: "reading_s4_cloze", label: "R4 · Đọc phần 4 — điền từ vào chỗ trống", part: 4 },
+// SPEC-FACTORY-017: danh sách dạng câu lấy TỪ BACKEND (/factory/skills — parts + gate).
+// Bộ này chỉ là FALLBACK khi fetch lỗi (mạng/BE cũ) để panel không trống.
+const FALLBACK_FACTORY_SKILLS: FactorySkillInfo[] = [
+  { skill: "reading_s1", label: "R1 · Đọc phần 1 — trắc nghiệm (4 phương án)", parts: [1], gate: "ai" },
+  { skill: "reading_s2_notice", label: "R2 · Đọc phần 2 — thông báo (3 phương án)", parts: [2], gate: "ai" },
+  { skill: "reading_s3_comprehension", label: "R3 · Đọc phần 3 — đoạn văn + câu hỏi", parts: [3], gate: "ai" },
+  { skill: "reading_s4_cloze", label: "R4 · Đọc phần 4 — điền từ vào chỗ trống", parts: [4], gate: "ai" },
 ];
 
 export default function BankAdminPage() {
@@ -68,7 +71,8 @@ export default function BankAdminPage() {
   const [paraphrasing, setParaphrasing] = useState<boolean>(false);
   const [paraphraseCount, setParaphraseCount] = useState<number>(3);
 
-  // Nhà máy sinh câu (SPEC-FACTORY-016)
+  // Nhà máy sinh câu (SPEC-FACTORY-016/017)
+  const [factorySkills, setFactorySkills] = useState<FactorySkillInfo[]>(FALLBACK_FACTORY_SKILLS);
   const [factorySkill, setFactorySkill] = useState<string>("reading_s1");
   const [factoryLimit, setFactoryLimit] = useState<number>(3);
   const [factoryPerSeed, setFactoryPerSeed] = useState<number>(1);
@@ -76,6 +80,8 @@ export default function BankAdminPage() {
   const [factoryVerify, setFactoryVerify] = useState<boolean>(true);
   const [factoryRunning, setFactoryRunning] = useState<boolean>(false);
   const [factoryProgress, setFactoryProgress] = useState<string>("");
+  const selectedFactorySkill =
+    factorySkills.find((s) => s.skill === factorySkill) ?? factorySkills[0];
 
   // Guard authentication
   useEffect(() => {
@@ -86,6 +92,22 @@ export default function BankAdminPage() {
     }
     setAuthChecked(true);
   }, [router]);
+
+  // SPEC-FACTORY-017: nạp danh sách dạng câu từ backend (nguồn sự thật — FE không hardcode).
+  useEffect(() => {
+    if (!authChecked) return;
+    let cancelled = false;
+    getFactorySkills()
+      .then((data) => {
+        if (!cancelled && data.skills?.length) setFactorySkills(data.skills);
+      })
+      .catch(() => {
+        /* giữ FALLBACK — panel vẫn dùng được với R1-R4 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authChecked]);
 
   // Fetch stats and questions
   async function fetchData() {
@@ -269,7 +291,7 @@ export default function BankAdminPage() {
     }
   }
 
-  // SPEC-FACTORY-016: chạy nhà máy sinh câu (bám đề mẫu + cổng kiểm đáp án) → lưu ngân hàng Nháp.
+  // SPEC-FACTORY-016/017: chạy nhà máy sinh câu (bám đề mẫu + cổng kiểm đáp án) → lưu ngân hàng Nháp.
   async function handleFactory() {
     setFactoryRunning(true);
     setError(null);
@@ -284,7 +306,9 @@ export default function BankAdminPage() {
         verify: factoryVerify,
       });
 
-      const maxAttempts = 120; // 120 * 2.5s = 5 phút
+      // 240 × 2.5s = 10 phút: lô Gemini thật dính retry/backoff 429 free-tier có thể vượt 5 phút —
+      // job vẫn chạy nền phía server, timeout ở đây CHỈ là ngừng chờ hiển thị.
+      const maxAttempts = 240;
       let done: FactoryJobStatus | null = null;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 2500));
@@ -296,22 +320,29 @@ export default function BankAdminPage() {
         if (task.status === "error") {
           throw new Error(task.error || "Nhà máy sinh câu thất bại.");
         }
-        setFactoryProgress(`Nhà máy đang chạy nền... (${task.status})`);
+        const elapsed = Math.round(((attempt + 1) * 2.5) / 60);
+        setFactoryProgress(`Nhà máy đang chạy nền... (${task.status}${elapsed >= 1 ? ` · ~${elapsed} phút` : ""})`);
         if (attempt === maxAttempts - 1) {
-          throw new Error("Quá thời gian chờ. Job vẫn chạy nền — kiểm tra lại danh sách Nháp sau ít phút.");
+          throw new Error(
+            "Quá 10 phút chờ hiển thị. Job VẪN chạy nền phía server — mở lại bộ lọc Nháp sau ít phút để xem câu đã sinh.",
+          );
         }
       }
 
       const saved = (done?.saved_questions ?? 0) + (done?.saved_groups ?? 0);
       const suspect = done?.answer_suspect ?? 0;
+      const gate = selectedFactorySkill?.gate ?? "ai";
       setSuccess(
         `Nhà máy đã sinh & lưu ${saved} câu/nhóm câu vào ngân hàng (dạng Nháp).` +
-          (factoryVerify ? ` Cổng kiểm đáp án gắn cờ ⚠ NGHI cho ${suspect} câu trong lô vừa sinh — giáo viên soát kỹ.` : ""),
+          (gate === "manual"
+            ? " Dạng tự luận KHÔNG có cổng kiểm đáp án AI — giáo viên soát tay toàn bộ trước khi duyệt."
+            : factoryVerify
+              ? ` Cổng kiểm đáp án gắn cờ ⚠ NGHI cho ${suspect} câu trong lô vừa sinh — giáo viên soát kỹ.`
+              : ""),
       );
       setExamType("VSTEP_B1");
       setStatus("draft");
-      const sk = FACTORY_SKILLS.find((s) => s.value === factorySkill);
-      setPart(sk ? sk.part : "");
+      setPart(selectedFactorySkill?.parts?.[0] ?? "");
       setPage(1);
       await fetchData();
     } catch (err) {
@@ -514,14 +545,15 @@ export default function BankAdminPage() {
         )}
       </div>
 
-      {/* Nhà máy sinh câu (SPEC-FACTORY-016) — bám đề thật + cổng kiểm đáp án AI */}
+      {/* Nhà máy sinh câu (SPEC-FACTORY-016/017) — bám đề thật + cổng kiểm đáp án AI */}
       <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
         <h3 className="text-sm font-semibold text-emerald-900 mb-3 flex items-center gap-1.5">
           <span>🏭</span> Nhà máy sinh câu — bám đề thật + cổng kiểm đáp án AI
         </h3>
         <p className="text-xs text-emerald-700 mb-4">
-          Sinh câu Đọc (R1–R4) từ <b>đề mẫu</b> làm gốc (không bịa nội dung), rồi một AI khác <b>giải độc lập</b> để
-          soát đáp án — câu nghi ngờ được gắn cờ <b>⚠ NGHI</b> trong phần giải thích. Câu sinh vào ngân hàng dạng
+          Sinh câu Đọc (R1–R4) và Viết (W1–W2) từ <b>đề mẫu</b> làm gốc (không bịa nội dung). Dạng có đáp án
+          đóng được một AI khác <b>giải độc lập</b> để soát — câu nghi ngờ gắn cờ <b>⚠ NGHI</b> trong phần giải
+          thích; dạng tự luận (W2) <b>không có cổng kiểm</b> — giáo viên soát tay. Câu sinh vào ngân hàng dạng
           {" "}<b>Nháp</b> để giáo viên duyệt.
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
@@ -529,14 +561,25 @@ export default function BankAdminPage() {
             <label className="block text-xs font-medium text-gray-500 uppercase">Dạng câu</label>
             <select
               value={factorySkill}
-              onChange={(e) => setFactorySkill(e.target.value)}
+              onChange={(e) => {
+                setFactorySkill(e.target.value);
+                // W1 gộp khối 5 câu/đề → mặc định lô là bội số 5 để không tạo khối lẻ
+                if (e.target.value === "writing_w1_rewrite") setFactoryLimit(5);
+              }}
               disabled={factoryRunning}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
             >
-              {FACTORY_SKILLS.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+              {factorySkills.map((s) => (
+                <option key={s.skill} value={s.skill}>{s.label}</option>
               ))}
             </select>
+            <p className="mt-1 text-[11px] text-emerald-700">
+              {selectedFactorySkill?.gate === "manual"
+                ? "✍ Tự luận — KHÔNG có cổng kiểm đáp án AI, giáo viên soát tay toàn bộ."
+                : "🛡 Có cổng kiểm đáp án AI (giải độc lập rồi so đáp án)."}
+              {factorySkill === "writing_w1_rewrite" &&
+                " Khối chuẩn = 5 câu — nên để Số đề mẫu × Biến thể/đề là bội số của 5."}
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase">Số đề mẫu</label>
@@ -579,12 +622,14 @@ export default function BankAdminPage() {
           <label className="flex items-center gap-2 text-xs font-medium text-emerald-800">
             <input
               type="checkbox"
-              checked={factoryVerify}
+              checked={selectedFactorySkill?.gate === "manual" ? false : factoryVerify}
               onChange={(e) => setFactoryVerify(e.target.checked)}
-              disabled={factoryRunning}
-              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              disabled={factoryRunning || selectedFactorySkill?.gate === "manual"}
+              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
             />
-            Bật cổng kiểm đáp án AI (soát đáp án trước khi tới giáo viên)
+            {selectedFactorySkill?.gate === "manual"
+              ? "Cổng kiểm đáp án AI không áp dụng cho dạng tự luận (GV soát tay)"
+              : "Bật cổng kiểm đáp án AI (soát đáp án trước khi tới giáo viên)"}
           </label>
           <button
             onClick={handleFactory}
@@ -916,7 +961,7 @@ export default function BankAdminPage() {
               {/* Question Content */}
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Nội dung câu hỏi</h4>
-                <p className="text-base font-semibold text-gray-900 bg-gray-50/20 p-3 rounded border">
+                <p className="whitespace-pre-wrap leading-relaxed text-base font-semibold text-gray-900 bg-gray-50/20 p-3 rounded border">
                   {selectedQuestion.content}
                 </p>
               </div>

@@ -1,13 +1,14 @@
 """Dịch vụ nhà máy sinh câu cho web.
 
 Luồng 1 lượt: nạp seed (đề mẫu tổng hợp) → sinh biến thể (boss_factory, bám seed thật) →
-cổng kiểm đáp án AI (R1–R4) → chuyển sang hàng ngân hàng → lưu vào DB dưới dạng nháp (draft)
-cho giáo viên soát/duyệt tại /admin/bank.
+cổng kiểm đáp án AI (R1–R4 + W1; W2 tự luận không có → converter chèn note GV soát tay) →
+chuyển sang hàng ngân hàng → lưu vào DB dưới dạng nháp (draft) cho giáo viên soát/duyệt
+tại /admin/bank.
 
 Seed dùng bộ MẪU TỔNG HỢP trong repo (backend/tests/fixtures/factory_sample/bank_raw.json) — an toàn
 công khai, KHÔNG chứa dữ liệu bản quyền của đối tác. Đổi sang đề thật của đối tác = thay file này.
 
-Phạm vi hiện tại: ĐỌC R1–R4. Viết/Nói/Nghe = slice sau.
+Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017). Nói/Nghe = slice sau.
 """
 import json
 import os
@@ -25,12 +26,14 @@ _SEED_DIR = os.path.join(
     "tests", "fixtures", "factory_sample",
 )
 
-# skill (tên bundle boss_factory) → (nạp seed, sinh biến thể). Chỉ ĐỌC R1–R4 lúc này.
+# skill (tên bundle boss_factory) → (nạp seed, sinh biến thể). ĐỌC R1–R4 + VIẾT W1/W2.
 FACTORY_SKILLS = {
     "reading_s1": (boss_factory.load_r1_seeds, boss_factory.build_r1_variants),
     "reading_s2_notice": (boss_factory.load_r2_seeds, boss_factory.build_r2_variants),
     "reading_s3_comprehension": (boss_factory.load_r3_seeds, boss_factory.build_r3_variants),
     "reading_s4_cloze": (boss_factory.load_r4_seeds, boss_factory.build_r4_variants),
+    "writing_w1_rewrite": (boss_factory.load_w1_seeds, boss_factory.build_w1_variants),
+    "writing_w2_letter": (boss_factory.load_w2_seeds, boss_factory.build_w2_variants),
 }
 
 # Nhãn hiển thị cho giao diện (khớp cách gọi ở /admin/bank).
@@ -39,12 +42,34 @@ SKILL_LABELS = {
     "reading_s2_notice": "R2 · Đọc phần 2 (thông báo, 3 phương án)",
     "reading_s3_comprehension": "R3 · Đọc phần 3 (đoạn văn + câu hỏi)",
     "reading_s4_cloze": "R4 · Đọc phần 4 (điền từ vào chỗ trống)",
+    "writing_w1_rewrite": "W1 · Viết phần 1 (viết lại câu — khối 5 câu/đề)",
+    "writing_w2_letter": "W2 · Viết phần 2 (viết thư ~100 từ, tự luận)",
+}
+
+# Part VSTEP_B1 mà câu của skill đổ vào (FE auto-chuyển bộ lọc sau khi sinh; Nghe slice sau
+# sẽ span 2 part 7+8 nên là LIST ngay từ đầu).
+SKILL_PARTS = {
+    "reading_s1": [1],
+    "reading_s2_notice": [2],
+    "reading_s3_comprehension": [3],
+    "reading_s4_cloze": [4],
+    "writing_w1_rewrite": [5],
+    "writing_w2_letter": [6],
 }
 
 
 def supported_skills() -> list:
-    """Danh sách skill hỗ trợ (cho endpoint /factory/skills)."""
-    return [{"skill": s, "label": SKILL_LABELS.get(s, s)} for s in FACTORY_SKILLS]
+    """Danh sách skill hỗ trợ (cho endpoint /factory/skills).
+
+    gate: 'ai' = có cổng kiểm đáp án AI (R1-R4 MCQ/cloze, W1 viết-lại-độc-lập) ·
+    'manual' = tự luận không đáp án đóng, GV soát tay (W2; Nói/Nghe slice sau).
+    """
+    return [{
+        "skill": s,
+        "label": SKILL_LABELS.get(s, s),
+        "parts": SKILL_PARTS.get(s, []),
+        "gate": "ai" if s in boss_factory.VERIFY_SUPPORTED_SKILLS else "manual",
+    } for s in FACTORY_SKILLS]
 
 
 def _load_seed_bank() -> list:

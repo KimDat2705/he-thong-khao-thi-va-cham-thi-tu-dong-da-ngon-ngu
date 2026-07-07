@@ -1014,7 +1014,7 @@
       "title": "Tích hợp cổng kiểm đáp án AI vào orchestrator end-to-end + roundtrip (sau khi ĐO đạt)",
       "statement": "Nối cổng kiểm đáp án (SPEC-FACTORY-014) vào orchestrator (SPEC-FACTORY-012): run_bank_expansion(..., verify=False) — khi verify=True, mỗi bundle dạng đọc/cloze có đáp án đóng (R1/R2/R3/R4, theo VERIFY_SUPPORTED_SKILLS) được chạy qua verify_bundle_answers → item gắn answer_verify + cờ SUSPECT cho GV; W/Nói/Nghe bỏ qua. roundtrip_check báo thêm count_answer_checked + count_answer_suspect (KHÔNG chặn merge — cờ SUSPECT là để GV soát đáp án, độc lập với merge-readiness cấu trúc); roundtrip_report tổng total_answer_suspect. CLI make_bank_expansion.py có cờ --verify (mặc định TẮT — giữ nguyên hành vi FACTORY-012) → xuất verify_report per dạng + in số item NGHI. LÀM SAU khi ĐO cổng trên bộ B1 curated (recall 100% / false-positive 10% sau khi vá ambiguity) — đúng logic 'đo trước, tích hợp sau'.",
       "acceptance_criteria": [
-        "run_bank_expansion(..., verify=True) gắn answer_verify cho item các dạng trong VERIFY_SUPPORTED_SKILLS (R1/R2/R3/R4); verify=False (mặc định) → KHÔNG gắn (giữ nguyên hành vi FACTORY-012). generator=None → verify mock (đồng thuận).",
+        "run_bank_expansion(..., verify=True) gắn answer_verify cho item các dạng trong VERIFY_SUPPORTED_SKILLS (R1/R2/R3/R4; từ SPEC-FACTORY-017 thêm W1 — cổng W1 áp dụng CẢ offline --verify, ~1-2 call/câu); verify=False (mặc định) → KHÔNG gắn (giữ nguyên hành vi FACTORY-012). generator=None → verify mock (đồng thuận).",
         "roundtrip_check trả thêm count_answer_checked + count_answer_suspect; cờ SUSPECT KHÔNG làm giảm count_merge_ready (merge-readiness cấu trúc độc lập với kiểm đáp án).",
         "roundtrip_report tổng hợp total_answer_suspect trên mọi dạng.",
         "make_bank_expansion.py --verify chạy cổng + xuất <skill>_verify_report.md cho dạng đọc/cloze + in số item NGHI; không --verify → không đụng.",
@@ -1046,6 +1046,27 @@
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_016_api_gating_and_inline_job"
       ],
       "notes": "S56 (06/07). Đạt chốt đưa nhà máy sinh câu lên web LIVE để đối tác test (không để offline). Phạm vi cắt theo Đạt: CHỈ sinh câu vào ngân hàng, BỎ xuất .docx/excel; sinh đề tự động = việc sếp. Seed = bộ mẫu tổng hợp backend/tests/fixtures/factory_sample (an toàn công khai); đổi đề thật đối tác = thay file. Nhà máy 8 dạng nhưng web slice đầu chỉ R1-R4 (Đọc, map sạch + có cổng kiểm đáp án); W/Nói/Nghe slice sau (Nghe kéo audio nặng → hỏi Đạt trước)."
+    },
+    {
+      "id": "SPEC-FACTORY-017",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh câu trên WEB — mở rộng VIẾT W1/W2 (khối 5 câu format đề 2601 + cổng kiểm W1)",
+      "statement": "Mở rộng slice web của nhà máy sang VIẾT: (a) W1 (viết lại câu): factory_to_bank._w1_rows GỘP 5 câu/1 Question part 5 type writing đúng format đề 2601 thật (content = hướng dẫn + câu gốc đánh số + phần đầu cho sẵn; reference_answer = câu mẫu đánh số — grade_writing chấm theo block); khối cuối lẻ (<5 câu) vẫn vào ngân hàng kèm CẢNH BÁO rõ trong explanation. (b) CỔNG KIỂM W1 (boss_factory._verify_w1_item, thêm writing_w1_rewrite vào VERIFY_SUPPORTED_SKILLS): checker viết lại ĐỘC LẬP (không thấy câu mẫu — chống anchor); trùng mặt chữ (so token bỏ dấu câu) → PASS 1 call; khác mặt chữ → vòng 2 giám khảo so ĐỐI XỨNG 2 bản (A=checker, B=câu mẫu) — câu mẫu bị bác/không xác nhận → SUSPECT cho GV, KHÔNG tự xoá. (c) W2 (viết thư ~100 từ, tự luận KHÔNG đáp án): _w2_rows → 1 Question part 6/đề, reference_answer=None; converter TỰ chèn note 'CHƯA QUA CỔNG KIỂM ĐÁP ÁN AI — GIÁO VIÊN SOÁT TAY' (deterministic — guard factory_service chỉ gọi verify cho skill thuộc VERIFY_SUPPORTED_SKILLS nên nhánh note trong verify_bundle_answers KHÔNG chạy cho W2). (d) GET /factory/skills trả thêm parts (FE auto-chuyển bộ lọc, sẵn cho Nghe span part 7+8) + gate ('ai'|'manual' — UI phân biệt mức kiểm, không hiển thị nhầm PASS).",
+      "acceptance_criteria": [
+        "run_factory_to_bank('writing_w1_rewrite', mock) với 6 item → 2 Question part 5 draft: khối 1 đủ 5 câu (content bắt đầu bằng W1_BLOCK_INSTRUCTION, 5 câu đánh số, reference_answer 5 câu mẫu đánh số, explanation liệt kê kết quả cổng kiểm THEO CÂU + nguồn seed); khối 2 lẻ 1 câu có cảnh báo '1/5 câu'.",
+        "run_factory_to_bank('writing_w2_letter', mock) → Question part 6 draft type writing, reference_answer=None, explanation chứa 'CHƯA QUA CỔNG KIỂM' + 'GIÁO VIÊN SOÁT TAY' (converter chèn, không phụ thuộc cờ verify).",
+        "Cổng kiểm W1: checker trùng mặt chữ (lệch hoa/thường/dấu câu) → PASS không gọi vòng 2; khác mặt chữ + giám khảo answer_b_correct=true → PASS (note nêu bản checker); answer_b_correct=false/thiếu field → SUSPECT; item thiếu original/prompt/answer → checked=False + SUSPECT, không crash lô; cờ NGHI lan vào explanation khối khi vào ngân hàng.",
+        "GET /api/v1/factory/skills trả đủ 6 skill {skill,label,parts,gate}: R1-R4 parts [1]-[4] gate 'ai', W1 parts [5] gate 'ai', W2 parts [6] gate 'manual'.",
+        "Test offline tất định (mock + _StubChecker); các skill R1-R4 GIỮ NGUYÊN hành vi (suite 016 xanh)."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_017_w1_w2_to_bank",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_017_w1_answer_gate",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_017_skills_endpoint_metadata"
+      ],
+      "notes": "S57 (07/07). Slice 1 kế hoạch docs/ke_hoach_web_w_noi_nghe.md (Đạt duyệt 4 quyết định: W1 gộp 5 câu/1 Question giữ format 2601 + thang điểm; cổng kiểm W1 vì qc_w1 chỉ prefix-match token — câu mẫu sai ngữ pháp lan vào ĐIỂM THI qua grade_writing). W1 là dạng duy nhất ngoài R1-R4 có đáp án đóng kiểm được. Chi phí cổng W1: 1 call/câu khi trùng, 2 call khi lệch mặt chữ. Cổng W1 ∈ VERIFY_SUPPORTED_SKILLS → áp dụng CẢ pipeline offline (run_bank_expansion/make_bank_expansion --verify; spec 015 AC cập nhật khớp). FE /admin/bank bỏ hardcode skill list → fetch /factory/skills; poll timeout nâng 5'→10'. REVIEW ĐỐI KHÁNG S57 (15 agent, 11 finding confirmed → VÁ HẾT): note cổng kiểm hiển thị CẢ khi PASS (giữ chỉ dấu 'mock (offline)' — khối mock không hiển thị như đã-qua-kiểm-thật, đồng bộ R1-R4); lý do giám khảo bác đặt TRƯỚC bản checker (không bị cắt); judge trả 'true' chuỗi vẫn nhận (chống SUSPECT oan); vòng-1 GIỮ dấu nội câu (dấu-phẩy-đổi-nghĩa → vòng 2); khối W1 xếp XEN KẼ nguon_seed + cảnh báo trùng seed trong khối; fixture nâng 5 seed W1 + FE auto limit=5; modal bank + ExamView thêm whitespace-pre-wrap cho content/đáp án nhiều dòng. Guard chặn approve khối part 5 <5 câu → gộp vào slice Nghe text-only (cùng chỗ guard audio part 7/8, D7d)."
     }
   ]
 }

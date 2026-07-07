@@ -1,10 +1,12 @@
-"""SPEC-FACTORY-016 — Nhà máy sinh câu (boss_factory) chạy trên WEB → lưu ngân hàng.
+"""SPEC-FACTORY-016/017 — Nhà máy sinh câu (boss_factory) chạy trên WEB → lưu ngân hàng.
 
 Nối nhà máy (sinh biến thể bám seed thật + cổng kiểm đáp án AI) vào ngân hàng câu hỏi DB:
 câu sinh vào dạng nháp (draft) cho giáo viên soát/duyệt tại /admin/bank, cờ cổng kiểm đáp án
-(NGHI/PASS) nhét vào explanation. API async admin/teacher. Phạm vi: ĐỌC R1-R4.
+(NGHI/PASS) nhét vào explanation. API async admin/teacher.
+Phạm vi: ĐỌC R1-R4 (016) + VIẾT W1/W2 (017: W1 khối 5 câu/đề 2601 + cổng kiểm viết-lại-độc-lập;
+W2 tự luận → converter chèn note GV soát tay).
 
-Test offline tất định: mock (generator=None) cho luồng sinh+lưu; _StubGen cho cổng kiểm đáp án.
+Test offline tất định: mock (generator=None) cho luồng sinh+lưu; _StubChecker cho cổng kiểm đáp án.
 """
 import json
 
@@ -186,6 +188,134 @@ def test_factory_r1_coerces_option_values_to_str():
     }]
     rows = factory_to_bank.bundle_items_to_rows("reading_s1", items)
     assert rows and all(isinstance(v, str) for v in rows[0]["options"].values())
+
+
+def test_SPEC_FACTORY_017_w1_w2_to_bank(db_session):
+    """AC1+AC2: W1 mock → khối 5 câu/1 Question part 5 type writing (format đề 2601), khối lẻ có
+    CẢNH BÁO; W2 mock → Question part 6 tự luận (reference_answer=None) + note GV soát tay."""
+    # W1: fixture 3 seed × per_seed 2 = 6 item qc_ok → 1 khối đủ 5 câu + 1 khối lẻ 1 câu.
+    res = factory_service.run_factory_to_bank(db_session, "writing_w1_rewrite", limit=3, per_seed=2,
+                                              verify=True, generator=None)
+    assert res["saved_questions"] == 2, res
+    db_session.expire_all()
+    blocks = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.part == 5, Question.status == "draft"
+    ).order_by(Question.id).all()
+    assert len(blocks) == 2
+    full = blocks[0]
+    assert full.type == "writing" and full.exam_type == "VSTEP_B1"
+    assert full.content.startswith(factory_to_bank.W1_BLOCK_INSTRUCTION)
+    for i in range(1, 6):                                   # đủ 5 câu đánh số + 5 câu mẫu đánh số
+        assert f"\n{i}. " in "\n" + full.content
+        assert f"{i}. " in (full.reference_answer or "")
+    assert "Kiểm theo câu" in (full.explanation or "")      # kết quả cổng kiểm liệt kê THEO CÂU
+    assert "Nguồn seed" in (full.explanation or "")         # truy vết seed
+    # Review S57: chế độ mock PHẢI lộ chỉ dấu trong explanation — khối mock không được hiển thị
+    # như đã-qua-kiểm-AI-thật (đồng bộ hành vi _verify_prefix của R1-R4).
+    assert "mock (offline)" in (full.explanation or "")
+    # Review S57: khối trộn biến thể cùng seed (fixture 3 seed lấy × 2 biến thể) → cảnh báo rõ.
+    assert "TRÙNG nguồn seed" in (full.explanation or "")
+    partial = blocks[1]
+    assert "1/5 câu" in (partial.explanation or "")         # khối lẻ: cảnh báo rõ cho GV
+
+    # W2: 1 seed × per_seed 2 → 2 Question part 6, KHÔNG đáp án + note GV soát tay (converter chèn).
+    res2 = factory_service.run_factory_to_bank(db_session, "writing_w2_letter", limit=1, per_seed=2,
+                                               verify=True, generator=None)
+    assert res2["saved_questions"] == 2, res2
+    db_session.expire_all()
+    letters = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.part == 6, Question.status == "draft"
+    ).all()
+    assert len(letters) == 2
+    for q in letters:
+        assert q.type == "writing" and q.reference_answer is None
+        assert "CHƯA QUA CỔNG KIỂM" in (q.explanation or "")     # không hiển thị nhầm PASS
+        assert "GIÁO VIÊN SOÁT TAY" in (q.explanation or "")
+        assert "You are" in q.content                            # vai + bối cảnh đủ cho grade_writing
+
+
+def test_SPEC_FACTORY_017_w1_answer_gate():
+    """AC3: cổng kiểm W1 (viết-lại-độc-lập, không thấy câu mẫu): trùng mặt chữ → PASS 1 vòng;
+    khác + giám khảo vòng 2 xác nhận → PASS; giám khảo bác/không trả lời → SUSPECT; thiếu field →
+    checked=False + SUSPECT (graceful, không crash)."""
+    def w1(answer="He goes to school every day."):
+        return {"w1_item": {"original": "He attends school daily.",
+                            "prompt": "He goes ______.", "answer": answer},
+                "nguon_seed": "EB1.2901#1", "qc_ok": True}
+
+    # (1) checker trùng mặt chữ (lệch dấu câu/hoa thường vẫn là TRÙNG) → PASS.
+    stub = _StubChecker({"derived_answer": "he goes to school every day"})
+    it = boss_factory.verify_bundle_answers([w1()], "writing_w1_rewrite", stub)[0]
+    assert it["answer_verify"]["agree"] is True and "answer_verify_flag" not in it
+    assert "TRÙNG câu mẫu" in it["answer_verify"]["note"]
+
+    # (2) checker viết BẢN KHÁC + giám khảo vòng 2 xác nhận câu mẫu đúng → PASS + note nêu bản checker.
+    stub = _StubChecker({"derived_answer": "He is at school daily.",
+                         "answer_a_correct": True, "answer_b_correct": True, "note": "both valid"})
+    it = boss_factory.verify_bundle_answers([w1()], "w1", stub)[0]
+    assert it["answer_verify"]["agree"] is True and "answer_verify_flag" not in it
+    assert "giám khảo xác nhận" in it["answer_verify"]["note"]
+
+    # (3) giám khảo KHÔNG xác nhận (answer_b_correct=False) → SUSPECT (GV soát, không tự xoá).
+    stub = _StubChecker({"derived_answer": "He is at school daily.", "answer_b_correct": False})
+    it = boss_factory.verify_bundle_answers([w1()], "w1", stub)[0]
+    assert it["answer_verify_flag"] == "SUSPECT"
+    assert "KHÔNG xác nhận" in it["answer_verify"]["note"]
+
+    # (3b) giám khảo không trả field (payload thiếu answer_b_correct) → coi như KHÔNG xác nhận → SUSPECT.
+    stub = _StubChecker({"derived_answer": "He is at school daily."})
+    it = boss_factory.verify_bundle_answers([w1()], "w1", stub)[0]
+    assert it["answer_verify_flag"] == "SUSPECT"
+
+    # (3c) Review S57: judge trả "true" dạng CHUỖI (JSON kiểu lỏng) → vẫn nhận PASS, không SUSPECT oan.
+    stub = _StubChecker({"derived_answer": "He is at school daily.", "answer_b_correct": "true"})
+    it = boss_factory.verify_bundle_answers([w1()], "w1", stub)[0]
+    assert it["answer_verify"]["agree"] is True and "answer_verify_flag" not in it
+
+    # (3d) Review S57: lệch CHỈ dấu NỘI câu (dấu phẩy đổi nghĩa) KHÔNG short-circuit PASS vòng 1 —
+    # phải qua vòng 2 giám khảo (payload thiếu answer_b_correct → SUSPECT, chứng tỏ đã vào vòng 2).
+    it2 = {"w1_item": {"original": "My father is fifty and works in a bank.",
+                       "prompt": "My father, ______.",
+                       "answer": "My father, who is fifty, works in a bank."},
+           "nguon_seed": "EB1.2901#2", "qc_ok": True}
+    stub = _StubChecker({"derived_answer": "My father who is fifty works in a bank."})
+    it = boss_factory.verify_bundle_answers([it2], "w1", stub)[0]
+    assert it["answer_verify_flag"] == "SUSPECT"
+
+    # (4) item thiếu answer → checked=False + SUSPECT, không crash lô.
+    it = boss_factory.verify_bundle_answers([w1(answer="")], "w1", stub)[0]
+    assert it["answer_verify"]["checked"] is False and it["answer_verify_flag"] == "SUSPECT"
+
+    # (5) cờ NGHI lan vào explanation của KHỐI khi vào ngân hàng (GV thấy ngay).
+    items = [w1() for _ in range(2)]
+    boss_factory.verify_bundle_answers(items, "w1", _StubChecker({"derived_answer": "X.", "answer_b_correct": False}))
+    rows = factory_to_bank.bundle_items_to_rows("writing_w1_rewrite", items)
+    assert rows and "NGHI" in (rows[0]["explanation"] or "")
+
+
+def test_SPEC_FACTORY_017_skills_endpoint_metadata(db_session, admin_auth_headers):
+    """AC4: GET /factory/skills trả đủ 6 skill kèm parts (FE auto-filter) + gate (ai|manual)."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        resp = client.get("/api/v1/factory/skills", headers=admin_auth_headers)
+        assert resp.status_code == 200
+        skills = {s["skill"]: s for s in resp.json()["skills"]}
+        assert set(skills) == {"reading_s1", "reading_s2_notice", "reading_s3_comprehension",
+                               "reading_s4_cloze", "writing_w1_rewrite", "writing_w2_letter"}
+        assert skills["writing_w1_rewrite"]["parts"] == [5]
+        assert skills["writing_w1_rewrite"]["gate"] == "ai"        # W1 CÓ cổng kiểm
+        assert skills["writing_w2_letter"]["parts"] == [6]
+        assert skills["writing_w2_letter"]["gate"] == "manual"     # W2 tự luận — GV soát tay
+        assert all(s["gate"] == "ai" and len(s["parts"]) == 1 for k, s in skills.items()
+                   if k.startswith("reading_"))
+    finally:
+        fastapi_app.dependency_overrides.clear()
 
 
 def test_factory_batch_marked_failed_on_save_error(db_session, monkeypatch):
