@@ -443,16 +443,14 @@ def test_SPEC_FACTORY_021_tts_ab_harness_variants():
 
     keys = [v[0] for v in mod.VARIANTS]
     assert keys[0] == "v1_current_baseline"                 # mốc control đứng đầu
-    assert mod.VARIANTS[0][2] is None                       # baseline KHÔNG style-preamble (giống production)
-    assert mod.VARIANTS[0][4] == mod.SPEAKERS_DEFAULT       # baseline giữ giọng production (Kore/Puck)
+    assert mod.VARIANTS[0][2] is None                       # baseline v1 = KHÔNG style-preamble (hành vi production CŨ, trước 022)
+    assert mod.VARIANTS[0][4] == mod.SPEAKERS_DEFAULT       # baseline v1 dùng Kore/Puck (giọng production CŨ = mốc 'trước')
     assert all(v[2] for v in mod.VARIANTS[1:])              # v2+ đều có style-preamble
     assert len(mod.VARIANTS) >= 3                           # đủ biến thể để so
     assert "Anna:" in mod.SAMPLE_TRANSCRIPT and "Ben:" in mod.SAMPLE_TRANSCRIPT  # nhãn đa-giọng
-    # KHÔNG đụng production: _lis_tts vẫn hard-code model + không nhận style-preamble.
-    import inspect
-
-    from app.services import boss_factory
-    assert "style" not in inspect.signature(boss_factory._lis_tts).parameters
+    # Harness ĐỘC LẬP: có hàm synthesize riêng, KHÔNG gọi production _lis_tts (đo tách khỏi tích hợp).
+    # (Production _lis_tts SAU ĐÓ đã nhận style_preamble + đổi giọng ở SPEC-FACTORY-022 — harness vẫn tự dựng call.)
+    assert callable(getattr(mod, "synthesize", None))
 
 
 def test_factory_batch_marked_failed_on_save_error(db_session, monkeypatch):

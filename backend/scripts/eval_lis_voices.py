@@ -85,7 +85,8 @@ VARIANTS = [
 
 def synthesize(client, model, style_preamble, transcript, speakers, out_wav):
     """Gọi Gemini TTS đa-giọng → WAV 24kHz mono. Song song boss_factory._lis_tts nhưng THAM SỐ HOÁ
-    model + style-preamble (production _lis_tts hard-code model + không có preamble)."""
+    model (production _lis_tts hard-code model; style_preamble được tích hợp vào production ở
+    SPEC-FACTORY-022 SAU bước đo này)."""
     from google.genai import types  # noqa: PLC0415
     contents = f"{style_preamble}\n\n{transcript}" if style_preamble else transcript
     speech = types.SpeechConfig(multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(

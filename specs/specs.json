@@ -1124,6 +1124,27 @@
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_021_tts_ab_harness_variants"
       ],
       "notes": "S57d (07/07). Slice 5 kế hoạch docs/ke_hoach_web_w_noi_nghe.md — Claude chốt LÀM TTS A/B TRƯỚC Slice 3 Nghe-text (lý do: giọng là mối lo #1 Đạt + quyết định CHẶN cho cách render audio Slice 6 — nếu giọng máy không đạt phải đổi hướng, biết trước tránh làm lại; Slice 3 text-only tạo hàng tồn chưa dùng được). Nghiên cứu (Workflow 4 agent): chẩn đoán gốc text-thô-không-style; Gemini 2.5 TTS hỗ trợ style-preamble chính thức cả multi-speaker; 30 prebuilt voice KHÔNG gắn nhãn giới tính/accent chính thức (chỉ descriptor Kore=Firm/Puck=Upbeat/Sulafat=Warm/Charon=Informative) → PHẢI audition tai người; model pro có thể tính phí (D3). ĐÃ SINH THẬT 4 mẫu (local, gitignore tts_samples/): v1-v4 đều OK, đo được ~198-215 wpm — NHANH hơn chuẩn B1 thật ~150-167 (cả bản có 'measured pace' → style-preamble chưa ép chậm đủ; ghi nhận để ép pace khi tích hợp). CHỜ Đạt+GV nghe chấm 10 tiêu chí → chọn giọng thắng. Tích hợp = spec sau (LIS_STYLE_PREAMBLE + cache-key). ⚠️ quota TTS free-tier siết → 4 call/run, chạy lại cùng ngày dễ 429."
+    },
+    {
+      "id": "SPEC-FACTORY-022",
+      "domain": "FACTORY",
+      "title": "Tích hợp giọng TTS đã chọn (A/B) vào Nghe production — giọng C + ép pace chuẩn B1",
+      "statement": "Sau khi Đạt+GV nghe A/B (SPEC-FACTORY-021) chọn biến thể C (Sulafat+Charon + style-preamble + inline pace tags), tích hợp vào boss_factory Nghe production: (a) LIS_VOICES = Sulafat/Charon (thay Kore/Puck); (b) LIS_STYLE_PREAMBLE (GENERIC, không hard-code tên speaker vì hội thoại đổi tên) prepend vào contents mọi đoạn qua _lis_tts(..., style_preamble) — chữa 'đều đều' + ÉP ĐỌC CHẬM (Gemini mặc định ~200wpm → đo THẬT sau tích hợp ~167wpm = đúng chuẩn B1 150-167, $0 không cần thư viện time-stretch); (c) _lis_pace_tags chèn [short pause] giữa lượt lời (nhịp tự nhiên, giữ nhãn 'X:' để tách giọng); (d) CACHE-KEY _lis_tts_cached BỔ SUNG style_preamble vào hash (nếu không, đổi giọng/chỉ dẫn mà key không đổi → dùng lại audio cũ SAI giọng). Các caller _lis_tts khác giữ nguyên (param optional default None).",
+      "acceptance_criteria": [
+        "LIS_VOICES = {A:Sulafat, B:Charon}; LIS_STYLE_PREAMBLE có chỉ dẫn đọc chậm ('slowly'); _lis_pace_tags chèn [short pause] giữa lượt lời (trừ lượt cuối, 1 dòng không tag).",
+        "_lis_tts/_tts_with_retry/_lis_tts_cached nhận style_preamble (optional); _lis_tts prepend preamble vào contents.",
+        "CACHE-KEY đổi khi style_preamble đổi (2 preamble khác → 2 file cache khác); cùng preamble+text → trúng cache.",
+        "build_listening_audio truyền LIS_STYLE_PREAMBLE cho MỌI đoạn (test 009: mọi call có preamble).",
+        "Test offline tất định (monkeypatch TTS/retry, không gọi Gemini)."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_022_voice_integration_and_cachekey",
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_009_full_track_and_cache",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_021_tts_ab_harness_variants"
+      ],
+      "notes": "S57e (07/07). Đạt nghe A/B (SPEC-FACTORY-021) CHỌN mẫu C = v4 (Sulafat/Charon + style-preamble British + inline tags). VERIFY THẬT đường production mới (local, key máy): giọng đổi đúng Sulafat/Charon + đo ~167wpm (mốc C cũ ~215) → style-preamble ÉP CHẬM VỀ CHUẨN B1 THÀNH CÔNG bằng $0 (không cần time-stretch/dep — trả lời trực tiếp lo ngại Đạt 'quá nhiều từ/nhanh khó bắt keyword'). Mẫu tts_samples/giong_TICH_HOP_C.mp3 để Đạt đối chiếu khớp C. Per-line emotion tag ([warmly]/[surprised]) của mẫu C là thủ công → production dùng style-preamble 'natural expressive intonation' + [short pause] cơ học thay (không bịa cảm xúc theo câu). ⚠️ HỆ QUẢ: giọng ~167wpm CHẬM hơn 210 cũ → trọn bài Nghe sẽ DÀI hơn ~17' (ước ~19-21', vượt dải 16-18') → Slice 6 (render full bài) phải ĐO lại + giảm content word-count HOẶC hạ pause. Nghe production hiện OFFLINE (chưa lên web) → tích hợp KHÔNG đụng LIVE. REVIEW ĐỐI KHÁNG (11 agent, 3 lăng kính×verify): 4 CONFIRMED/4 refuted → VÁ HẾT. [MEDIUM] giọng MONO trong _lis_tts vẫn hard-code 'Puck' (giọng baseline BỊ LOẠI ở A/B) → ~83% thời lượng (TRỌN Part Two monologue + lời dẫn) đọc bằng giọng cũ → thêm LIS_MONO_VOICE='Sulafat' (1 trong cặp C) thay 'Puck' (VÁ QUAN TRỌNG NHẤT). [LOW] đồng bộ chuỗi thời lượng/wpm GV-facing (16-18'/135-140/190-230 → ~150-167 giọng C + ghi 're-calibrate Slice 6') + logger.warning khi duration ngoài 10-25'. [LOW] test 021 comment/assert stale ('production _lis_tts không có style') → sửa thành 'harness độc lập có synthesize riêng'. thêm test 022 cache-key. pytest 95/0."
     }
   ]
 }

@@ -897,7 +897,8 @@ def test_SPEC_FACTORY_009_full_track_and_cache(tmp_path, monkeypatch):
     audio = [v for kind, v in plan if kind == "audio"]
     silence = [v for kind, v in plan if kind == "silence"]
     texts = [t for (t, _sp) in audio]
-    assert texts.count("Anna: line number 1.\nBen: my reply 1.") == 2   # mỗi hội thoại L1 đọc 2 lần
+    # SPEC-FACTORY-021: hội thoại đã chèn nhịp [short pause] giữa lượt lời (giọng C Đạt chọn); đọc 2 lần.
+    assert texts.count(boss_factory._lis_pace_tags("Anna: line number 1.\nBen: my reply 1.")) == 2
     assert texts.count(l2) == 2                                          # monologue L2 đọc 2 lần
     assert sum(t == "Now listen again." for t in texts) == 6            # 5 L1 + 1 L2
     assert boss_factory.LIS_OPENING in texts
@@ -909,10 +910,11 @@ def test_SPEC_FACTORY_009_full_track_and_cache(tmp_path, monkeypatch):
     assert silence and all(s > 0 for s in silence)
 
     # --- AC2: build_listening_audio ghép file thật + CACHE per-chunk (monkeypatch TTS) ---
-    calls = {"n": 0}
+    calls = {"n": 0, "preambles": []}
 
-    def fake_tts(generator, text, output_path, speakers=None):
+    def fake_tts(generator, text, output_path, speakers=None, style_preamble=None):
         calls["n"] += 1
+        calls["preambles"].append(style_preamble)     # SPEC-FACTORY-021: xác nhận preamble chảy vào TTS
         with wave.open(output_path, "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
@@ -925,12 +927,49 @@ def test_SPEC_FACTORY_009_full_track_and_cache(tmp_path, monkeypatch):
     info = boss_factory.build_listening_audio(None, item, str(tmp_path / "aud"), to_mp3=False)
     assert os.path.exists(info["wav_path"]) and info["duration_s"] > 0
     assert info["format"] == "wav" and info["n_segments"] == len(audio)
+    # SPEC-FACTORY-021: MỌI đoạn được render kèm style-preamble (chữa 'đều đều') — không sót đoạn nào.
+    assert calls["preambles"] and all(p == boss_factory.LIS_STYLE_PREAMBLE for p in calls["preambles"])
     # CACHE: số call TTS THẬT < số đoạn audio (đọc-lần-2 + 'Now listen again' lặp → trúng cache)
     assert 0 < calls["n"] < info["n_segments"]
     n_first = calls["n"]
     # build lại cùng out_dir → cache trúng toàn bộ → KHÔNG gọi TTS thêm
     boss_factory.build_listening_audio(None, item, str(tmp_path / "aud"), to_mp3=False)
     assert calls["n"] == n_first
+
+
+def test_SPEC_FACTORY_022_voice_integration_and_cachekey(tmp_path, monkeypatch):
+    """SPEC-FACTORY-022: tích hợp giọng C (Đạt chọn qua A/B) vào Nghe production — cặp giọng
+    Sulafat/Charon + style-preamble ép chậm + pace-tags; CACHE-KEY phải đổi theo style_preamble
+    (chống dùng lại audio cũ SAI giọng). Offline, KHÔNG gọi Gemini."""
+    bf = boss_factory
+    assert set(bf.LIS_VOICES.values()) == {"Sulafat", "Charon"}          # giọng C, khác Kore/Puck cũ
+    assert bf.LIS_STYLE_PREAMBLE and "slowly" in bf.LIS_STYLE_PREAMBLE.lower()  # ép chậm về chuẩn B1
+
+    tagged = bf._lis_pace_tags("A: hi\nB: hello\nA: bye")                 # chèn nhịp giữa lượt, trừ cuối
+    assert tagged.count("[short pause]") == 2 and tagged.startswith("A: hi [short pause]")
+    assert tagged.endswith("A: bye")                                     # lượt cuối KHÔNG có tag
+    assert bf._lis_pace_tags("A: only one line") == "A: only one line"   # 1 dòng → không tag
+
+    # CACHE-KEY: preamble khác → file cache khác (nếu không → dùng lại audio SAI giọng). Không gọi Gemini.
+    paths = []
+
+    def fake_retry(generator, text, output_path, speakers=None, style_preamble=None):
+        paths.append(output_path)
+        with wave.open(output_path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(24000)
+            w.writeframes(bf.silence_pcm(20, 24000, 1, 2))
+        return output_path
+
+    monkeypatch.setattr(bf, "_tts_with_retry", fake_retry)
+    d = str(tmp_path)
+    bf._lis_tts_cached(None, "hello", d, None, style_preamble="STYLE ONE")
+    bf._lis_tts_cached(None, "hello", d, None, style_preamble="STYLE TWO")
+    assert paths[0] != paths[1]                                          # preamble khác → key khác
+    n = len(paths)
+    bf._lis_tts_cached(None, "hello", d, None, style_preamble="STYLE ONE")   # cùng preamble+text
+    assert len(paths) == n                                              # → trúng cache, không render lại
 
 
 def test_SPEC_FACTORY_009_mp3_fallback_when_missing(tmp_path, monkeypatch):

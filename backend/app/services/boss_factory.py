@@ -1592,8 +1592,34 @@ LIS_PAUSES = {
     "between_plays_l2": 30,     # sau "Now listen again." (L2 — bài dài)
     "review_half": 90,          # nửa thời gian soát cuối (×2 = 3 phút)
 }
-# Cặp giọng tương phản mạnh cho hội thoại (Google KHÔNG gắn nhãn giới tính chính thức — chọn theo nghe).
-LIS_VOICES = {"A": "Kore", "B": "Puck"}   # A ~ nữ, B ~ nam (cần nghe kiểm)
+# Cặp giọng CHỌN qua nghe-tai A/B (SPEC-FACTORY-021 — Đạt chọn biến thể C): Sulafat (warm) +
+# Charon (informative) — tương phản rõ hơn Kore/Puck cũ. Đổi giọng → 'speakers' khác → cache-key
+# _lis_tts_cached tự đổi → đoạn cache cũ (Kore/Puck) KHÔNG bị dùng lại.
+LIS_VOICES = {"A": "Sulafat", "B": "Charon"}
+# Giọng ĐƠN (speakers=None): lời dẫn + monologue L2 (Part Two, ~nửa bài) + hội thoại tách <2 nhãn.
+# PHẢI là 1 trong cặp C đã chọn — trước đây hard-code 'Puck' (chính giọng baseline BỊ LOẠI ở A/B) →
+# ~83% thời lượng đọc bằng giọng cũ (review đối kháng S57e). Sulafat = warm, hợp lời dẫn + talk.
+LIS_MONO_VOICE = "Sulafat"
+
+# Chỉ dẫn giọng (style-preamble) prepend vào contents mọi đoạn Nghe — chữa 'đều đều' (Gemini 2.5 TTS
+# hỗ trợ chính thức cả multi-speaker). GENERIC: KHÔNG hard-code tên speaker (hội thoại production đổi
+# tên) + ép ĐỌC CHẬM (Gemini mặc định ~200wpm, nhanh hơn chuẩn B1 ~150-167). PHẢI vào cache-key nếu
+# không đoạn cache cũ bị đọc SAI giọng/nhịp.
+LIS_STYLE_PREAMBLE = (
+    "Read the following clearly and naturally for a B1 English listening exam, in a clear standard "
+    "British English accent as heard in southern England. Give each speaker a distinct, consistent "
+    "voice with natural, expressive intonation - rising on questions, falling on statements. Speak "
+    "slowly and clearly at a relaxed, measured pace suitable for intermediate learners, leaving a "
+    "short natural pause between turns. Do not rush; enunciate the key words clearly."
+)
+
+
+def _lis_pace_tags(dlg: str) -> str:
+    """Chèn [short pause] cuối mỗi lượt lời (trừ lượt cuối) — nhịp nghỉ tự nhiên giữa 2 người, đúng
+    biến thể giọng Đạt chọn (C). Best-effort (Gemini có thể honor/bỏ qua); nhãn 'X:' đầu dòng GIỮ
+    NGUYÊN nên tách giọng không lệch."""
+    lines = [ln.rstrip() for ln in dlg.splitlines() if ln.strip()]
+    return "\n".join(ln + (" [short pause]" if i < len(lines) - 1 else "") for i, ln in enumerate(lines))
 
 # Sinh kịch bản Nghe = prompt DÀI NHẤT nhà máy (5 hội thoại ~113 từ + monologue ~355 từ + gaps →
 # JSON ~2500 token). Ở Gemini 2.5/3.x thinking (~9500 token đo thật) + JSON dùng CHUNG budget → phải
@@ -1852,7 +1878,8 @@ def export_lis_bundle(items: list) -> dict:
         "note": (
             "Bài Nghe (5 chọn-tranh L1 + 10 điền-từ L2, format PET) sinh từ pool_lis.json của đối tác; "
             "lis_item = shape pool_lis (audio_name='.mp3'). Audio render bằng CLI --audio: ghép TRỌN "
-            "bài ~17' (16-18' theo dải giọng, calibrate S54) theo lịch pause Cambridge (đọc-2-lần, cache per-chunk) → MP3 (lameenc, fallback WAV ~6-8× lớn). "
+            "bài đọc-2-lần theo lịch pause Cambridge (cache per-chunk) → MP3 (lameenc, fallback WAV ~6-8× lớn). "
+            "Giọng C (SPEC-FACTORY-021/022, ~167wpm) chậm hơn giọng cũ → trọn bài DÀI hơn ~17' cũ; thời lượng đang re-calibrate (Slice 6) — kiểm theo duration_s thực. "
             "⚠️ AUDIO là GIỌNG MÁY (Gemini TTS đa-giọng) — GV tiếng Anh BẮT BUỘC nghe duyệt + soát đáp án "
             "trước khi dùng. Ảnh chọn-tranh L1 = asset giao RIÊNG (media_ext.l1_images + transcripts.l1[].image_urls, "
             "sinh Gemini image real-mode) — GV duyệt ảnh; đối tác có thể thay audio/ảnh người thật."
@@ -1886,11 +1913,11 @@ def lis_review_sheet(items: list) -> str:
         )
     checklist = (
         "\n\n**Checklist GV nghe duyệt audio MÁY (từng bài — bắt buộc trước khi dùng):**\n"
-        "- [ ] Nghe hết file: giọng rõ, tốc độ hợp thí sinh B1 (~135-140 wpm), accent chấp nhận được\n"
+        "- [ ] Nghe hết file: giọng rõ, tốc độ hợp thí sinh B1 (~150-167 wpm; giọng C đo ~167), accent chấp nhận được\n"
         "- [ ] Hội thoại L1 tách ĐÚNG 2 giọng (không lẫn/na ná), đọc **2 lần** + khoảng lặng đủ\n"
         "- [ ] Monologue L2 đọc 2 lần, mỗi đáp án điền-từ nghe RÕ + đúng thứ tự trong bài\n"
         "- [ ] Đáp án (L1 A/B/C + L2 điền-từ) KHỚP nội dung nghe được\n"
-        "- [ ] Tổng thời lượng hợp lý (mục tiêu ~17'; thực tế 16-18' theo dải giọng 190-230wpm — calibrate S54) + pause đủ\n"
+        "- [ ] Tổng thời lượng hợp lý + pause đủ (⚠ giọng C ~167wpm chậm hơn giọng cũ → trọn bài dài hơn ~17'; đang re-calibrate Slice 6 — kiểm theo thời lượng THỰC in ra, chưa chốt dải)\n"
         "- [ ] (Nếu audio_status='wav_generated') file WAV lớn ~6-8× MP3 — cân nhắc cài lameenc để xuất MP3\n"
         "- [ ] ẢNH chọn-tranh L1 (nếu có): mỗi câu 3 tranh A/B/C rõ, ĐÚNG option, cùng style, KHÔNG dính chữ/số/nhãn\n"
         "- [ ] (Nếu chưa đạt) ghi lý do + đề nghị chỉnh hoặc thay bằng audio/ảnh người thật\n"
@@ -1988,14 +2015,17 @@ def wav_to_mp3(wav_path: str, mp3_path: Optional[str] = None,
     return mp3_path
 
 
-def _lis_tts(generator, text: str, output_path: str, speakers=None) -> str:
-    """TTS Gemini → WAV 24kHz mono. speakers=None: 1 giọng 'Puck'; speakers=[(label,voice),...]: đa-giọng.
+def _lis_tts(generator, text: str, output_path: str, speakers=None, style_preamble=None) -> str:
+    """TTS Gemini → WAV 24kHz mono. speakers=None: 1 giọng LIS_MONO_VOICE; speakers=[(label,voice),...]: đa-giọng.
+    style_preamble (SPEC-FACTORY-021): chỉ dẫn giọng prepend vào contents (chữa 'đều đều'); None = hành
+    vi cũ (các caller khác không đổi).
 
     CHỈ chạy real-mode (cần generator.client). Lazy-import google types để core logic không phụ thuộc SDK."""
     from google.genai import types  # noqa: PLC0415
     client = getattr(generator, "client", None)
     if client is None:
         raise RuntimeError("Gemini client chưa khởi tạo (cần GEMINI_API_KEY) cho TTS.")
+    contents = f"{style_preamble}\n\n{text}" if style_preamble else text
     if speakers:
         speech = types.SpeechConfig(multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
             speaker_voice_configs=[
@@ -2005,9 +2035,9 @@ def _lis_tts(generator, text: str, output_path: str, speakers=None) -> str:
             ]))
     else:
         speech = types.SpeechConfig(voice_config=types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")))
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=LIS_MONO_VOICE)))
     resp = client.models.generate_content(
-        model="gemini-2.5-flash-preview-tts", contents=text,
+        model="gemini-2.5-flash-preview-tts", contents=contents,
         config=types.GenerateContentConfig(response_modalities=["AUDIO"], speech_config=speech))
     audio = None
     for c in (resp.candidates or []):
@@ -2040,12 +2070,12 @@ _TTS_TRANSIENT = ("429", "503", "resource_exhausted", "unavailable", "overloaded
 
 
 def _tts_with_retry(generator, text: str, output_path: str, speakers=None,
-                    max_retries: int = 5, base_delay: float = 2.0) -> str:
+                    max_retries: int = 5, base_delay: float = 2.0, style_preamble=None) -> str:
     """Gọi _lis_tts với exponential backoff + jitter cho lỗi transient (429/503). Lỗi khác raise
     ngay. Dựng bài dài = 20-30 call → free-tier rất dễ 429, backoff giúp không rơi cả bài."""
     for attempt in range(max_retries):
         try:
-            return _lis_tts(generator, text, output_path, speakers)
+            return _lis_tts(generator, text, output_path, speakers, style_preamble=style_preamble)
         except Exception as e:
             transient = any(t in str(e).lower() for t in _TTS_TRANSIENT)
             if not transient or attempt == max_retries - 1:
@@ -2065,17 +2095,19 @@ def _valid_wav(path: str) -> bool:
         return False
 
 
-def _lis_tts_cached(generator, text: str, cache_dir: str, speakers=None) -> str:
-    """TTS có CACHE theo hash(text+speakers): đoạn lặp lại (lời dẫn, 'Now listen again', đọc-lần-2)
-    chỉ gọi Gemini 1 lần → giảm mạnh số call, tránh cạn free-tier khi dựng trọn bài + re-run rẻ.
-    Cache theo NỘI DUNG: cùng text+giọng → cùng audio (dedup hợp lệ; item trùng nội dung đã bị
-    near-dup + qc gate loại render nên không lẫn bài)."""
-    key = hashlib.md5((text + "|" + json.dumps(speakers or [], ensure_ascii=False)).encode("utf-8")).hexdigest()[:16]
+def _lis_tts_cached(generator, text: str, cache_dir: str, speakers=None, style_preamble=None) -> str:
+    """TTS có CACHE theo hash(style_preamble+text+speakers): đoạn lặp lại (lời dẫn, 'Now listen again',
+    đọc-lần-2) chỉ gọi Gemini 1 lần → giảm mạnh số call, tránh cạn free-tier khi dựng trọn bài + re-run
+    rẻ. Cache theo NỘI DUNG + GIỌNG + CHỈ DẪN: style_preamble PHẢI vào key (SPEC-FACTORY-021) — nếu
+    không, đổi giọng/chỉ dẫn mà key không đổi → dùng lại audio cũ SAI giọng."""
+    key = hashlib.md5(
+        (f"{style_preamble or ''}|{text}|{json.dumps(speakers or [], ensure_ascii=False)}").encode("utf-8")
+    ).hexdigest()[:16]
     os.makedirs(cache_dir, exist_ok=True)
     cached = os.path.join(cache_dir, f"{key}.wav")
     if _valid_wav(cached):       # đọc-được + đủ frames (không chỉ >44 byte) → dùng lại an toàn
         return cached
-    return _tts_with_retry(generator, text, cached, speakers)
+    return _tts_with_retry(generator, text, cached, speakers, style_preamble=style_preamble)
 
 
 # Lời dẫn chuẩn (phỏng theo tapescript Cambridge B1 Preliminary; khung "hai phần" cho bản rút gọn đối tác).
@@ -2118,11 +2150,12 @@ def _build_listening_segments(l1: list, l2: str, pauses: dict = None) -> list:
             logger.warning("Nghe: tách <2 nhãn giọng từ hội thoại (sẽ đọc MONO): %s", dlg.replace("\n", " ")[:60])
         speakers = ([(lab, voices[j % len(voices)]) for j, lab in enumerate(labels)]
                     if len(labels) >= 2 else None)
-        say(dlg, speakers)                    # đọc lần 1
+        dlg_tts = _lis_pace_tags(dlg)         # chèn [short pause] giữa lượt lời (giọng C Đạt chọn)
+        say(dlg_tts, speakers)                # đọc lần 1
         pause(p["after_play"])
         say("Now listen again.")
         pause(p["between_plays_l1"])
-        say(dlg, speakers)                    # đọc lần 2 (GIỐNG HỆT → cache trúng, 1 call)
+        say(dlg_tts, speakers)                # đọc lần 2 (GIỐNG HỆT → cache trúng, 1 call)
         pause(p["after_play"])
     say("That is the end of Part One.")
     pause(p["end_of_part"])
@@ -2151,8 +2184,11 @@ def build_listening_audio(generator, item: dict, out_dir: str, to_mp3: bool = Tr
     (đọc-2-lần) + lời dẫn + pause theo lịch Cambridge PET → 1 file. Encode MP3 (lameenc) nếu có,
     fallback WAV. TTS có cache per-chunk + retry/backoff 429/503 free-tier.
 
-    Thời lượng ~17' (calibrate S54 cho giọng Gemini đo ~210wpm: L1 115 từ / L2 360 từ + pause 441s →
-    ~17.1', band 16-18' ở 190-230wpm; GV kiểm duration_s). Trả {audio_path, wav_path, mp3_path, duration_s, format, n_segments}."""
+    ⚠️ THỜI LƯỢNG (đọc kỹ trước khi render full bài — Slice 6): calibrate S54 tính cho giọng CŨ
+    ~210wpm (L1 115 từ / L2 360 từ + pause 441s → ~17.1'). Giọng C (SPEC-FACTORY-021: Sulafat/Charon
+    + style-preamble ép chậm) đo THẬT ~167wpm (đúng chuẩn B1 nhưng CHẬM hơn) → cùng content trọn bài
+    sẽ DÀI hơn (~19-21'), VƯỢT dải 16-18'. Cần ĐO lại 1 bài đầy đủ + giảm content word-count HOẶC
+    hạ pause khi render full ở Slice 6 (GV kiểm duration_s). Trả {audio_path, wav_path, mp3_path, duration_s, format, n_segments}."""
     tr = item.get("transcripts") or {}
     l1 = tr.get("l1") or []
     l2 = tr.get("l2") or ""
@@ -2166,13 +2202,20 @@ def build_listening_audio(generator, item: dict, out_dir: str, to_mp3: bool = Tr
             rendered.append(("silence", val))
         else:
             text, speakers = val
-            rendered.append(("audio", _lis_tts_cached(generator, text, cache_dir, speakers)))
+            rendered.append(("audio", _lis_tts_cached(generator, text, cache_dir, speakers,
+                                                      style_preamble=LIS_STYLE_PREAMBLE)))
             n_audio += 1
 
     final_wav = os.path.join(out_dir, f"{code}.wav")
     assemble_wav_segments(rendered, final_wav)
     with wave.open(final_wav, "rb") as w:
         duration = w.getnframes() / float(w.getframerate())
+
+    # Sanity BROAD (dải mục tiêu đang re-calibrate Slice 6 cho giọng C ~167wpm — chưa chốt cứng):
+    # chỉ cảnh báo khi thời lượng RÕ RÀNG bất thường (<10' hoặc >25') → CLI/GV thấy ngay bản render lỗi.
+    if not 600 <= duration <= 1500:
+        logger.warning("Nghe %s: thời lượng %.0fs (%.1f') NGOÀI dải hợp lý ~10-25' — kiểm bản render.",
+                       code, duration, duration / 60.0)
 
     result = {"audio_path": final_wav, "wav_path": final_wav, "mp3_path": None,
               "duration_s": round(duration, 1), "format": "wav", "n_segments": n_audio}
