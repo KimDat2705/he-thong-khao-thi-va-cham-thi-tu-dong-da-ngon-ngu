@@ -1097,3 +1097,17 @@
 - **Verification**: pytest 95/0, ruff sạch, verify audio thật (giọng + ~167wpm).
 - **Status**: chờ commit. Nghe production OFFLINE (chưa web) → không đụng LIVE.
 - **Next steps**: ⚠️ HỆ QUẢ giọng ~167wpm chậm hơn → trọn bài dài ~19-21' (vượt 16-18') → Slice 6 re-calibrate content/pause. Slice tiếp: 3-Nghe-text-only ‖ (Slice 6 Nghe full media, D2/D3/D5).
+
+### === CHỐT SỔ PHIÊN S57 (2026-07-07) — Web W/Nói/Nghe + Supabase + giọng TTS ===
+- **Tổng kết phiên (5 mảng, tất cả ĐÃ PUSH `main`, CI xanh, không đụng vỡ LIVE):**
+  1. **Slice 1 — W1/W2 lên web (SPEC-FACTORY-017)** `a92764d`: khối 5 câu/đề 2601 + cổng kiểm W1 independent-solve + W2 note GV-soát-tay. Review 15-agent 11 vá. VERIFY LIVE Gemini thật.
+  2. **Slice 4 — Supabase persist (SPEC-FACTORY-020)** `f5f8c6c`: sửa BUG SỐNG CÒN SQLite-ephemeral (câu sinh web MẤT khi Render ngủ) → Postgres session-pooler + Storage helper + keepalive cron + bootstrap guard/gate/tách-asset. Review 14-agent 10 vá. **DEPLOY LIVE XÁC NHẬN** (bank 145 câu seed vào Supabase).
+  3. **Slice 2 — Nói lên web (SPEC-FACTORY-018)** `b7a618d`: part2_topic→part 11 speaking, GV soát tay. Review 5-agent 0 confirmed. VERIFY LIVE Gemini thật (2 câu Nói→Supabase).
+  4. **Slice 5 — harness đo giọng TTS A/B (SPEC-FACTORY-021)** `c466d65`: eval_lis_voices.py 4 biến thể nghe-mù + mốc-vàng đề thật + 10 tiêu chí. Đạt+GV nghe → **CHỌN mẫu C**.
+  5. **Tích hợp giọng C (SPEC-FACTORY-022)** `25d34df`: Sulafat/Charon + style-preamble ép chậm **~167wpm = chuẩn B1** ($0, không dep) + LIS_MONO_VOICE + cache-key có preamble. Review 11-agent 4 vá (đắt: mono còn Puck bị-loại 83% bài).
+- **Kết quả test cuối:** pytest **95/0**, traceability 4/4, ruff sạch, check-architecture PASS. Git `main`=`origin/main`=`25d34df`. Spec **62 (61 active/1 planned=SCALE-003)**. Feature 15 active.
+- **VIỆC ĐANG CHỜ (đầu phiên sau):**
+  1. **Đạt:** nghe `tts_samples/giong_TICH_HOP_C.mp3` xác nhận giọng tích hợp khớp C; test LIVE W1/W2/Nói bằng admin nếu muốn; **rotate 3 secrets** đã dán chat (DB pw + service key + admin pw `Tdu@Khaothi`) sau vài ngày ổn định.
+  2. **Slice 3 — Nghe text-only lên web** (kịch bản vào ngân hàng, audio pending; 3 guard: notes-template chống lộ đáp án + chặn approve part7/8 thiếu audio + chặn approve khối W1 lẻ).
+  3. **Slice 6 — Nghe full media** (render audio giọng C + upload Storage + ảnh chọn-tranh): ⚠️ giọng ~167wpm chậm hơn → trọn bài dài ~19-21' (vượt 16-18') → PHẢI re-calibrate content/pause. Cần D2 (billing ảnh — tách key) / D3 (chi TTS) / D5 (audio khi generate đề — việc sếp) trước.
+  4. Dọn câu draft test (W1/W2/Nói) tôi sinh khi verify LIVE (Đạt xoá ở /admin/bank nếu muốn gọn). Keepalive "No jobs" email = quirk GitHub vô hại, bỏ qua.
