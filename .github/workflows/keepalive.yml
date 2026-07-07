@@ -1,33 +1,35 @@
-# SPEC-FACTORY-020: chống NGỦ hạ tầng free-tier.
-# - Supabase free PAUSE project sau ~7 ngày không có hoạt động DB → ping 3 lần/tuần
-#   (margin 2-3 ngày nếu lỡ mất 1 run).
-# - Gọi endpoint CÓ CHẠM DB của backend LIVE (/api/v1/exams — GET public, query bảng exams
-#   mỗi request, không cache) → một mũi tên hai đích: đánh thức Render (spin-down 15')
-#   + tính là hoạt động cho Supabase.
+# SPEC-FACTORY-020 — chống NGỦ hạ tầng free-tier.
+# Ping endpoint chạm DB của backend LIVE (/api/v1/exams: GET public, query bảng exams mỗi
+# request, không cache) 3 lần/tuần → vừa đánh thức Render (spin-down 15') vừa tính là hoạt
+# động cho Supabase (free PAUSE sau ~7 ngày idle; margin 2-3 ngày nếu lỡ mất 1 run).
 #
-# ⚠️ RỦI RO ĐÃ BIẾT (review S57): GitHub tự VÔ HIỆU HOÁ scheduled workflow sau 60 ngày repo
-# không có commit (chỉ báo qua 1 email "scheduled workflow disabled"). Repo đang phát triển
-# thường xuyên nên ít nguy cơ; nếu dự án đóng băng >1 tháng → bật thêm 1 lớp ping ngoài
-# (UptimeRobot/cron-job.org free, ping cùng URL 1 lần/tuần) hoặc để ý email và bấm re-enable.
-# Docs Supabase chỉ nói "user database activity" — 1-2 tuần đầu sau khi chuyển DB, kiểm tra
-# dashboard Supabase (mục project status) xác nhận không có cảnh báo pause; nếu vẫn báo idle,
-# đổi bước ping sang gọi REST gateway Supabase ({SUPABASE_URL}/rest/v1/ với apikey — cần thêm
-# GitHub secret) là chắc chắn được tính activity.
+# Ghi chú vận hành:
+#   - GitHub tự vô hiệu hoá scheduled workflow sau 60 ngày repo KHÔNG có commit (báo qua 1
+#     email). Repo đang phát triển nên ít nguy cơ; nếu đóng băng >1 tháng thì bấm re-enable
+#     hoặc thêm 1 lớp ping ngoài (UptimeRobot/cron-job.org free ping cùng URL).
+#   - 1-2 tuần đầu sau khi chuyển DB, xem dashboard Supabase (project status) xác nhận không
+#     cảnh báo pause; nếu vẫn báo idle, đổi bước ping sang REST gateway Supabase (cần secret).
+#   - Chỉ chạy theo lịch / bấm tay (workflow_dispatch) — KHÔNG chạy khi push.
 name: keepalive
 
 on:
   schedule:
-    - cron: "0 1 * * 1,4,6" # 01:00 UTC thứ 2 + thứ 5 + thứ 7 (~8h sáng VN)
-  workflow_dispatch: {} # cho phép bấm chạy tay để thử
+    # 01:00 UTC thứ 2 + thứ 5 + thứ 7 (~08:00 giờ VN)
+    - cron: "0 1 * * 1,4,6"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Wake Render (lần 1 có thể timeout khi service đang ngủ)
+      # Lần 1 có thể timeout khi service đang ngủ — không để bước này làm đỏ job.
+      - name: Wake Render
         continue-on-error: true
         run: curl -sS -m 90 -o /dev/null -w "wake attempt: HTTP %{http_code}\n" "https://toeic-backend-5n57.onrender.com/api/v1/exams"
-      - name: Ping endpoint chạm DB (giữ Supabase active) — thử tối đa 3 lần
+      - name: Ping endpoint chạm DB (thử tối đa 3 lần)
         run: |
           for i in 1 2 3; do
             sleep 30
@@ -35,5 +37,5 @@ jobs:
             echo "attempt $i: HTTP $code"
             if [ "$code" = "200" ]; then exit 0; fi
           done
-          echo "keepalive FAILED sau 3 lần — kiểm tra Render service + Supabase dashboard"
+          echo "keepalive FAILED sau 3 lan - kiem tra Render service + Supabase dashboard"
           exit 1

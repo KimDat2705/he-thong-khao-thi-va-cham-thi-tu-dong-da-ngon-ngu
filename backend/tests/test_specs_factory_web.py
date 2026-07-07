@@ -429,6 +429,32 @@ def test_SPEC_FACTORY_020_db_persist_config_and_media_store(monkeypatch):
         media_store.upload_bytes("img/a.png", b"1")
 
 
+def test_SPEC_FACTORY_021_tts_ab_harness_variants():
+    """SPEC-FACTORY-021: harness ĐO giọng TTS A/B (bước đo, chưa tích hợp) — cấu trúc biến thể đúng
+    + KHÔNG sửa production _lis_tts. Test tĩnh (không gọi Gemini): mốc v1 = baseline không style,
+    v2+ có style-preamble, transcript đa-giọng có nhãn Anna/Ben, baseline giữ giọng production."""
+    import importlib.util
+    import os
+
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "eval_lis_voices.py")
+    spec = importlib.util.spec_from_file_location("eval_lis_voices", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    keys = [v[0] for v in mod.VARIANTS]
+    assert keys[0] == "v1_current_baseline"                 # mốc control đứng đầu
+    assert mod.VARIANTS[0][2] is None                       # baseline KHÔNG style-preamble (giống production)
+    assert mod.VARIANTS[0][4] == mod.SPEAKERS_DEFAULT       # baseline giữ giọng production (Kore/Puck)
+    assert all(v[2] for v in mod.VARIANTS[1:])              # v2+ đều có style-preamble
+    assert len(mod.VARIANTS) >= 3                           # đủ biến thể để so
+    assert "Anna:" in mod.SAMPLE_TRANSCRIPT and "Ben:" in mod.SAMPLE_TRANSCRIPT  # nhãn đa-giọng
+    # KHÔNG đụng production: _lis_tts vẫn hard-code model + không nhận style-preamble.
+    import inspect
+
+    from app.services import boss_factory
+    assert "style" not in inspect.signature(boss_factory._lis_tts).parameters
+
+
 def test_factory_batch_marked_failed_on_save_error(db_session, monkeypatch):
     """Regression (review #3): lưu lỗi giữa chừng → ImportBatch đánh 'failed' (không mồ côi 'imported')."""
     from app.services import parser as parser_mod
