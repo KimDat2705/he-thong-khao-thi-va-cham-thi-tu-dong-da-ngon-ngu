@@ -1111,3 +1111,19 @@
   2. **Slice 3 — Nghe text-only lên web** (kịch bản vào ngân hàng, audio pending; 3 guard: notes-template chống lộ đáp án + chặn approve part7/8 thiếu audio + chặn approve khối W1 lẻ).
   3. **Slice 6 — Nghe full media** (render audio giọng C + upload Storage + ảnh chọn-tranh): ⚠️ giọng ~167wpm chậm hơn → trọn bài dài ~19-21' (vượt 16-18') → PHẢI re-calibrate content/pause. Cần D2 (billing ảnh — tách key) / D3 (chi TTS) / D5 (audio khi generate đề — việc sếp) trước.
   4. Dọn câu draft test (W1/W2/Nói) tôi sinh khi verify LIVE (Đạt xoá ở /admin/bank nếu muốn gọn). Keepalive "No jobs" email = quirk GitHub vô hại, bỏ qua.
+
+### Session 57f -- 2026-07-07 (Slice 3: Nghe TEXT-ONLY lên web — SPEC-FACTORY-019)
+- **What was done**:
+  - Đưa KỊCH BẢN Nghe vào ngân hàng qua web (audio để slice sau). Nghiên cứu đa-agent 5 reader (Workflow) dựng bản đồ chính xác 5 subsystem TRƯỚC khi code.
+  - `factory_service` +skill `listening` (load_lis_seeds/build_lis_variants, seed pool_lis.json qua _SKILL_SEED_FILE) parts=[7,8] gate manual (ngoài VERIFY_SUPPORTED_SKILLS → tự manual, verify bỏ qua).
+  - `factory_to_bank._lis_rows`: L1 → 5 Question part 7 type choice (options A/B/C = mô tả tranh, reference_answer=letter); L2 → 1 QuestionGroup part 8 + 10 câu con type fill (reference_answer=từ điền). build_lis_variants tách hẳn build_listening_audio → lấy content KHÔNG kích hoạt TTS.
+  - **3 CHỐT AN TOÀN THI BẰNG CODE**: (a) passage_text (thí sinh THẤY, TakeView render) = notes-template ĐỤC LỖ (đánh số chỗ trống, KHÔNG transcript/đáp án); transcript + đáp án chỉ ở explanation (exam_admin._question_dict KHÔNG serialize explanation cho thí sinh + reference_answer null-gate). (b) bank_admin.approve_questions chặn duyệt part 7/8 chưa có audio (audio_url cấp câu + group_audio_url cấp nhóm) → ValueError→400. (c) chặn duyệt khối W1 part 5 <5 câu (đếm dòng đánh số reference_answer) — vá review S57 finding 11. FE tự hiện qua /skills (KHÔNG sửa FE).
+- **Verification**: pytest **103/0** (+8 test 019), ruff app/+test sạch, check-architecture PASS, traceability OK (specs 63, active 62). **SMOKE server THẬT** (uvicorn + async daemon thread + SQLite file, mock): /skills có listening [7,8] manual → generate-async → 5 part 7 + 10 part 8 draft → JSON API KHÔNG lộ transcript/đáp án → approve HTTP 400 chặn thiếu audio + không câu nào bị duyệt lén.
+- **REVIEW ĐỐI KHÁNG (Workflow 17 agent, 4 lăng kính×verify): 13 finding / 4 CONFIRMED → VÁ HẾT**:
+  - [HIGH] group hash part 8 chỉ theo mã bài TẤT ĐỊNH (LB1.90-<seed>-<idx>) → re-run cùng seed với bài Gemini KHÁC → group hash trùng → save_parsed_items nuốt TRỌN khối mới (đúng lỗi lớp R4 đã vá S56) → thêm **ltag = sha1(transcript+đáp án)[:6]** vào content câu con → hash phái sinh nội dung.
+  - [MED] AC6 chống-dedup chưa có test >1 bài → +2 test (group-hash content-derived + multi-bundle per_seed=2 → 2 nhóm/30 câu/0 skipped).
+  - [LOW] guard bị lách qua PATCH /bank/questions/{id} status→approved (update_bank_question setattr không qua guard) → tách **_assert_batch_approvable** áp CẢ approve_questions + update_bank_question (endpoint PATCH wrap ValueError→400) + test.
+  - [LOW] assert answer_suspect==0 tautology → reword thành kiểm crash-safety verify=True trên skill gate manual.
+  - 9 finding refuted hợp lý (guard W1 partner không permanently-block; int>=6 pin bởi qc_lis/fixture; leak-test mock-token an-toàn-by-construction; options mô tả không lộ đáp án vì explanation không serialize).
+- **Status**: ⚠️ CHƯA COMMIT (chờ Đạt duyệt). git tree chỉ 7 file (api/bank.py, services/bank_admin.py, factory_service.py, factory_to_bank.py, tests/test_specs_factory_web.py, specs.json, feature_list.json). origin/main vẫn 8344236.
+- **Next steps**: Đạt duyệt → commit/push/CI/LIVE (test LIVE bằng admin nếu muốn). Còn chờ: Slice 6 Nghe full media (render audio giọng C + upload Storage + ảnh) — cần D2/D3/D5 + re-calibrate thời lượng (~167wpm → bài dài). Nghe production audio vẫn OFFLINE.
