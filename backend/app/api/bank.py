@@ -38,8 +38,14 @@ def update_question(
 ):
     """
     Update details of a bank question.
-    Only allows modifying bank items (exam_id IS NULL).    """
-    updated = bank_admin.update_bank_question(db, id, patch)
+    Only allows modifying bank items (exam_id IS NULL).
+    Cổng an toàn (SPEC-FACTORY-019): nếu patch chuyển status→'approved' mà câu vướng (Nghe thiếu audio
+    / khối W1 lẻ) → ValueError → HTTP 400 (PATCH không lách được cổng của approve_questions).
+    """
+    try:
+        updated = bank_admin.update_bank_question(db, id, patch)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if updated is None:
         raise HTTPException(status_code=404, detail="Question not found in the bank")
     return updated
@@ -52,8 +58,14 @@ def approve_questions(
 ):
     """
     Approve draft questions in the bank.
-    Propagates the approval status to their parent groups.    """
-    updated_count = bank_admin.approve_questions(db, payload.ids)
+    Propagates the approval status to their parent groups.
+    Cổng an toàn (SPEC-FACTORY-019): chặn duyệt câu Nghe (part 7/8) chưa có audio + khối W1 (part 5)
+    thiếu câu → ValueError → HTTP 400 (không duyệt câu nào, GV bỏ chọn câu vướng rồi duyệt lại).
+    """
+    try:
+        updated_count = bank_admin.approve_questions(db, payload.ids)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return ApproveResult(updated=updated_count)
 
 @router.get("/stats", response_model=BankStats)

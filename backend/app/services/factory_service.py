@@ -6,11 +6,11 @@ chuyển sang hàng ngân hàng → lưu vào DB dưới dạng nháp (draft) ch
 tại /admin/bank.
 
 Seed dùng bộ MẪU TỔNG HỢP trong repo (backend/tests/fixtures/factory_sample/) — an toàn công khai,
-KHÔNG chứa dữ liệu bản quyền của đối tác. Đọc/Viết dùng bank_raw.json, Nói dùng pool_speak.json
-(Nghe slice sau dùng pool_lis.json). Đổi sang đề thật của đối tác = thay các file này.
+KHÔNG chứa dữ liệu bản quyền của đối tác. Đọc/Viết dùng bank_raw.json, Nói dùng pool_speak.json,
+Nghe dùng pool_lis.json. Đổi sang đề thật của đối tác = thay các file này.
 
-Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017) + NÓI (SPEC-FACTORY-018).
-Nghe = slice sau.
+Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017) + NÓI (SPEC-FACTORY-018) +
+NGHE text-only (SPEC-FACTORY-019: kịch bản vào ngân hàng, audio render ở slice sau).
 """
 import json
 import os
@@ -28,7 +28,7 @@ _SEED_DIR = os.path.join(
     "tests", "fixtures", "factory_sample",
 )
 
-# skill (tên bundle boss_factory) → (nạp seed, sinh biến thể). ĐỌC R1–R4 + VIẾT W1/W2 + NÓI.
+# skill (tên bundle boss_factory) → (nạp seed, sinh biến thể). ĐỌC R1–R4 + VIẾT W1/W2 + NÓI + NGHE.
 FACTORY_SKILLS = {
     "reading_s1": (boss_factory.load_r1_seeds, boss_factory.build_r1_variants),
     "reading_s2_notice": (boss_factory.load_r2_seeds, boss_factory.build_r2_variants),
@@ -37,12 +37,15 @@ FACTORY_SKILLS = {
     "writing_w1_rewrite": (boss_factory.load_w1_seeds, boss_factory.build_w1_variants),
     "writing_w2_letter": (boss_factory.load_w2_seeds, boss_factory.build_w2_variants),
     "speaking": (boss_factory.load_speak_seeds, boss_factory.build_speak_variants),
+    # Nghe: build_lis_variants sinh KỊCH BẢN + đáp án (CHƯA render audio — audio là slice sau).
+    "listening": (boss_factory.load_lis_seeds, boss_factory.build_lis_variants),
 }
 
 # Seed file theo skill (mặc định bank_raw.json cho Đọc/Viết). Nói dùng pool_speak.json (DICT thẻ),
-# Nghe slice sau dùng pool_lis.json — mỗi nguồn có schema riêng nên tách file.
+# Nghe dùng pool_lis.json — mỗi nguồn có schema riêng nên tách file.
 _SKILL_SEED_FILE = {
     "speaking": "pool_speak.json",
+    "listening": "pool_lis.json",
 }
 
 # Nhãn hiển thị cho giao diện (khớp cách gọi ở /admin/bank).
@@ -54,10 +57,11 @@ SKILL_LABELS = {
     "writing_w1_rewrite": "W1 · Viết phần 1 (viết lại câu — khối 5 câu/đề)",
     "writing_w2_letter": "W2 · Viết phần 2 (viết thư ~100 từ, tự luận)",
     "speaking": "S · Nói (phát triển chủ đề — chấm AI, GV soát)",
+    "listening": "L · Nghe (5 chọn-tranh part 7 + 10 điền-từ part 8 — kịch bản text, audio slice sau)",
 }
 
-# Part VSTEP_B1 mà câu của skill đổ vào (FE auto-chuyển bộ lọc sau khi sinh; Nghe slice sau
-# sẽ span 2 part 7+8 nên là LIST ngay từ đầu).
+# Part VSTEP_B1 mà câu của skill đổ vào (FE auto-chuyển bộ lọc sau khi sinh; Nghe span 2 part
+# 7 (chọn-tranh L1) + 8 (điền-từ L2) nên là LIST).
 SKILL_PARTS = {
     "reading_s1": [1],
     "reading_s2_notice": [2],
@@ -66,6 +70,7 @@ SKILL_PARTS = {
     "writing_w1_rewrite": [5],
     "writing_w2_letter": [6],
     "speaking": [11],           # D4: part2_topic → part 11 (phát triển chủ đề)
+    "listening": [7, 8],        # L1 chọn-tranh → part 7 (đơn); L2 điền-từ → part 8 (nhóm 10 con)
 }
 
 
@@ -73,7 +78,7 @@ def supported_skills() -> list:
     """Danh sách skill hỗ trợ (cho endpoint /factory/skills).
 
     gate: 'ai' = có cổng kiểm đáp án AI (R1-R4 MCQ/cloze, W1 viết-lại-độc-lập) ·
-    'manual' = tự luận không đáp án đóng, GV soát tay (W2; Nói/Nghe slice sau).
+    'manual' = không có cổng kiểm đáp án đóng tự động, GV soát tay (W2, Nói, Nghe).
     """
     return [{
         "skill": s,

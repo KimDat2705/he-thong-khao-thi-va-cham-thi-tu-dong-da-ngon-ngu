@@ -1,3 +1,5 @@
+import re
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
@@ -6,6 +8,51 @@ from app.models.question import Question
 from app.models.question_group import QuestionGroup
 from app.services.exam_generator import VSTEP_B1_BLUEPRINT
 from app.schemas.bank import QuestionUpdate, BankStats, PartStats
+
+# Cổng an toàn thi khi DUYỆT (SPEC-FACTORY-019). Đặt ở bank-approve (D7d) — nơi duy nhất flip
+# status='approved', áp cho CẢ câu nhà máy lẫn câu import đối tác.
+LIS_PARTS = (7, 8)          # part Nghe: 7 = chọn-tranh L1 (đơn), 8 = điền-từ L2 (nhóm — audio dùng chung)
+W1_MIN_BLOCK = 5            # khối Viết phần 1 (part 5) chuẩn = 5 câu viết-lại (đúng format đề 2601)
+_W1_NUM_LINE = re.compile(r"(?m)^\s*\d+\.")   # dòng câu đánh số '1.'…'5.' trong reference_answer/content
+
+
+def _question_has_audio(q: Question) -> bool:
+    """Câu Nghe có audio ở CẤP CÂU (part 7 standalone) HOẶC CẤP NHÓM (part 8, audio dùng chung cả bài)."""
+    return bool((q.audio_url or "").strip()) or bool((q.group_audio_url or "").strip())
+
+
+def _w1_block_size(q: Question) -> int:
+    """Số câu trong 1 khối W1 = số dòng đánh số ('1.'…) trong reference_answer (fallback content).
+
+    _w1_rows gộp CẢ khối 5 câu vào MỘT Question part 5 (không phải group) — mỗi câu là 1 dòng đánh số
+    trong reference_answer. Cùng shape với W1 import đề 2601 thật (parser gộp Section 1 thành 1 Question).
+    """
+    src = q.reference_answer or q.content or ""
+    return len(_W1_NUM_LINE.findall(src))
+
+
+def _assert_batch_approvable(q_list: List[Question]) -> None:
+    """Cổng an toàn thi BẰNG CODE (SPEC-FACTORY-019) áp cho MỌI đường chuyển status→'approved'
+    (approve hàng loạt VÀ patch lẻ) — raise ValueError nếu có câu vướng (không dựa cảnh báo trong
+    explanation vì bulk-approve không hiển thị explanation). Raise TRƯỚC khi flip status → nguyên khối.
+    """
+    # (b) Câu Nghe (part 7/8) CHƯA có audio → released mà thiếu audio = thí sinh không nghe được để trả lời.
+    no_audio = [q for q in q_list if q.part in LIS_PARTS and not _question_has_audio(q)]
+    if no_audio:
+        ids_str = ", ".join(str(q.id) for q in no_audio[:20]) + ("…" if len(no_audio) > 20 else "")
+        raise ValueError(
+            f"Không thể duyệt {len(no_audio)} câu Nghe (part 7/8) CHƯA có audio (id: {ids_str}). "
+            "Cần render audio cho bộ Nghe trước khi duyệt."
+        )
+    # (c) Khối Viết phần 1 (part 5) THIẾU câu (<5) — đề chuẩn cần đủ 5 câu viết-lại (review S57 finding 11).
+    short_w1 = [q for q in q_list
+                if q.part == 5 and (q.type or "") == "writing" and _w1_block_size(q) < W1_MIN_BLOCK]
+    if short_w1:
+        ids_str = ", ".join(str(q.id) for q in short_w1[:20]) + ("…" if len(short_w1) > 20 else "")
+        raise ValueError(
+            f"Không thể duyệt {len(short_w1)} khối Viết phần 1 (part 5) THIẾU câu (dưới {W1_MIN_BLOCK}) "
+            f"(id: {ids_str}). Khối W1 chuẩn cần đủ {W1_MIN_BLOCK} câu viết-lại."
+        )
 
 def list_bank_questions(
     db: Session,
@@ -47,11 +94,15 @@ def update_bank_question(db: Session, id: int, patch: QuestionUpdate) -> Optiona
     q = db.query(Question).filter(Question.id == id).first()
     if not q or q.exam_id is not None:
         return None
-        
+
     update_data = patch.model_dump(exclude_unset=True)
+    # PATCH cũng có thể chuyển status→'approved' (bỏ qua approve_questions) → áp CÙNG cổng an toàn thi
+    # (SPEC-FACTORY-019) để không lách được. Chỉ kiểm khi thực sự chuyển sang 'approved'.
+    if update_data.get("status") == "approved" and q.status != "approved":
+        _assert_batch_approvable([q])
     for key, val in update_data.items():
         setattr(q, key, val)
-        
+
     db.commit()
     db.refresh(q)
     return q
@@ -68,7 +119,11 @@ def approve_questions(db: Session, ids: List[int]) -> int:
         Question.exam_id.is_(None),
         Question.status != "approved"
     ).all()
-    
+
+    # Cổng an toàn thi (SPEC-FACTORY-019): chặn TRƯỚC khi flip status (nguyên khối — có 1 câu vướng
+    # thì KHÔNG duyệt câu nào). Cùng helper với update_bank_question để PATCH không lách được cổng.
+    _assert_batch_approvable(q_list)
+
     updated_count = len(q_list)
     if updated_count > 0:
         group_ids = {q.group_id for q in q_list if q.group_id is not None}

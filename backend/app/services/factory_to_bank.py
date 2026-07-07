@@ -3,8 +3,12 @@
 Đầu ra khớp shape mà ``parser.save_parsed_items`` mong đợi (câu đơn lẻ + nhóm passage),
 để tái dùng nguyên cơ chế lưu-nháp + chống-trùng (content_hash) + tạo QuestionGroup có sẵn.
 
-Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017) + NÓI (SPEC-FACTORY-018).
-Nghe = slice sau (Đạt duyệt riêng vì Nghe kéo theo audio nặng).
+Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017) + NÓI (SPEC-FACTORY-018) +
+NGHE text-only (SPEC-FACTORY-019: kịch bản + đáp án vào ngân hàng; audio render ở slice sau).
+
+AN TOÀN THI (Nghe, BẰNG CODE — không dựa quy ước): passage_text (thí sinh THẤY, TakeView render thẳng)
+CHỈ là notes-template ĐỤC LỖ; transcript đầy đủ + đáp án chỉ nằm trong explanation (admin, KHÔNG
+serialize cho thí sinh). Câu Nghe sinh với audio_url=None → cổng approve chặn duyệt tới khi có audio.
 
 Cờ cổng kiểm đáp án (⚠ NGHI / ✅ PASS) được nhét vào ``explanation`` để giáo viên thấy NGAY trong
 ngân hàng — KHÔNG thêm cột DB mới (không cần migration). Dạng KHÔNG có cổng kiểm (W2 tự luận) →
@@ -318,6 +322,110 @@ def _speak_rows(items: list) -> list:
     return rows
 
 
+# Notes-template cho Nghe part 8 (thí sinh THẤY trong khi nghe) — CHỈ đánh số + chỗ trống, KHÔNG chữ
+# nào của transcript/đáp án. Dòng hướng dẫn cố định (không chứa từ đáp án của bộ fixture/đề thật).
+LIS_L2_NOTES_HEADING = "GHI CHÚ — Nghe đoạn độc thoại và điền MỘT từ vào mỗi chỗ trống:"
+# Note GV cho câu Nghe (không có cổng kiểm đáp án đóng tự động) + nhắc audio chưa render.
+LIS_MANUAL_REVIEW_NOTE = (
+    "[🎧 CHƯA QUA CỔNG KIỂM ĐÁP ÁN AI — Nghe soát bằng tai; GIÁO VIÊN NGHE audio + SOÁT đáp án khớp "
+    "transcript trước khi duyệt. Audio CHƯA render (audio_url trống) → cổng duyệt sẽ chặn tới khi có audio.]"
+)
+
+
+def _lis_rows(items: list) -> list:
+    """Nghe (SPEC-FACTORY-019, text-only) → 5 câu part 7 (chọn-tranh, choice) + 1 NHÓM part 8 (10 con fill).
+
+    An toàn thi BẰNG CODE (không dựa cảnh báo trong explanation — bulk-approve không hiển thị explanation):
+    - passage_text (thí sinh THẤY) = notes-template ĐỤC LỖ (đánh số các chỗ trống) — KHÔNG transcript/đáp án.
+    - transcript hội thoại/độc thoại + đáp án chỉ nằm trong explanation (admin, KHÔNG serialize cho thí sinh).
+    - audio CHƯA render → audio_url=None ⇒ cổng approve (bank_admin) chặn duyệt tới khi có audio (slice sau).
+    Nghe KHÔNG có cổng kiểm đáp án đóng tự động → converter chèn LIS_MANUAL_REVIEW_NOTE (GV nghe soát, như W2/Nói).
+
+    Mã bài (code, dải LB1.90-*) được nhúng vào content mỗi câu con part 8 để content KHÁC nhau giữa các
+    bài Nghe → không bị dedup content_hash nuốt câu con (bài học R4; group hash cũng gồm nối content con).
+    """
+    rows = []
+    for it in items:
+        lis = it.get("lis_item") or {}
+        tr = it.get("transcripts") or {}
+        l1 = [q if isinstance(q, dict) else {} for q in (tr.get("l1") or [])]
+        l2_transcript = str(tr.get("l2") or "").strip()
+        answers = {str(k): v for k, v in (lis.get("answers") or {}).items()}
+        code = str(lis.get("code") or it.get("nguon_seed") or "?")
+        src = str(lis.get("src_code") or it.get("nguon_seed") or "?")
+        diff = _diff(it)
+        base_exp = str(it.get("explanation") or "").strip()
+        trace = f"\nMã sinh: {code} · Nguồn seed: {src}"
+
+        # ---- PART 7: 5 câu chọn-tranh, mỗi câu 1 Question ĐƠN LẺ type choice ----
+        for q in l1:
+            stem = str(q.get("stem") or "").strip()
+            opts = q.get("options") if isinstance(q.get("options"), dict) else {}
+            ans = q.get("answer")
+            transcript = str(q.get("transcript") or "").strip()
+            if not stem or not opts or ans not in opts:
+                continue
+            exp = (
+                LIS_MANUAL_REVIEW_NOTE
+                + f"\nĐáp án: {ans}"
+                + (f"\nHội thoại (GV soát — KHÔNG hiện cho thí sinh): {transcript}" if transcript else "")
+                + (f"\n{base_exp}" if base_exp else "")
+                + trace
+            )
+            rows.append({
+                "part": 7, "type": "choice",
+                "content": stem,                                  # thí sinh THẤY câu hỏi (không lộ đáp án)
+                "audio_url": None, "image_url": None,             # audio + ảnh chọn-tranh = slice sau
+                # Text-only: mô tả A/B/C = nội dung tranh sẽ vẽ (3 lựa chọn hợp lệ — KHÔNG lộ đáp án; đáp án
+                # nằm ở reference_answer (serializer null-gate) + transcript trong explanation). Khi có tranh
+                # (slice sau) sẽ chuyển nhãn A/B/C + cất mô tả vào metadata (kế hoạch §2 'không mớm đáp án khi có tranh').
+                "options": {k: str(v) for k, v in opts.items()},
+                "reference_answer": ans,
+                "difficulty": diff, "clo": None, "topic": None,
+                "explanation": exp,
+            })
+
+        # ---- PART 8: 1 NHÓM điền-từ, 10 câu con type fill ----
+        l2_nums = sorted(int(k) for k in answers if str(k).isdigit() and int(k) >= 6)
+        # Tag PHÁI SINH TỪ NỘI DUNG (transcript + đáp án) — KHÔNG chỉ từ mã bài. code (LB1.90-<seed>-<idx>)
+        # tất định theo (seed,idx) nên 2 lần chạy cùng seed cho CÙNG code dù Gemini viết bài KHÁC → nếu chỉ
+        # nhúng code, group hash trùng → save_parsed_items nuốt trọn khối mới (đúng lỗi R4 đã vá). ltag đổi
+        # theo nội dung → khối THẬT-SỰ-MỚI có hash khác (vào ngân hàng), còn re-import y hệt vẫn dedup đúng.
+        ltag = hashlib.sha1(
+            (l2_transcript + "|" + "|".join(f"{n}:{answers.get(str(n))}" for n in l2_nums)).encode("utf-8")
+        ).hexdigest()[:6]
+        children = []
+        for n in l2_nums:
+            word = answers.get(str(n))
+            if word is None or not str(word).strip():
+                continue
+            # content thí sinh THẤY: prompt điền chỗ trống + mã bài·tag-nội-dung (chống trùng content_hash) — KHÔNG lộ đáp án.
+            content = f"(Bài {code}·{ltag}) Nghe đoạn độc thoại và điền MỘT từ vào chỗ trống số {n}."
+            exp = (
+                LIS_MANUAL_REVIEW_NOTE
+                + f"\nĐáp án chỗ {n}: {word}"
+                + (f"\nBản ghi độc thoại (GV soát — KHÔNG hiện cho thí sinh): {l2_transcript}" if l2_transcript else "")
+                + trace
+            )
+            children.append({
+                "part": 8, "type": "fill", "content": content,
+                "audio_url": None, "image_url": None, "options": {},
+                "reference_answer": str(word),
+                "difficulty": diff, "clo": None, "topic": None,
+                "explanation": exp,
+            })
+        if not children:
+            continue
+        # passage_text (thí sinh THẤY) = notes-template ĐỤC LỖ — CHỈ số thứ tự + chỗ trống, KHÔNG đáp án.
+        notes = [LIS_L2_NOTES_HEADING, ""] + [f"{n}. ______" for n in l2_nums]
+        rows.append({
+            "part": 8, "topic": None, "passage_text": "\n".join(notes),
+            "audio_url": None, "image_url": None, "difficulty": diff,
+            "questions": children,
+        })
+    return rows
+
+
 _DISPATCH = {
     "reading_s1": _r1_rows,
     "reading_s2_notice": _r2_rows,
@@ -326,6 +434,7 @@ _DISPATCH = {
     "writing_w1_rewrite": _w1_rows,
     "writing_w2_letter": _w2_rows,
     "speaking": _speak_rows,
+    "listening": _lis_rows,
 }
 
 

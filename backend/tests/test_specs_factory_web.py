@@ -15,7 +15,7 @@ import pytest
 from app.models.import_batch import ImportBatch
 from app.models.question import Question
 from app.models.question_group import QuestionGroup
-from app.services import boss_factory, factory_service, factory_to_bank
+from app.services import bank_admin, boss_factory, factory_service, factory_to_bank
 
 
 class _StubChecker:
@@ -365,6 +365,221 @@ def test_SPEC_FACTORY_018_speaking_skill_metadata(db_session, admin_auth_headers
         assert skills["speaking"]["gate"] == "manual"
     finally:
         fastapi_app.dependency_overrides.clear()
+
+
+def _load_lis_items(limit=1, per_seed=1):
+    """Sinh items Nghe (mock, tất định) từ seed fixture pool_lis.json — dùng chung cho các test 019."""
+    seeds = boss_factory.load_lis_seeds(factory_service._load_seed_bank("listening"))[:limit]
+    return boss_factory.build_lis_variants(seeds, per_seed=per_seed, generator=None)
+
+
+def test_SPEC_FACTORY_019_listening_to_bank(db_session):
+    """AC1: Nghe (mock) → 5 Question part 7 (choice, chọn-tranh) + 1 nhóm part 8 (10 con fill), draft,
+    audio_url=None; answer_suspect=0 (Nghe không có cổng kiểm đáp án đóng → verify bỏ qua, không crash)."""
+    res = factory_service.run_factory_to_bank(db_session, "listening", limit=1, per_seed=1,
+                                              verify=True, generator=None)
+    assert res["saved_questions"] == 15, res     # 5 part 7 + 10 con part 8
+    assert res["saved_groups"] == 1, res
+    # verify=True trên skill gate 'manual' (Nghe) = kiểm CRASH-SAFETY: không route qua cổng kiểm đáp án,
+    # không crash, không gắn cờ SUSPECT (answer_suspect luôn 0 vì listening ∉ VERIFY_SUPPORTED_SKILLS).
+    assert res["answer_suspect"] == 0
+    db_session.expire_all()
+
+    p7 = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.part == 7, Question.status == "draft"
+    ).all()
+    assert len(p7) == 5, "L1 → 5 câu chọn-tranh part 7"
+    for q in p7:
+        assert q.type == "choice" and q.exam_type == "VSTEP_B1"
+        assert q.audio_url is None                              # audio = slice sau
+        assert q.reference_answer in ("A", "B", "C")           # chọn-tranh 3 phương án
+        assert q.options and q.reference_answer in q.options
+        assert "CHƯA QUA CỔNG KIỂM" in (q.explanation or "")   # note GV nghe soát tay (converter chèn)
+
+    g8 = db_session.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None), QuestionGroup.part == 8, QuestionGroup.status == "draft"
+    ).first()
+    assert g8 is not None
+    assert "______" in (g8.passage_text or "")                 # notes-template đục lỗ
+    assert len(g8.questions) == 10, "L2 → nhóm 10 câu điền-từ part 8"
+    for c in g8.questions:
+        assert c.type == "fill" and c.audio_url is None
+        assert c.reference_answer and not c.options            # điền từ: có đáp án, không phương án
+        assert c.group_id == g8.id
+
+
+def test_SPEC_FACTORY_019_listening_no_answer_leak():
+    """AC2 (ĐIỀU KIỆN NGHIỆM THU): thứ thí sinh THẤY (content câu + passage_text nhóm) KHÔNG chứa
+    transcript/đáp án; transcript + đáp án CHỈ nằm trong explanation (admin — không serialize cho thí sinh)."""
+    items = _load_lis_items(limit=1, per_seed=1)
+    assert items and items[0]["qc_ok"]
+    rows = factory_to_bank.bundle_items_to_rows("listening", items)
+
+    p7 = [r for r in rows if r.get("part") == 7 and "questions" not in r]
+    groups8 = [r for r in rows if r.get("part") == 8 and "questions" in r]
+    assert len(p7) == 5 and len(groups8) == 1
+    grp = groups8[0]
+    children = grp["questions"]
+    assert len(children) == 10
+
+    tr = items[0]["transcripts"]
+    l1, l2_transcript = tr["l1"], tr["l2"]
+    answers = items[0]["lis_item"]["answers"]
+
+    # (a) L1 part 7: transcript hội thoại (lộ đáp án) KHÔNG lọt content/options thí sinh thấy, nhưng
+    #     PHẢI nằm trong explanation (GV soát).
+    for i, r in enumerate(p7):
+        visible = r["content"] + " " + " ".join(str(v) for v in r["options"].values())
+        assert l1[i]["transcript"] not in visible
+        assert l1[i]["transcript"] in (r["explanation"] or "")
+
+    # (b) L2 part 8: đáp án (từ) + transcript độc thoại KHÔNG lọt passage_text / content thí sinh thấy.
+    student_visible = grp["passage_text"] + " " + " ".join(c["content"] for c in children)
+    assert l2_transcript not in student_visible
+    for n in range(6, 16):
+        assert str(answers[str(n)]) not in student_visible     # đáp án không lộ
+    # đáp án + transcript nằm trong explanation (admin — không serialize cho thí sinh).
+    for c in children:
+        assert "Đáp án chỗ" in (c["explanation"] or "")
+        assert l2_transcript in (c["explanation"] or "")
+    # reference_answer câu con = đúng từ đáp án L2 (giữ đủ cho GV/chấm).
+    assert {c["reference_answer"] for c in children} == {str(answers[str(n)]) for n in range(6, 16)}
+
+
+def test_SPEC_FACTORY_019_listening_skill_metadata(db_session, admin_auth_headers):
+    """AC3: /factory/skills liệt kê 'listening' parts=[7,8] gate 'manual'."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        skills = {s["skill"]: s for s in client.get("/api/v1/factory/skills",
+                                                    headers=admin_auth_headers).json()["skills"]}
+        assert "listening" in skills
+        assert skills["listening"]["parts"] == [7, 8]
+        assert skills["listening"]["gate"] == "manual"
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
+def test_SPEC_FACTORY_019_approve_blocks_listening_without_audio(db_session):
+    """AC4: cổng approve chặn duyệt câu Nghe (part 7/8) CHƯA có audio; có audio (cấp câu HOẶC cấp nhóm) → duyệt được."""
+    factory_service.run_factory_to_bank(db_session, "listening", limit=1, per_seed=1,
+                                        verify=False, generator=None)
+    db_session.expire_all()
+    ids = [q.id for q in db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.part.in_([7, 8]), Question.status == "draft"
+    ).all()]
+    assert len(ids) == 15
+
+    # Chưa có audio → chặn (raise); KHÔNG câu nào bị flip approved (nguyên khối).
+    with pytest.raises(ValueError, match="audio"):
+        bank_admin.approve_questions(db_session, ids)
+    db_session.expire_all()
+    assert db_session.query(Question).filter(
+        Question.id.in_(ids), Question.status == "approved"
+    ).count() == 0
+
+    # Gắn audio: part 7 ở CẤP CÂU, part 8 ở CẤP NHÓM (audio dùng chung cả bài) → cổng cho duyệt.
+    # Nhắm ĐÚNG nhóm của câu con vừa sinh (theo group_id) — conftest seed sẵn vài nhóm part 8 khác.
+    for q in db_session.query(Question).filter(Question.id.in_(ids), Question.part == 7).all():
+        q.audio_url = "/media/listening/clip.mp3"
+    g8_ids = {q.group_id for q in db_session.query(Question).filter(
+        Question.id.in_(ids), Question.part == 8).all()}
+    for g in db_session.query(QuestionGroup).filter(QuestionGroup.id.in_(g8_ids)).all():
+        g.audio_url = "/media/listening/full.mp3"
+    db_session.commit()
+    assert bank_admin.approve_questions(db_session, ids) == 15
+
+
+def test_SPEC_FACTORY_019_approve_blocks_short_w1_block(db_session):
+    """AC5: cổng approve chặn duyệt khối W1 (part 5, type writing) <5 câu; khối đủ 5 câu duyệt được.
+
+    Chặn TRƯỚC khi flip status (nguyên khối) — khối lẻ trong lô làm cả lô không duyệt (GV bỏ chọn rồi duyệt lại)."""
+    short = Question(part=5, type="writing", content="Viết lại:\n1. ...\n2. ...\n3. ...",
+                     reference_answer="1. a\n2. b\n3. c", status="draft", exam_type="VSTEP_B1")
+    full = Question(part=5, type="writing", content="Viết lại 5 câu",
+                    reference_answer="1. a\n2. b\n3. c\n4. d\n5. e", status="draft", exam_type="VSTEP_B1")
+    db_session.add_all([short, full])
+    db_session.commit()
+    db_session.refresh(short)
+    db_session.refresh(full)
+
+    with pytest.raises(ValueError, match="THIẾU câu"):
+        bank_admin.approve_questions(db_session, [short.id, full.id])
+    db_session.expire_all()
+    assert db_session.query(Question).filter(
+        Question.id.in_([short.id, full.id]), Question.status == "approved"
+    ).count() == 0            # nguyên khối: khối đủ 5 câu cũng KHÔNG bị duyệt khi lô có câu vướng
+
+    # Chỉ khối đủ 5 câu → duyệt được (guard không over-block).
+    assert bank_admin.approve_questions(db_session, [full.id]) == 1
+
+
+def test_SPEC_FACTORY_019_lis_group_hash_content_derived():
+    """Review [HIGH]: 2 bài Nghe CÙNG mã bài (mô phỏng re-run cùng seed) nhưng NỘI DUNG khác → hash
+    nhóm part 8 KHÁC (phái sinh nội dung, không chỉ mã) → không bị dedup content_hash nuốt trọn khối
+    mới (đúng lỗi lớp R4). Chặn hồi quy nếu bỏ ltag khỏi content câu con."""
+    from app.services.parser import calculate_group_hash
+
+    def _item(code, base):
+        answers = {str(k): "A" for k in range(1, 6)}
+        answers.update({str(n): f"{base}{n}" for n in range(6, 16)})
+        l1 = [{"stem": f"{base} stem {i}", "options": {"A": "a", "B": "b", "C": "c"},
+               "answer": "A", "transcript": f"{base} talk {i}"} for i in range(1, 6)]
+        return {"lis_item": {"code": code, "src_code": code, "answers": answers,
+                             "l2_gaps": list(range(6, 16))},
+                "transcripts": {"l1": l1,
+                                "l2": f"{base} monologue " + " ".join(answers[str(n)] for n in range(6, 16))},
+                "difficulty_en": "medium", "qc_ok": True}
+
+    ga = [r for r in factory_to_bank.bundle_items_to_rows("listening", [_item("LB1.90-X-1", "AAA")])
+          if "questions" in r][0]
+    gb = [r for r in factory_to_bank.bundle_items_to_rows("listening", [_item("LB1.90-X-1", "BBB")])
+          if "questions" in r][0]
+    assert calculate_group_hash(ga) != calculate_group_hash(gb), \
+        "nhóm part 8 phải hash theo NỘI DUNG, không chỉ theo mã bài (chống dedup nuốt khối re-run)"
+
+
+def test_SPEC_FACTORY_019_listening_multi_bundle_no_dedup_loss(db_session):
+    """AC6 (bài học R4): 2 bài Nghe → 2 nhóm part 8 RIÊNG, KHÔNG bị dedup content_hash nuốt câu con."""
+    res = factory_service.run_factory_to_bank(db_session, "listening", limit=1, per_seed=2,
+                                              verify=False, generator=None)
+    assert res["saved_groups"] == 2, res
+    assert res["saved_questions"] == 30, res       # 2 × (5 part 7 + 10 con part 8)
+    assert res["skipped_questions"] == 0, res
+    db_session.expire_all()
+    groups = db_session.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None), QuestionGroup.part == 8, QuestionGroup.status == "draft"
+    ).all()
+    assert len(groups) == 2
+    assert all(len(g.questions) == 10 for g in groups), [len(g.questions) for g in groups]
+
+
+def test_SPEC_FACTORY_019_approve_guard_not_bypassable_via_patch(db_session):
+    """Review [LOW]: PATCH status='approved' cũng bị cổng an toàn thi chặn (không lách qua approve_questions)."""
+    from app.schemas.bank import QuestionUpdate
+
+    factory_service.run_factory_to_bank(db_session, "listening", limit=1, per_seed=1,
+                                        verify=False, generator=None)
+    db_session.expire_all()
+    q = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.part == 7, Question.status == "draft"
+    ).first()
+    assert q is not None and not (q.audio_url or "")
+
+    # PATCH duyệt câu Nghe thiếu audio → chặn (ValueError → 400 ở endpoint).
+    with pytest.raises(ValueError, match="audio"):
+        bank_admin.update_bank_question(db_session, q.id, QuestionUpdate(status="approved"))
+    db_session.expire_all()
+    assert db_session.get(Question, q.id).status == "draft"        # không bị duyệt lén
+
+    # PATCH sửa nội dung (không đụng status) vẫn chạy bình thường.
+    updated = bank_admin.update_bank_question(db_session, q.id, QuestionUpdate(difficulty="hard"))
+    assert updated.difficulty == "hard"
 
 
 def test_SPEC_FACTORY_020_db_persist_config_and_media_store(monkeypatch):
