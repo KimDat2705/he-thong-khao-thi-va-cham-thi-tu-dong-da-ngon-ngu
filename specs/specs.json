@@ -1069,6 +1069,26 @@
       "notes": "S57 (07/07). Slice 1 kế hoạch docs/ke_hoach_web_w_noi_nghe.md (Đạt duyệt 4 quyết định: W1 gộp 5 câu/1 Question giữ format 2601 + thang điểm; cổng kiểm W1 vì qc_w1 chỉ prefix-match token — câu mẫu sai ngữ pháp lan vào ĐIỂM THI qua grade_writing). W1 là dạng duy nhất ngoài R1-R4 có đáp án đóng kiểm được. Chi phí cổng W1: 1 call/câu khi trùng, 2 call khi lệch mặt chữ. Cổng W1 ∈ VERIFY_SUPPORTED_SKILLS → áp dụng CẢ pipeline offline (run_bank_expansion/make_bank_expansion --verify; spec 015 AC cập nhật khớp). FE /admin/bank bỏ hardcode skill list → fetch /factory/skills; poll timeout nâng 5'→10'. REVIEW ĐỐI KHÁNG S57 (15 agent, 11 finding confirmed → VÁ HẾT): note cổng kiểm hiển thị CẢ khi PASS (giữ chỉ dấu 'mock (offline)' — khối mock không hiển thị như đã-qua-kiểm-thật, đồng bộ R1-R4); lý do giám khảo bác đặt TRƯỚC bản checker (không bị cắt); judge trả 'true' chuỗi vẫn nhận (chống SUSPECT oan); vòng-1 GIỮ dấu nội câu (dấu-phẩy-đổi-nghĩa → vòng 2); khối W1 xếp XEN KẼ nguon_seed + cảnh báo trùng seed trong khối; fixture nâng 5 seed W1 + FE auto limit=5; modal bank + ExamView thêm whitespace-pre-wrap cho content/đáp án nhiều dòng. Guard chặn approve khối part 5 <5 câu → gộp vào slice Nghe text-only (cùng chỗ guard audio part 7/8, D7d)."
     },
     {
+      "id": "SPEC-FACTORY-018",
+      "domain": "FACTORY",
+      "title": "Nhà máy sinh câu trên WEB — mở rộng NÓI (part2_topic → part 11 phát triển chủ đề)",
+      "statement": "Mở rộng slice web sang NÓI (D4 Đạt duyệt): factory_service thêm skill 'speaking' (load_speak_seeds/build_speak_variants) + _load_seed_bank(skill) chọn file seed THEO skill (Nói dùng pool_speak.json DICT thẻ, Đọc/Viết dùng bank_raw.json LIST) qua _SKILL_SEED_FILE. factory_to_bank._speak_rows: CHỈ import part2_topic (nội dung MỚI duy nhất) → 1 Question part 11 type='speaking' (content = đề nói + hướng dẫn cho grade_speaking chấm theo prompt_requirements=content + audio thí sinh; reference_answer=None; options={}); part1/part3 là seed lặp nguyên xi → KHÔNG import (tránh câu part 9/10 trùng vô nghĩa giữa mọi thẻ + tránh dedup content_hash nuốt bản 2). Nói KHÔNG có đáp án đóng → ngoài VERIFY_SUPPORTED_SKILLS → gate 'manual' → converter chèn MANUAL_REVIEW_NOTE (GV soát tay, như W2). FE /admin/bank tự hiện skill Nói qua /factory/skills (parts=[11], gate manual → khoá checkbox verify) — KHÔNG cần sửa FE (dùng plumbing SPEC-FACTORY-017).",
+      "acceptance_criteria": [
+        "run_factory_to_bank('speaking', mock, limit=2) → 2 Question part 11 draft type='speaking', reference_answer=None, options rỗng, content chứa đề nói + hướng dẫn, exam_type=VSTEP_B1; answer_suspect=0 (verify bỏ qua dạng tự luận, không crash).",
+        "Mỗi thẻ CHỈ tạo 1 câu part 11 (part2_topic); KHÔNG tạo câu part 9/10 (part1/part3 không import).",
+        "explanation mỗi câu Nói chứa 'CHƯA QUA CỔNG KIỂM' (note GV soát tay converter chèn) + 'Nguồn seed' (truy vết); topic = domain_guess.",
+        "GET /api/v1/factory/skills liệt kê 'speaking' parts=[11] gate='manual'.",
+        "Test offline tất định (mock); seed Nói nạp từ pool_speak.json (KHÁC bank_raw.json), các skill khác GIỮ NGUYÊN."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_018_speaking_to_bank",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_018_speaking_skill_metadata"
+      ],
+      "notes": "S57c (07/07). Slice 2 kế hoạch docs/ke_hoach_web_w_noi_nghe.md. D4 Đạt duyệt: thẻ đối tác kiểu PET (part1 phỏng vấn / part2 cue-card / part3 thảo luận) KHÔNG khớp 1-1 blueprint web part 9/10/11 (part 10 web = Solution Discussion 3 lựa chọn — thẻ đối tác không có) → chỉ import part2_topic (nội dung MỚI) → part 11 (Topic Development, gần cue-card nhất); part1/part3 để nguồn enrich cũ nếu cần. grade_speaking (workers/tasks.py part 9-11) KHÔNG phân biệt part → chỉ cần content + reference_answer=None → chấm được ngay. Nói tái dùng nguyên plumbing SPEC-FACTORY-017 (gate manual, /skills, FE) → chỉ +BE. Nếu muốn đề Nói thuần chuẩn sếp (PET-lai vs VSTEP) → hỏi sếp (D4 ghi chú, mặc định giữ PET-lai vì bank sếp khớp)."
+    },
+    {
       "id": "SPEC-FACTORY-020",
       "domain": "FACTORY",
       "title": "Hạ tầng persist: DB Supabase Postgres + Supabase Storage cho media runtime (sửa bug SQLite ephemeral)",

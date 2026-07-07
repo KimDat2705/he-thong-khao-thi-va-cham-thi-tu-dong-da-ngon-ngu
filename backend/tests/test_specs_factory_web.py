@@ -306,14 +306,63 @@ def test_SPEC_FACTORY_017_skills_endpoint_metadata(db_session, admin_auth_header
         resp = client.get("/api/v1/factory/skills", headers=admin_auth_headers)
         assert resp.status_code == 200
         skills = {s["skill"]: s for s in resp.json()["skills"]}
-        assert set(skills) == {"reading_s1", "reading_s2_notice", "reading_s3_comprehension",
-                               "reading_s4_cloze", "writing_w1_rewrite", "writing_w2_letter"}
+        # R1-R4 + W1/W2 (017) + speaking (018). Nghe = slice sau.
+        assert {"reading_s1", "reading_s2_notice", "reading_s3_comprehension",
+                "reading_s4_cloze", "writing_w1_rewrite", "writing_w2_letter"} <= set(skills)
         assert skills["writing_w1_rewrite"]["parts"] == [5]
         assert skills["writing_w1_rewrite"]["gate"] == "ai"        # W1 CÓ cổng kiểm
         assert skills["writing_w2_letter"]["parts"] == [6]
         assert skills["writing_w2_letter"]["gate"] == "manual"     # W2 tự luận — GV soát tay
         assert all(s["gate"] == "ai" and len(s["parts"]) == 1 for k, s in skills.items()
                    if k.startswith("reading_"))
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
+def test_SPEC_FACTORY_018_speaking_to_bank(db_session):
+    """AC1-AC3: Nói (mock) → mỗi thẻ CHỈ import part2_topic thành 1 Question part 11 type speaking,
+    KHÔNG đáp án, note GV soát tay; part1/part3 KHÔNG import (không tạo câu part 9/10)."""
+    res = factory_service.run_factory_to_bank(db_session, "speaking", limit=2, per_seed=1,
+                                              verify=True, generator=None)
+    assert res["saved_questions"] == 2, res
+    assert res["answer_suspect"] == 0            # dạng tự luận — verify bỏ qua, không gắn cờ/không crash
+    db_session.expire_all()
+
+    qs = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.part == 11, Question.status == "draft"
+    ).all()
+    assert len(qs) == 2, "mỗi thẻ = 1 câu Nói part 11"
+    for q in qs:
+        assert q.type == "speaking" and q.exam_type == "VSTEP_B1"
+        assert q.reference_answer is None            # KHÔNG có đáp án đóng
+        assert not q.options                          # {} — không phải trắc nghiệm
+        assert q.content and "chủ đề" in q.content    # đề nói + hướng dẫn (grade_speaking dùng content)
+        assert "CHƯA QUA CỔNG KIỂM" in (q.explanation or "")   # note GV soát tay (converter chèn)
+        assert "Nguồn seed" in (q.explanation or "")           # truy vết seed
+        assert q.topic                                # domain gắn nhãn
+
+    # part1/part3 seed lặp → KHÔNG import: không có câu Nói part 9/10 nào được tạo.
+    n_other = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.part.in_([9, 10]), Question.status == "draft"
+    ).count()
+    assert n_other == 0
+
+
+def test_SPEC_FACTORY_018_speaking_skill_metadata(db_session, admin_auth_headers):
+    """AC4: /factory/skills liệt kê 'speaking' part 11 gate 'manual' (Nói không có cổng kiểm đáp án)."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        skills = {s["skill"]: s for s in client.get("/api/v1/factory/skills",
+                                                    headers=admin_auth_headers).json()["skills"]}
+        assert "speaking" in skills
+        assert skills["speaking"]["parts"] == [11]
+        assert skills["speaking"]["gate"] == "manual"
     finally:
         fastapi_app.dependency_overrides.clear()
 

@@ -3,8 +3,8 @@
 Đầu ra khớp shape mà ``parser.save_parsed_items`` mong đợi (câu đơn lẻ + nhóm passage),
 để tái dùng nguyên cơ chế lưu-nháp + chống-trùng (content_hash) + tạo QuestionGroup có sẵn.
 
-Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017). Nói/Nghe = slice sau
-(Đạt duyệt riêng vì Nghe kéo theo audio nặng).
+Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017) + NÓI (SPEC-FACTORY-018).
+Nghe = slice sau (Đạt duyệt riêng vì Nghe kéo theo audio nặng).
 
 Cờ cổng kiểm đáp án (⚠ NGHI / ✅ PASS) được nhét vào ``explanation`` để giáo viên thấy NGAY trong
 ngân hàng — KHÔNG thêm cột DB mới (không cần migration). Dạng KHÔNG có cổng kiểm (W2 tự luận) →
@@ -284,6 +284,40 @@ def _w2_rows(items: list) -> list:
     return rows
 
 
+# Hướng dẫn thí sinh cho câu Nói phần phát triển chủ đề (part 11). Đề (part2_topic) sinh bằng tiếng
+# Anh; dòng hướng dẫn tiếng Việt khớp giao diện app cho thí sinh — hệ chấm AI đọc cả nội dung.
+SPEAK_INSTRUCTION = "Trình bày về chủ đề trên trong khoảng 2 phút (VSTEP B1 – Nói: phát triển chủ đề)."
+
+
+def _speak_rows(items: list) -> list:
+    """Nói → 1 Question part 11 (phát triển chủ đề)/thẻ, type speaking, KHÔNG có đáp án.
+
+    D4 (Đạt duyệt): CHỈ import part2_topic (nội dung MỚI duy nhất) → 1 câu Nói part 11; part1/part3
+    là seed lặp nguyên xi → KHÔNG import (tránh câu trùng vô nghĩa giữa mọi thẻ). content = đề nói
+    (grade_speaking chấm theo prompt_requirements=content + audio thí sinh, reference_answer=None).
+    Không có cổng kiểm đáp án đóng → converter chèn note GV soát tay (như W2).
+    """
+    rows = []
+    for it in items:
+        card = it.get("speak_card") or {}
+        topic = str(card.get("part2_topic") or "").strip()
+        if not topic:
+            continue
+        content = f"{topic}\n\n({SPEAK_INSTRUCTION})"
+        base = str(it.get("explanation") or "").strip()
+        src = card.get("src_code") or it.get("nguon_seed") or "?"
+        exp = MANUAL_REVIEW_NOTE + (f"\n{base}" if base else "") + \
+            f"\nMã sinh: {card.get('code') or '?'} · Nguồn seed: {src}"
+        rows.append({
+            "part": 11, "type": "speaking", "content": content,
+            "audio_url": None, "image_url": None, "options": {},
+            "reference_answer": None,
+            "difficulty": _diff(it), "clo": None, "topic": card.get("domain_guess"),
+            "explanation": exp,
+        })
+    return rows
+
+
 _DISPATCH = {
     "reading_s1": _r1_rows,
     "reading_s2_notice": _r2_rows,
@@ -291,6 +325,7 @@ _DISPATCH = {
     "reading_s4_cloze": _r4_rows,
     "writing_w1_rewrite": _w1_rows,
     "writing_w2_letter": _w2_rows,
+    "speaking": _speak_rows,
 }
 
 

@@ -3,7 +3,7 @@
 Chạy nhà máy bám seed thật + cổng kiểm đáp án AI, lưu câu sinh vào ngân hàng dưới dạng nháp
 cho giáo viên soát/duyệt. Job chạy nền (lô sinh + kiểm đáp án lâu) → trả job_id ngay, client poll.
 
-Phạm vi: ĐỌC R1–R4 + VIẾT W1/W2 (Nói/Nghe = slice sau). Chỉ admin/teacher.
+Phạm vi: ĐỌC R1–R4 + VIẾT W1/W2 + NÓI (Nghe = slice sau). Chỉ admin/teacher.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
