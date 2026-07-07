@@ -582,6 +582,38 @@ def test_SPEC_FACTORY_019_approve_guard_not_bypassable_via_patch(db_session):
     assert updated.difficulty == "hard"
 
 
+def test_SPEC_FACTORY_023_listening_bundle_sidecar(db_session, monkeypatch):
+    """Slice 6 nền tảng: khi Storage cấu hình, mỗi bài Nghe cất bundle THÔ (transcripts l1/l2 + lis_item) lên
+    listening/{code}.bundle.json để slice render audio đọc lại transcript gốc. Thiếu cấu hình → bỏ qua, không crash."""
+    from app.services import media_store
+
+    # (1) Thiếu cấu hình Storage → bỏ qua, sidecars_stored=0, KHÔNG crash cả lượt sinh.
+    monkeypatch.setattr(media_store, "is_configured", lambda: False)
+    res0 = factory_service.run_factory_to_bank(db_session, "listening", limit=1, per_seed=1,
+                                               verify=False, generator=None)
+    assert res0["sidecars_stored"] == 0
+
+    # (2) Có cấu hình → upload đúng path + content-type + payload chứa transcript gốc để render.
+    captured = []
+    monkeypatch.setattr(media_store, "is_configured", lambda: True)
+    monkeypatch.setattr(media_store, "upload_bytes",
+                        lambda path, data, content_type=None: captured.append((path, data, content_type)) or "url")
+    res1 = factory_service.run_factory_to_bank(db_session, "listening", limit=1, per_seed=1,
+                                               verify=False, generator=None)
+    assert res1["sidecars_stored"] == 1 and len(captured) == 1
+    path, data, ctype = captured[0]
+    assert path.startswith("listening/") and path.endswith(".bundle.json")
+    assert ctype == "application/json"
+    payload = json.loads(data.decode("utf-8"))
+    assert payload["transcripts"]["l1"] and payload["transcripts"]["l2"]     # transcript gốc (build_listening_audio cần)
+    assert payload["lis_item"]["code"]
+
+    # Skill khác (không phải Nghe) → KHÔNG cất sidecar.
+    res2 = factory_service.run_factory_to_bank(db_session, "reading_s1", limit=1, per_seed=1,
+                                               verify=False, generator=None)
+    assert res2["sidecars_stored"] == 0
+
+
 def test_SPEC_FACTORY_020_db_persist_config_and_media_store(monkeypatch):
     """AC1-AC5: cấu hình DB bền (Supabase Postgres) + helper media_store — offline tất định.
 

@@ -13,14 +13,17 @@ Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017) +
 NGHE text-only (SPEC-FACTORY-019: kịch bản vào ngân hàng, audio render ở slice sau).
 """
 import json
+import logging
 import os
 import uuid
 
 from sqlalchemy.orm import Session
 
 from app.models.import_batch import ImportBatch
-from app.services import boss_factory, parser
+from app.services import boss_factory, media_store, parser
 from app.services.factory_to_bank import bundle_items_to_rows
+
+logger = logging.getLogger(__name__)
 
 # backend/app/services/factory_service.py → backend/tests/fixtures/factory_sample/
 _SEED_DIR = os.path.join(
@@ -96,6 +99,35 @@ def _load_seed_bank(skill: str):
         return json.load(f)
 
 
+def _persist_listening_sidecars(items: list) -> int:
+    """Cất bundle Nghe THÔ (transcripts L1/L2 + lis_item) lên Supabase Storage keyed theo mã bài —
+    để slice RENDER audio đọc lại: build_listening_audio cần transcripts GỐC mà ngân hàng KHÔNG lưu
+    dạng cấu trúc (chỉ nhét chuỗi vào explanation, parse ngược mong manh). File: listening/{code}.bundle.json.
+
+    Chỉ chạy khi Storage đã cấu hình (LIVE Supabase); local/test thiếu cấu hình → bỏ qua (render là
+    tính năng LIVE). Lỗi upload 1 bài KHÔNG làm hỏng cả lượt sinh (log + bỏ qua — bài đó chưa render được
+    tới khi cất lại). Trả số sidecar đã cất.
+    """
+    if not media_store.is_configured():
+        return 0
+    n = 0
+    for it in items:
+        if not it.get("qc_ok", True):
+            continue
+        lis = it.get("lis_item") or {}
+        code = str(lis.get("code") or "").strip()
+        tr = it.get("transcripts") or {}
+        if not code or not tr.get("l1") or not tr.get("l2"):
+            continue
+        payload = json.dumps({"transcripts": tr, "lis_item": lis}, ensure_ascii=False).encode("utf-8")
+        try:
+            media_store.upload_bytes(f"listening/{code}.bundle.json", payload, "application/json")
+            n += 1
+        except media_store.MediaStoreError as exc:
+            logger.warning("Nghe: không cất được sidecar bundle %s: %s", code, exc)
+    return n
+
+
 def run_factory_to_bank(
     db: Session,
     skill: str,
@@ -141,6 +173,9 @@ def run_factory_to_bank(
     db.query(ImportBatch).filter(ImportBatch.id == batch.id).update({"status": "imported"})
     db.commit()
 
+    # Nghe: cất bundle thô lên Storage để render audio đọc lại transcript gốc (slice render).
+    sidecars = _persist_listening_sidecars(items) if skill == "listening" else 0
+
     suspect = sum(
         1 for it in items
         if it.get("qc_ok", True) and it.get("answer_verify_flag") == "SUSPECT"
@@ -153,4 +188,5 @@ def run_factory_to_bank(
         "saved_groups": saved["imported_groups"],
         "skipped_questions": saved["skipped_questions"],
         "answer_suspect": suspect,
+        "sidecars_stored": sidecars,
     }

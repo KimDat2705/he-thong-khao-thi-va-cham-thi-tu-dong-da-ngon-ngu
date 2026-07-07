@@ -1580,17 +1580,20 @@ L1_OPTION_KEYS = ["A", "B", "C"]
 # Dùng khi dựng audio real-mode. L2 look-time nội suy 45s cho 10 gap (Cambridge cho 20s/6 gap);
 # review cuối 2 phút = 60+60 (tách để chèn câu nhắc "one more minute"). Nghiên cứu S54.
 LIS_PAUSES = {
-    # Calibrate S54: giọng Gemini TTS đo THẬT ~210wpm (nhanh hơn 140) → nới pause + tăng content
-    # (L1 115 từ / L2 360 từ) để trọn bài ~17.1' (band 16.3-18.2' ở 190-230wpm). Tổng pause = 441s.
+    # RE-CALIBRATE S57g cho giọng C (Sulafat/Charon + style-preamble ép chậm ~167wpm — CHẬM hơn 210 cũ):
+    # ở 210wpm content cũ (L1 115/L2 360 + pause 441s) cho ~17.1', nhưng 167wpm đẩy lên ~19-21' (vượt
+    # 16-18'). Chữa: (a) GIẢM word target ở prompt (L1 ~100 / L2 ~300 — đòn CHÍNH vì đọc 2 lần); (b) TRIM
+    # 2 pause dài nhất (review_half 90→75, l2_look_time 60→45 = −45s → tổng pause 441→396s). Chiếu:
+    # speech ~1730 từ /167wpm ≈ 10.4' + pause 396s ≈ 6.6' → ~17.0' (band 16-18'). Xác nhận bằng 1 render thật.
     "after_part_title": 5,      # sau "Part One."
     "after_instruction": 5,     # sau "For each question, choose the correct answer."
     "before_dialogue": 5,       # sau khi đọc stem, trước khi phát hội thoại
     "after_play": 8,            # sau mỗi lần phát (cả lần 1 và lần 2)
     "between_plays_l1": 5,      # sau "Now listen again." (L1)
     "end_of_part": 10,          # sau "That is the end of Part ..."
-    "l2_look_time": 60,         # nhìn Part Two trước khi nghe (10 gap)
+    "l2_look_time": 45,         # nhìn Part Two trước khi nghe (10 gap) — re-calibrate 60→45
     "between_plays_l2": 30,     # sau "Now listen again." (L2 — bài dài)
-    "review_half": 90,          # nửa thời gian soát cuối (×2 = 3 phút)
+    "review_half": 75,          # nửa thời gian soát cuối (×2 = 2.5 phút) — re-calibrate 90→75
 }
 # Cặp giọng CHỌN qua nghe-tai A/B (SPEC-FACTORY-021 — Đạt chọn biến thể C): Sulafat (warm) +
 # Charon (informative) — tương phản rõ hơn Kore/Puck cũ. Đổi giọng → 'speakers' khác → cache-key
@@ -1725,15 +1728,15 @@ def _real_lis_variant(generator, seed: dict, idx: int) -> Optional[dict]:
     system = (
         "You are a Cambridge B1 Preliminary (PET) Listening item writer. Create ONE NEW listening "
         "content set at B1 level (NOT a copy). Return ONLY JSON. PART 1 'l1_scripts' = 5 items, each a "
-        "2-speaker conversation (or announcement) of ABOUT 110-115 WORDS (exam-length, not a one-liner) "
+        "2-speaker conversation (or announcement) of ABOUT 95-100 WORDS (exam-length, not a one-liner) "
         "with a picture-choice question: {\"stem\": str, "
         "\"options\": {\"A\": str, \"B\": str, \"C\": str}, \"answer\": \"A|B|C\", \"transcript\": "
         "\"Speaker A: ...\\nSpeaker B: ...\", \"speakers\": [\"Speaker A\", \"Speaker B\"]}. The correct "
         "option MUST be clearly supported by the transcript; the two distractors are mentioned then "
         "rejected. IMPORTANT: each option A/B/C must be a SHORT, CONCRETE, DRAWABLE noun phrase (an "
         "object/action/scene, e.g. 'a woman riding a bicycle') so it can be illustrated as a picture. "
-        "PART 2 = one monologue 'l2_transcript' (ABOUT 350-360 WORDS, natural talk — long "
-        "enough for a ~17-minute exam when read twice) plus 'l2_gaps' "
+        "PART 2 = one monologue 'l2_transcript' (ABOUT 300 WORDS, natural talk — sized for a "
+        "~17-minute exam when read twice at B1 pace) plus 'l2_gaps' "
         f"= {n_l2} note gaps, each {{\"n\": <6..>, \"answer\": \"<1-2 words>\"}} where EACH answer appears "
         "VERBATIM in l2_transcript. Return: {\"l1_scripts\": [..5..], \"l2_transcript\": str, "
         "\"l2_gaps\": [..], \"difficulty\": \"easy|medium|hard\", \"explanation\": str}."

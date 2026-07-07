@@ -1173,6 +1173,26 @@
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_021_tts_ab_harness_variants"
       ],
       "notes": "S57e (07/07). Đạt nghe A/B (SPEC-FACTORY-021) CHỌN mẫu C = v4 (Sulafat/Charon + style-preamble British + inline tags). VERIFY THẬT đường production mới (local, key máy): giọng đổi đúng Sulafat/Charon + đo ~167wpm (mốc C cũ ~215) → style-preamble ÉP CHẬM VỀ CHUẨN B1 THÀNH CÔNG bằng $0 (không cần time-stretch/dep — trả lời trực tiếp lo ngại Đạt 'quá nhiều từ/nhanh khó bắt keyword'). Mẫu tts_samples/giong_TICH_HOP_C.mp3 để Đạt đối chiếu khớp C. Per-line emotion tag ([warmly]/[surprised]) của mẫu C là thủ công → production dùng style-preamble 'natural expressive intonation' + [short pause] cơ học thay (không bịa cảm xúc theo câu). ⚠️ HỆ QUẢ: giọng ~167wpm CHẬM hơn 210 cũ → trọn bài Nghe sẽ DÀI hơn ~17' (ước ~19-21', vượt dải 16-18') → Slice 6 (render full bài) phải ĐO lại + giảm content word-count HOẶC hạ pause. Nghe production hiện OFFLINE (chưa lên web) → tích hợp KHÔNG đụng LIVE. REVIEW ĐỐI KHÁNG (11 agent, 3 lăng kính×verify): 4 CONFIRMED/4 refuted → VÁ HẾT. [MEDIUM] giọng MONO trong _lis_tts vẫn hard-code 'Puck' (giọng baseline BỊ LOẠI ở A/B) → ~83% thời lượng (TRỌN Part Two monologue + lời dẫn) đọc bằng giọng cũ → thêm LIS_MONO_VOICE='Sulafat' (1 trong cặp C) thay 'Puck' (VÁ QUAN TRỌNG NHẤT). [LOW] đồng bộ chuỗi thời lượng/wpm GV-facing (16-18'/135-140/190-230 → ~150-167 giọng C + ghi 're-calibrate Slice 6') + logger.warning khi duration ngoài 10-25'. [LOW] test 021 comment/assert stale ('production _lis_tts không có style') → sửa thành 'harness độc lập có synthesize riêng'. thêm test 022 cache-key. pytest 95/0."
+    },
+    {
+      "id": "SPEC-FACTORY-023",
+      "domain": "FACTORY",
+      "title": "Nghe full media (nền tảng): re-calibrate thời lượng giọng C + cất bundle sidecar cho render",
+      "statement": "Nền tảng Slice 6 (đưa AUDIO Nghe lên web). (a) RE-CALIBRATE thời lượng: giọng C (SPEC-FACTORY-022, Sulafat/Charon + style-preamble ~167wpm — CHẬM hơn 210 cũ) đẩy trọn bài từ ~17' lên ~19-21' (vượt 16-18'). Chữa bằng GIẢM word target ở prompt _real_lis_variant (L1 110-115→95-100, L2 350-360→300 — đòn CHÍNH vì đọc 2 lần) + TRIM 2 pause dài nhất trong LIS_PAUSES (review_half 90→75, l2_look_time 60→45). (b) SIDECAR: build_listening_audio cần transcripts GỐC ({l1:[{stem,transcript}×5], l2:str}) mà ngân hàng KHÔNG lưu dạng cấu trúc — Slice 3 chỉ nhét chuỗi vào explanation (parse ngược mong manh). factory_service._persist_listening_sidecars cất bundle thô lên Supabase Storage keyed theo mã bài (listening/{code}.bundle.json) lúc sinh, để slice render đọc lại. KHÔNG đổi schema (khóa-bài dùng token 'Mã sinh: {code}' duy nhất trong explanation).",
+      "acceptance_criteria": [
+        "RE-CALIBRATE: LIS_PAUSES review_half 90→75 + l2_look_time 60→45 → tổng pause (đo offline qua _build_listening_segments, KHÔNG gọi TTS) = 396s cho bài đủ 5 L1 (441→396), 344s cho L1=3 (389→344); prompt L1 target ~95-100 từ, L2 ~300 từ. Chiếu ~17' (band 16-18'); duration THẬT xác nhận bằng 1 render ở slice render.",
+        "SIDECAR: run_factory_to_bank('listening') khi media_store.is_configured() → upload_bytes('listening/{code}.bundle.json', JSON {transcripts, lis_item}, 'application/json'); kết quả trả sidecars_stored đếm số bài đã cất.",
+        "Thiếu cấu hình Storage → sidecars_stored=0, KHÔNG crash lượt sinh; lỗi upload 1 bài → log cảnh báo, không hỏng cả lượt (bài đó chưa render được tới khi cất lại).",
+        "Skill KHÁC listening (Đọc/Viết/Nói) → sidecars_stored=0 (không cất).",
+        "Test offline tất định (mock media_store; đo pause offline)."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory.py::test_SPEC_FACTORY_009_full_track_and_cache",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_023_listening_bundle_sidecar"
+      ],
+      "notes": "S57g (07-08/07). Slice 6 (Nghe full media) NỀN TẢNG — làm sau khi Đạt duyệt D2 (bật billing key hiện tại cho ảnh) / D3 (trả phí TTS key hiện tại) / D5 (P1 ghép trọn 1 bài khi sinh đề). Nghiên cứu đa-agent 2 workflow (bundle-linkage+transcripts / audio-render+exam_gen+cost): phát hiện Slice 3 VỨT transcripts gốc + KHÔNG có cột liên kết 15 câu 1 bài. Hướng chốt KHÔNG đổi schema cho render: sidecar Storage + token mã bài. CÒN LẠI Slice 6 (spec sau): (a) job render audio NỀN (build_listening_audio là op DÀI ~18-22 call TTS/vài-10+ phút/~49MB RAM MP3 → KHÔNG chạy inline) + upload MP3 Storage + gắn audio_url cả 15 câu (thỏa cổng approve); (b) ảnh chọn-tranh part 7 OPT-IN (default off, chi tiêu có chủ đích) + cổng kiểm ảnh = GV soát (không có vision tự động); (c) exam_generator P1 ghép trọn 1 bài Nghe — CẦN cột bundle_id thật + alembic-trên-deploy (mối lo C3 review S57b) → tách slice riêng, Đạt duyệt đổi schema LIVE trước. Re-calibration duration THẬT chưa đo (chờ slice render); pause offline đo chắc."
     }
   ]
 }

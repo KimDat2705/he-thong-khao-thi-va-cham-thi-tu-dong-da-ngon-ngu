@@ -891,9 +891,9 @@ def test_SPEC_FACTORY_009_full_track_and_cache(tmp_path, monkeypatch):
 
     # --- AC1: kế hoạch segment đúng cấu trúc PET (không gọi TTS) ---
     plan = boss_factory._build_listening_segments(l1, l2)
-    assert sum(v for kind, v in plan if kind == "silence") == 441_000   # calibrate S54: tổng pause = 441s (→ ~17.1' @210wpm)
+    assert sum(v for kind, v in plan if kind == "silence") == 396_000   # RE-CALIBRATE S57g giọng C ~167wpm: pause 441→396s (trim review_half 90→75 + l2_look_time 60→45)
     assert sum(v for kind, v in boss_factory._build_listening_segments(l1[:3], l2)
-               if kind == "silence") == 389_000                          # pause scale = 311 + 26×L1 (L1=3 → 389s)
+               if kind == "silence") == 344_000                          # pause scale = 266 + 26×L1 (L1=3 → 344s)
     audio = [v for kind, v in plan if kind == "audio"]
     silence = [v for kind, v in plan if kind == "silence"]
     texts = [t for (t, _sp) in audio]
