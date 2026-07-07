@@ -1,13 +1,38 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "AI-Powered Examination and Grading API"
     API_V1_STR: str = "/api/v1"
-    
+
     # Database Settings
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/grading_db"
-    
+
+    # Pool cho Postgres (SPEC-FACTORY-020). Mặc định 5+10=15 = ĐÚNG cap client của Supavisor
+    # session-pooler free. ⚠️ GIỚI HẠN ĐÃ BIẾT (review S57 C1): đường NỘP BÀI chấm AI INLINE
+    # (CELERY_TASK_ALWAYS_EAGER) giữ ~2 connection/submit suốt lúc gọi Gemini (30s-2phút) →
+    # trần thực tế ~7 thí sinh bấm nộp CHỤM trong cùng cửa sổ chấm; vượt → request chờ 30s rồi
+    # TimeoutError. Fix triệt để = refactor giải phóng connection quanh vòng Gemini (slice riêng,
+    # chờ Đạt duyệt — đụng luồng chấm LIVE). Nâng qua env khi lên paid. SQLite bỏ qua 2 giá trị này.
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+
+    # Supabase Storage (media audio/ảnh sinh lúc runtime — dùng từ slice Nghe; SPEC-FACTORY-020
+    # chỉ chuẩn bị helper). Thiếu bất kỳ giá trị nào → media_store báo not-configured, KHÔNG crash.
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_KEY: Optional[str] = None
+    SUPABASE_BUCKET: str = "media"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def _normalize_db_scheme(cls, v: str) -> str:
+        # SQLAlchemy 2 TỪ CHỐI scheme 'postgres://' (Heroku/Supabase đôi khi phát chuỗi dạng này)
+        # → chuẩn hoá về 'postgresql://' để dán chuỗi nào vào env cũng chạy (SPEC-FACTORY-020).
+        if v.startswith("postgres://"):
+            return "postgresql://" + v[len("postgres://"):]
+        return v
+
     # Redis Settings
     REDIS_URL: str = "redis://localhost:6379/0"
 

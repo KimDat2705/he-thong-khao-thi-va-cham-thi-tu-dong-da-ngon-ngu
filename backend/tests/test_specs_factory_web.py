@@ -318,6 +318,68 @@ def test_SPEC_FACTORY_017_skills_endpoint_metadata(db_session, admin_auth_header
         fastapi_app.dependency_overrides.clear()
 
 
+def test_SPEC_FACTORY_020_db_persist_config_and_media_store(monkeypatch):
+    """AC1-AC5: cấu hình DB bền (Supabase Postgres) + helper media_store — offline tất định.
+
+    (1) scheme postgres:// → postgresql:// (SQLAlchemy 2 từ chối dạng cũ); (2) pool đọc từ env
+    (Supavisor free hạn mức thấp); (3) thiếu cấu hình Storage → báo rõ, không crash; (4) upload
+    đúng endpoint/headers/upsert → public URL; (5) HTTP lỗi → MediaStoreError (không nuốt)."""
+    from app.core.config import Settings
+    from app.services import media_store
+
+    # (1) chuẩn hoá scheme — dán chuỗi kiểu Heroku/Supabase cũ vào env vẫn chạy.
+    s = Settings(DATABASE_URL="postgres://u:p@host:5432/db")
+    assert s.DATABASE_URL == "postgresql://u:p@host:5432/db"
+    s = Settings(DATABASE_URL="postgresql://u:p@host:5432/db")
+    assert s.DATABASE_URL == "postgresql://u:p@host:5432/db"      # đã đúng → giữ nguyên
+    s = Settings(DATABASE_URL="sqlite:///./x.db")
+    assert s.DATABASE_URL == "sqlite:///./x.db"                    # sqlite không đụng
+
+    # (2) pool mặc định 5+10=15 (đúng cap client Supavisor free) + override được qua env/kwargs.
+    assert Settings().DB_POOL_SIZE == 5 and Settings().DB_MAX_OVERFLOW == 10
+    s = Settings(DB_POOL_SIZE=12, DB_MAX_OVERFLOW=3)
+    assert s.DB_POOL_SIZE == 12 and s.DB_MAX_OVERFLOW == 3
+
+    # (3) chưa cấu hình Storage → is_configured False + upload raise thông điệp rõ.
+    monkeypatch.setattr(media_store.settings, "SUPABASE_URL", None)
+    monkeypatch.setattr(media_store.settings, "SUPABASE_SERVICE_KEY", None)
+    assert media_store.is_configured() is False
+    with pytest.raises(media_store.MediaStoreError, match="chưa cấu hình"):
+        media_store.upload_bytes("x.txt", b"1")
+
+    # (4) upload: đúng endpoint bucket + Bearer key + x-upsert + content-type đoán từ đuôi.
+    monkeypatch.setattr(media_store.settings, "SUPABASE_URL", "https://demo.supabase.co")
+    monkeypatch.setattr(media_store.settings, "SUPABASE_SERVICE_KEY", "sk-test")
+    monkeypatch.setattr(media_store.settings, "SUPABASE_BUCKET", "media")
+    captured = {}
+
+    class _Ok:
+        status_code = 200
+        text = "ok"
+
+    def fake_post(url, content=None, headers=None, timeout=None):
+        captured.update(url=url, headers=headers, size=len(content))
+        return _Ok()
+
+    monkeypatch.setattr(media_store.httpx, "post", fake_post)
+    url = media_store.upload_bytes("listening/LB1.90-1.mp3", b"abc")
+    assert url == "https://demo.supabase.co/storage/v1/object/public/media/listening/LB1.90-1.mp3"
+    assert captured["url"] == "https://demo.supabase.co/storage/v1/object/media/listening/LB1.90-1.mp3"
+    assert captured["headers"]["Authorization"] == "Bearer sk-test"
+    assert captured["headers"]["x-upsert"] == "true"               # re-render cùng path không lỗi trùng
+    assert captured["headers"]["Content-Type"] == "audio/mpeg"
+    assert captured["size"] == 3
+
+    # (5) HTTP lỗi → MediaStoreError kèm mã (caller graceful-skip, KHÔNG silent-pass).
+    class _Denied:
+        status_code = 403
+        text = "denied"
+
+    monkeypatch.setattr(media_store.httpx, "post", lambda *a, **k: _Denied())
+    with pytest.raises(media_store.MediaStoreError, match="403"):
+        media_store.upload_bytes("img/a.png", b"1")
+
+
 def test_factory_batch_marked_failed_on_save_error(db_session, monkeypatch):
     """Regression (review #3): lưu lỗi giữa chừng → ImportBatch đánh 'failed' (không mồ côi 'imported')."""
     from app.services import parser as parser_mod

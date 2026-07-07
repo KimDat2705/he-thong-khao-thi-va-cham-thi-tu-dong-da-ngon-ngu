@@ -21,14 +21,47 @@ DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BACKEND_DIR, ".bootstrap_data
 AUDIO_DIR = os.environ.get("AUDIO_DIR", os.path.join(BACKEND_DIR, "audio_data"))
 os.environ.setdefault("DATABASE_URL", "sqlite:///./demo_toeic.db")  # DB name kept for SQLite path consistency
 
+# Đề 2601 chuẩn = 50 câu (Đọc 30 + Viết 2 + Nghe 15 + Nói 3). Gate idempotency đếm ĐỦ số câu
+# thay vì chỉ "đề tồn tại": với DB BỀN (Supabase, SPEC-FACTORY-020) một lần seed chết giữa chừng
+# (commit Exam xong nhưng chưa commit câu) sẽ tồn tại VĨNH VIỄN nếu chỉ check tồn tại — gate
+# đếm-đủ để lần build sau seed lại (seed_b1_exam tự delete-recreate khi đề chưa có bài nộp).
+B1_EXAM_EXPECTED_QUESTIONS = 50
+B1_AUDIO_FILENAME = "3. NGHE (audio) — LB1-2601.mp3"
+
+
+def _render_env_guard() -> None:
+    """Chạy trên Render mà DATABASE_URL chưa đặt/còn trỏ SQLite → FAIL BUILD ngay, thông điệp rõ.
+
+    Không có guard này: bootstrap seed vào SQLite bỏ đi + log 'done.' xanh giả → tưởng đã
+    chuyển DB nhưng LIVE vẫn ephemeral (review đối kháng S57 C4). Render luôn đặt env RENDER=true.
+    """
+    if not os.environ.get("RENDER"):
+        return  # máy local/dev — cho phép SQLite
+    url = os.environ.get("DATABASE_URL", "")
+    if not url or url.startswith("sqlite"):
+        print("Bootstrap ERROR: chạy trên Render nhưng DATABASE_URL chưa đặt (hoặc còn SQLite "
+              "ephemeral). Đặt chuỗi Supabase Session-Pooler ở Render dashboard → Environment "
+              "rồi deploy lại. DỪNG build để không deploy bản mất-dữ-liệu.")
+        sys.exit(1)
+
 
 def _b1_already_seeded() -> bool:
+    """Đề 2601 đã seed ĐẦY ĐỦ chưa (đề tồn tại VÀ đủ số câu — xem B1_EXAM_EXPECTED_QUESTIONS)."""
     try:
         from app.core.database import SessionLocal
         from app.models.exam import Exam
+        from app.models.question import Question
         db = SessionLocal()
         try:
-            return db.query(Exam).filter(Exam.title == "VSTEP B1 — Đề 2601 (đề thật)").count() > 0
+            exam = db.query(Exam).filter(Exam.title == "VSTEP B1 — Đề 2601 (đề thật)").first()
+            if not exam:
+                return False
+            n = db.query(Question).filter(Question.exam_id == exam.id).count()
+            if n < B1_EXAM_EXPECTED_QUESTIONS:
+                print(f"Bootstrap: đề 2601 tồn tại nhưng chỉ có {n}/{B1_EXAM_EXPECTED_QUESTIONS} câu "
+                      "(seed dở dang?) → sẽ seed lại.")
+                return False
+            return True
         finally:
             db.close()
     except Exception:
@@ -51,7 +84,44 @@ def _b1_bank_already_seeded() -> bool:
         return False
 
 
-def _seed_b1_bank_from_archive() -> None:
+def _b1_audio_missing() -> bool:
+    """Audio đề 2601 thiếu trên disk? Disk Render reset MỖI BUILD dù DB bền (Supabase) —
+    nếu chỉ gate theo DB thì build sau lần seed đầu sẽ không tải audio → /audio/... 404
+    (review đối kháng S57 C6)."""
+    return not os.path.isfile(os.path.join(AUDIO_DIR, B1_AUDIO_FILENAME))
+
+
+def _bank_assets_missing() -> bool:
+    """Asset bank enrich (static/audio_gen + static/img) thiếu/rỗng trên disk? (cùng lớp C6)."""
+    for sub in ("audio_gen", "img"):
+        d = os.path.join(BACKEND_DIR, "static", sub)
+        if not (os.path.isdir(d) and os.listdir(d)):
+            return True
+    return False
+
+
+def _print_seed_error(e: Exception, what: str) -> None:
+    """Phân loại lỗi seed: lỗi KẾT NỐI DB in chẩn đoán thẳng hướng (review S57 C10)."""
+    try:
+        from sqlalchemy.exc import OperationalError
+        is_conn = isinstance(e, OperationalError)
+    except Exception:
+        is_conn = False
+    if is_conn:
+        print(f"Bootstrap ERROR: không kết nối được DATABASE_URL khi {what} — kiểm tra: "
+              "(1) project Supabase có đang PAUSED không (free pause sau ~7 ngày idle → Restore "
+              "trên dashboard); (2) chuỗi có đúng SESSION-POOLER host ...pooler.supabase.com:5432 "
+              f"không; (3) mật khẩu có percent-encode ký tự đặc biệt chưa. Chi tiết: {e}")
+    else:
+        print(f"Bootstrap WARNING: {what} failed -> {type(e).__name__}: {e}")
+
+
+def _seed_b1_bank_from_archive(seed_db: bool = True) -> None:
+    """Tải zip bank → LUÔN copy asset (audio/ảnh) ra static; seed DB chỉ khi seed_db=True.
+
+    Tách 2 việc vì disk (asset) reset mỗi build còn DB (Supabase) bền — bank đã seed vẫn
+    phải bù asset cho image build mới (review S57 C6).
+    """
     zip_id = os.environ.get("B1_BANK_ZIP_ID", "")
     if not zip_id:
         print("Bootstrap WARNING: B1_BANK_ZIP_ID environment variable not set. Skipping B1 bank bootstrap.")
@@ -92,6 +162,12 @@ def _seed_b1_bank_from_archive() -> None:
                 os.makedirs(target_dir, exist_ok=True)
                 shutil.copy2(full_file_path, os.path.join(target_dir, file))
 
+    if not seed_db:
+        # Chỉ bù asset cho image build mới — DB (Supabase) đã có bank, KHÔNG seed lại.
+        shutil.rmtree(temp_extract_dir)
+        print("Bootstrap: B1 bank assets restored to static/ (DB đã seed — bỏ qua seed JSON).")
+        return
+
     if not json_src:
         raise FileNotFoundError("Could not find b1_bank_export.json inside the zip package.")
 
@@ -107,7 +183,7 @@ def _seed_b1_bank_from_archive() -> None:
         seed_from_json(db, target_json)
     finally:
         db.close()
-    
+
     # Clean up temp extraction dir
     shutil.rmtree(temp_extract_dir)
     print("Bootstrap: VSTEP B1 bank seeding completed successfully.")
@@ -162,12 +238,16 @@ def _download(file_id: str, dest: str) -> None:
 
 
 def main() -> None:
+    _render_env_guard()   # Render + thiếu DATABASE_URL → FAIL BUILD ngay (không seed vào SQLite bỏ đi)
+
     b1_seeded = _b1_already_seeded()
+    audio_missing = _b1_audio_missing()
 
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(AUDIO_DIR, exist_ok=True)
 
-    if not b1_seeded:
+    # DB bền (Supabase) nhưng disk reset mỗi build → tải folder đề khi CẦN SEED *hoặc* CẦN BÙ AUDIO.
+    if not b1_seeded or audio_missing:
         try:
             print("Bootstrap: downloading VSTEP B1 folder from Drive ...")
             b1_dir = os.path.join(DATA_DIR, "B1_2601")
@@ -179,23 +259,36 @@ def main() -> None:
             os.environ["B1_INPUT_DIR"] = b1_dir
             os.environ["AUDIO_DIR"] = AUDIO_DIR
 
-            print("Bootstrap: seeding VSTEP B1 real exam ...")
-            import seed_b1_real_exam
-            seed_b1_real_exam.main()
+            if not b1_seeded:
+                print("Bootstrap: seeding VSTEP B1 real exam ...")
+                import seed_b1_real_exam
+                seed_b1_real_exam.main()          # seed cũng tự copy audio vào AUDIO_DIR
+            else:
+                # DB đủ 50 câu — chỉ bù file audio cho image build mới (audio_url='/audio/<file>').
+                src_audio = os.path.join(b1_dir, B1_AUDIO_FILENAME)
+                if os.path.isfile(src_audio):
+                    shutil.copy2(src_audio, os.path.join(AUDIO_DIR, B1_AUDIO_FILENAME))
+                    print(f"Bootstrap: restored exam audio asset -> {os.path.join(AUDIO_DIR, B1_AUDIO_FILENAME)}")
+                else:
+                    raise FileNotFoundError(f"Audio '{B1_AUDIO_FILENAME}' not found in downloaded B1 folder.")
         except Exception as e:
-            print(f"Bootstrap WARNING: B1 seed failed -> {type(e).__name__}: {e}")
+            _print_seed_error(e, "seed/bù asset đề 2601")
+            if not b1_seeded:
+                # Lần seed ĐẦU thất bại → build ĐỎ (deploy không có đề là vô nghĩa + gate
+                # đếm-đủ-câu sẽ seed lại ở build sau). Data đã đủ mà chỉ bù asset lỗi → không chặn.
+                sys.exit(1)
     else:
-        print("Bootstrap: VSTEP B1 already seeded — skipping B1 download/seeding.")
+        print("Bootstrap: VSTEP B1 already seeded (đủ câu) + audio asset OK — skipping.")
 
-    # Seed B1 Bank if not already seeded
+    # Bank: DB đã seed vẫn phải bù asset (static/audio_gen + static/img) cho image build mới.
     b1_bank_seeded = _b1_bank_already_seeded()
-    if not b1_bank_seeded:
+    if not b1_bank_seeded or _bank_assets_missing():
         try:
-            _seed_b1_bank_from_archive()
+            _seed_b1_bank_from_archive(seed_db=not b1_bank_seeded)
         except Exception as e:
-            print(f"Bootstrap WARNING: B1 bank seed failed -> {type(e).__name__}: {e}")
+            _print_seed_error(e, "seed/bù asset bank B1")
     else:
-        print("Bootstrap: VSTEP B1 bank already seeded — skipping B1 bank bootstrap.")
+        print("Bootstrap: VSTEP B1 bank already seeded + assets OK — skipping.")
 
     # Always seed admin user to make sure auth works
     from app.core.database import SessionLocal

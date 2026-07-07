@@ -14,8 +14,24 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
+      # SPEC-FACTORY-020: DB bền = Supabase Postgres (free). Đặt chuỗi Session-Pooler
+      # (postgresql://...pooler.supabase.com:5432/postgres, mật khẩu percent-encoded) ở
+      # Render dashboard (sync:false — KHÔNG hardcode secret vào repo). Lý do bỏ SQLite:
+      # disk Render free là EPHEMERAL → câu nhà máy sinh qua web MẤT sau spin-down/redeploy.
+      # ⚠️ Hành vi Render khi UPDATE blueprint: env đổi sang sync:false thì GIÁ TRỊ CŨ ĐƯỢC
+      # GIỮ NGUYÊN (không xoá, không crash) → nếu quên đặt dashboard, app chạy SQLite ÂM THẦM.
+      # Chốt chặn: cloud_bootstrap FAIL BUILD khi chạy trên Render mà DATABASE_URL rỗng/sqlite,
+      # và app log 1 dòng "DB backend: ..." lúc khởi động — verify trong Render logs sau deploy.
       - key: DATABASE_URL
-        value: sqlite:///./demo_toeic.db
+        sync: false
+      # Supabase Storage cho media sinh lúc RUNTIME (audio/ảnh bài Nghe — slice sau).
+      # Chưa đặt cũng KHÔNG sao: media_store báo not-configured, web vẫn chạy bình thường.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: media
       - key: AUDIO_DIR
         value: ./audio_data
       # Render free không có Celery worker/Redis riêng — chạy chấm AI tự luận
