@@ -1077,3 +1077,13 @@
 - **Verification**: pytest 93/0, ruff app/ sạch, architecture PASS. Smoke API server local: login admin → /skills trả speaking part 11 gate manual → sinh 2 câu Nói mock vào bank (0 nghi). Review đối kháng 3 lăng kính (5 agent): 0 finding confirmed (2 low bị bác).
 - **Status**: chờ commit + push → verify LIVE speaking Gemini thật.
 - **Next steps**: Slice 3 Nghe text-only (3 guard) ‖ Slice 5 TTS A/B; D2/D3/D5 trước Slice 6.
+
+### Session 57d -- 2026-07-07 (Slice 5: harness đo giọng TTS A/B — SPEC-FACTORY-021)
+- **What was done**:
+  - Chốt thứ tự: làm TTS A/B TRƯỚC Slice 3 (giọng là mối lo #1 Đạt + quyết định chặn cho render audio Slice 6).
+  - Nghiên cứu Workflow 4 agent (1 stub): chẩn đoán gốc = _lis_tts truyền text THÔ không style-prompt → 'đều đều'. Gemini 2.5 hỗ trợ style-preamble chính thức; voices cần audition tai người; model pro có thể phí.
+  - Harness backend/scripts/eval_lis_voices.py (ĐỘC LẬP, không sửa _lis_tts): 4 biến thể (v1 baseline→v4 style+voice+tags, [--pro] v5) → nhãn A/B/C xáo trộn nghe mù + HUONG_DAN_NGHE.md 10 tiêu chí + mốc vàng audio 2601 thật, trong tts_samples/ (gitignore).
+  - Đo thật 4 mẫu OK ~198-215 wpm (nhanh hơn chuẩn B1 ~150-167 → ép pace khi tích hợp). +test tĩnh + spec 021. keepalive.yml rewrite chuẩn (bỏ {}, +permissions).
+- **Verification**: pytest 94/0, ruff app/+harness sạch. Audio sinh thật ngoài CI (nghe-tai).
+- **Status**: chờ Đạt+GV nghe tts_samples/ chấm 10 tiêu chí → chọn giọng → tích hợp (spec sau: LIS_STYLE_PREAMBLE + cache-key + ép pace).
+- **Next steps**: sau khi chọn giọng → tích hợp; rồi Slice 3 Nghe text-only (3 guard). D2/D3/D5 trước Slice 6.
