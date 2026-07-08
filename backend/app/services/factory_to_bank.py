@@ -467,14 +467,46 @@ _DISPATCH = {
 }
 
 
-def bundle_items_to_rows(skill: str, items: list) -> list:
+def _apply_user_labels(rows: list, topic: Optional[str], difficulty: Optional[str]) -> None:
+    """Ghi NHÃN NGƯỜI DÙNG CHỌN (chủ đề/độ khó) đè lên nhãn mặc định của mọi row + câu con (in-place).
+
+    Chủ đề/độ khó vốn chỉ được ``_build_steer`` nhét vào PROMPT sinh (hướng nội dung) — KHÔNG tự vào cột
+    ``topic``/``difficulty`` của record: cột Topic hiện ``None``, cột Độ khó hiện theo ĐỀ MẪU gốc (chưa chắc
+    khớp mức đã chọn). Hàm này gắn nhãn để GV LỌC đúng chủ đề/độ khó đã chọn ở /admin/bank.
+    - Giá trị rỗng/None → GIỮ NGUYÊN nhãn mặc định (topic: None hoặc domain_guess W2/Nói; difficulty: theo seed).
+    - Có giá trị → gắn cho CẢ lượt (row + câu con) để nhãn nhất quán với lựa chọn.
+    Độ khó KẸP về enum hợp lệ ``easy|medium|hard`` (như ``_diff``) — blueprint lọc theo đúng 3 giá trị này,
+    không nhận độ khó rác. topic/difficulty NẰM NGOÀI content_hash → gắn nhãn KHÔNG ảnh hưởng chống-trùng/dedup.
+    """
+    labels = {}
+    t = (topic or "").strip()
+    if t:
+        labels["topic"] = t
+    d = (difficulty or "").strip().lower()
+    if d in _DIFF_EN_OK:                # chỉ nhận easy|medium|hard; ngoài enum → giữ độ khó theo seed
+        labels["difficulty"] = d
+    if not labels:
+        return
+    for row in rows:
+        row.update(labels)
+        for child in row.get("questions") or []:   # nhóm R3/R4/Nghe part 8: gắn cả câu con
+            child.update(labels)
+
+
+def bundle_items_to_rows(skill: str, items: list, topic: Optional[str] = None,
+                         difficulty: Optional[str] = None) -> list:
     """Chuyển danh sách item của nhà máy (1 skill) → rows cho save_parsed_items.
 
     CHỈ nhận item qua QC cấu trúc (qc_ok) để không đẩy câu hỏng vào ngân hàng. Item bị cổng kiểm
     đáp án gắn cờ NGHI vẫn VÀO ngân hàng (kèm ghi chú) — GV là cổng cuối, không tự xoá.
+
+    topic/difficulty (người dùng chọn ở giao diện) → gắn thành nhãn cột topic/difficulty của mọi câu/nhóm
+    sinh ra (rỗng → giữ nhãn mặc định theo dạng). KHÔNG đụng nội dung/đáp án/dedup (xem ``_apply_user_labels``).
     """
     fn = _DISPATCH.get(skill)
     if fn is None:
         raise ValueError(f"skill chưa hỗ trợ chuyển vào ngân hàng: {skill!r}")
     ok_items = [it for it in items if it.get("qc_ok", True)]
-    return fn(ok_items)
+    rows = fn(ok_items)
+    _apply_user_labels(rows, topic, difficulty)
+    return rows

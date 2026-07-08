@@ -1229,7 +1229,8 @@
         "_build_steer rỗng khi không chọn; _SteeredGenerator nhét steer vào CUỐI user_prompt khi sinh + uỷ quyền thuộc tính (client...) về gốc; cổng kiểm đáp án dùng generator GỐC (KHÔNG steer).",
         "job store surface 'generated' → phân biệt saved=0 do AI-lỗi (generated=0) vs QC-loại (generated>0); FE báo cảnh báo (không banner xanh) khi saved=0.",
         "_call_gemini thử lại lỗi Gemini TẠM THỜI (500/503/429) với backoff rồi mới raise; lỗi KHÔNG tạm thời (safety/bad-request) raise NGAY (không thử lại).",
-        "SKILL_LABELS hiện tiền tố Part + '(nhóm)' cho R3/R4; listening giữ nhãn 'Part 7+8 · Nghe cả bài (nhóm part 8, chung 1 audio)'."
+        "SKILL_LABELS hiện tiền tố Part + '(nhóm)' cho R3/R4; listening giữ nhãn 'Part 7+8 · Nghe cả bài (nhóm part 8, chung 1 audio)'.",
+        "Chủ đề + độ khó người dùng chọn được GẮN vào cột topic/difficulty của câu đơn + nhóm + câu con khi lưu ngân hàng (bundle_items_to_rows(topic,difficulty) → _apply_user_labels), để GV lọc theo chủ đề/độ khó ở /admin/bank — trước đó chỉ steer prompt (cột topic hiện None, difficulty hiện theo ĐỀ MẪU gốc chưa chắc khớp mức chọn); không chọn → giữ nhãn mặc định (topic None hoặc domain_guess W2/Nói; difficulty theo seed); độ khó KẸP về enum easy|medium|hard (ngoài enum → giữ seed, tránh nhãn rác); topic/difficulty NGOÀI content_hash → gắn nhãn KHÔNG ảnh hưởng chống-trùng/dedup."
       ],
       "verification": "pytest",
       "status": "active",
@@ -1238,9 +1239,13 @@
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_steer_appends_and_gate_uses_base",
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_call_gemini_retries_transient",
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_call_gemini_no_retry_on_non_transient",
-        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_skill_labels_part_prefix_and_group"
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_skill_labels_part_prefix_and_group",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_apply_user_labels_rows_and_children",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_labels_reach_bank",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_labels_serialized_and_filterable",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_labels_not_in_content_hash"
       ],
-      "notes": "S57i (08/07). Bước 1 của kế hoạch gộp 2 bản (Đạt: giữ Bản 1 tham khảo, sau khi cải thiện Bản 2 sẽ XOÁ Bản 1 còn 1 panel — engine Bản 1 giữ dưới Bản 2). Cách A gợi ý mềm = đúng cơ chế Bản 1 (prompt topic/difficulty, KHÔNG train model). VERIFY THẬT (local Gemini): R1 count=2 chủ đề 'Sức khỏe' → 2 câu health-themed đúng độ khó easy. A3 (bấm không ra câu) = do Gemini 500 outage ~30' lúc test, KHÔNG phải bug (chạy lại đường web listening thật → 15 câu + 1 nhóm). ▶ CÒN (Bước 2, chờ Đạt bàn): nạp 30 đề thật (EB1.2601-2630, đang QC 72 lỗi) thay 2 đề mẫu; topic/difficulty nâng lên LỌC-seed (Cách B) khi seed đã gắn nhãn; xoá panel Bản 1 sau khi Bản 2 phủ đủ."
+      "notes": "S57i (08/07). Bước 1 của kế hoạch gộp 2 bản (Đạt: giữ Bản 1 tham khảo, sau khi cải thiện Bản 2 sẽ XOÁ Bản 1 còn 1 panel — engine Bản 1 giữ dưới Bản 2). Cách A gợi ý mềm = đúng cơ chế Bản 1 (prompt topic/difficulty, KHÔNG train model). VERIFY THẬT (local Gemini): R1 count=2 chủ đề 'Sức khỏe' → 2 câu health-themed đúng độ khó easy. A3 (bấm không ra câu) = do Gemini 500 outage ~30' lúc test, KHÔNG phải bug (chạy lại đường web listening thật → 15 câu + 1 nhóm). ▶ CÒN (Bước 2, chờ Đạt bàn): nạp 30 đề thật (EB1.2601-2630, đang QC 72 lỗi) thay 2 đề mẫu; topic/difficulty nâng lên LỌC-seed (Cách B) khi seed đã gắn nhãn; xoá panel Bản 1 sau khi Bản 2 phủ đủ. S57k (08/07) — follow-up AC6: gắn NHÃN chủ đề + ĐỘ KHÓ đã chọn vào cột topic/difficulty (câu/nhóm/câu con) thay vì None/độ-khó-seed, để GV lọc; thuần backend (FE đã có cột + đã gửi topic/difficulty), độ khó kẹp enum easy|medium|hard, content_hash ngoài topic/difficulty nên không đụng dedup. Verify: pytest 119/0, review đối kháng 6-agent (2 lăng kính sạch, 1 finding test-coverage → thêm regression guard + mutation-test xác nhận guard bắt lỗi)."
     }
   ]
 }

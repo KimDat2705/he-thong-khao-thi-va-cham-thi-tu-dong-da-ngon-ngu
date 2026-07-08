@@ -225,7 +225,7 @@ def run_factory_to_bank(
     if verify and skill in boss_factory.VERIFY_SUPPORTED_SKILLS:
         boss_factory.verify_bundle_answers(items, skill, generator)
 
-    rows = bundle_items_to_rows(skill, items)
+    rows = bundle_items_to_rows(skill, items, topic=topic, difficulty=difficulty)
 
     # Mỗi lần chạy = một lô nhập mới (truy vết). Tạo 'pending' TRƯỚC, chỉ đánh 'imported' khi lưu XONG;
     # lỗi giữa chừng → đánh 'failed' + error_report (không để lô mồ côi mang nhãn 'imported').

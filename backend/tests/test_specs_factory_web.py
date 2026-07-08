@@ -987,3 +987,137 @@ def test_SPEC_FACTORY_025_skill_labels_part_prefix_and_group():
     assert labels["reading_s1"].startswith("Part 1")
     assert "nhóm" in labels["reading_s3_comprehension"] and "nhóm" in labels["reading_s4_cloze"]
     assert "Part 7+8" in labels["listening"] and "audio" in labels["listening"].lower()
+
+
+def test_SPEC_FACTORY_025_apply_user_labels_rows_and_children():
+    """AC6: _apply_user_labels gắn nhãn CHỦ ĐỀ + ĐỘ KHÓ cho row + câu con khi có giá trị; rỗng/None → GIỮ
+    NGUYÊN (không xoá domain_guess W2/Nói, không đổi độ khó seed). Độ khó NGOÀI enum easy|medium|hard →
+    BỎ QUA (giữ seed). Hàm thuần — không đụng nội dung/đáp án/content_hash."""
+    def _rows():
+        return [
+            {"part": 1, "topic": None, "difficulty": "medium"},                       # câu đơn (R1-R4/Nghe)
+            {"part": 3, "topic": None, "difficulty": "medium",
+             "questions": [{"part": 3, "topic": None, "difficulty": "medium"},
+                           {"part": 3, "topic": None, "difficulty": "medium"}]},      # nhóm + câu con
+            {"part": 11, "topic": "health", "difficulty": "easy"},                    # nhãn seed sẵn (Nói/W2)
+        ]
+
+    # rỗng/None/khoảng-trắng → GIỮ NGUYÊN (không ghi đè), kể cả domain_guess + độ khó seed.
+    for empty in ("", None, "   "):
+        rows = _rows()
+        factory_to_bank._apply_user_labels(rows, empty, empty)
+        assert rows[0]["topic"] is None and rows[0]["difficulty"] == "medium"
+        assert all(c["topic"] is None and c["difficulty"] == "medium" for c in rows[1]["questions"])
+        assert rows[2]["topic"] == "health" and rows[2]["difficulty"] == "easy"
+
+    # Độ khó NGOÀI enum → bỏ qua (giữ độ khó seed); chủ đề vẫn gắn bình thường.
+    rows = _rows()
+    factory_to_bank._apply_user_labels(rows, "Môi trường", "expert")
+    assert rows[0]["topic"] == "Môi trường" and rows[0]["difficulty"] == "medium"
+
+    # Có chủ đề + độ khó hợp lệ → gắn HẾT (row + câu con, ghi đè seed); trim + chuẩn hoá chữ thường.
+    rows = _rows()
+    factory_to_bank._apply_user_labels(rows, "  Du lịch  ", "  HARD  ")
+    for r in (rows[0], rows[1], rows[2]):
+        assert r["topic"] == "Du lịch" and r["difficulty"] == "hard"
+    assert all(c["topic"] == "Du lịch" and c["difficulty"] == "hard" for c in rows[1]["questions"])
+
+
+def test_SPEC_FACTORY_025_labels_reach_bank(db_session):
+    """AC6 (end-to-end): chủ đề + độ khó người dùng chọn được GẮN vào cột topic/difficulty của câu ĐƠN +
+    NHÓM + câu con khi lưu ngân hàng (không chỉ steer prompt); không chọn → giữ nhãn mặc định.
+
+    Cô lập bằng sentinel ('Sức khỏe'+'hard' / 'Du lịch'+'easy' — seed conftest dùng 'Family'/'Work'/None,
+    difficulty toàn 'medium') + đối chiếu số câu gắn nhãn với saved_questions/saved_groups của LƯỢT sinh.
+    """
+    # Câu đơn (R1): chủ đề 'Sức khỏe' + độ khó 'hard' → đúng số câu sinh mang CẢ 2 nhãn (không lẫn seed).
+    res1 = factory_service.run_factory_to_bank(db_session, "reading_s1", count=1,
+                                               topic="Sức khỏe", difficulty="hard",
+                                               verify=False, generator=None)
+    labeled1 = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.topic == "Sức khỏe").all()
+    assert res1["saved_questions"] >= 1
+    assert len(labeled1) == res1["saved_questions"]
+    assert all(q.part == 1 and q.difficulty == "hard" for q in labeled1)
+
+    # Nhóm (R3): chủ đề 'Du lịch' + độ khó 'easy' gắn cả NHÓM + câu con (skill khác → không đụng dedup lượt trên).
+    res3 = factory_service.run_factory_to_bank(db_session, "reading_s3_comprehension", count=1,
+                                               topic="Du lịch", difficulty="easy",
+                                               verify=False, generator=None)
+    g3 = db_session.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None), QuestionGroup.topic == "Du lịch").all()
+    assert res3["saved_groups"] >= 1 and len(g3) == res3["saved_groups"]
+    assert all(g.difficulty == "easy" for g in g3)
+    qg3 = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.topic == "Du lịch").all()
+    assert qg3 and all(q.part == 3 and q.difficulty == "easy" for q in qg3)
+    assert len(qg3) == res3["saved_questions"]
+
+    # Nhóm R4 (part 4 điền-từ) — ĐÚNG CA màn hình Đạt gặp None: câu CON part 4 phải mang nhãn (giá trị
+    # chủ đề y như FE gửi: 'Thực phẩm-đồ uống') + độ khó 'hard'.
+    res4 = factory_service.run_factory_to_bank(db_session, "reading_s4_cloze", count=1,
+                                               topic="Thực phẩm-đồ uống", difficulty="hard",
+                                               verify=False, generator=None)
+    g4 = db_session.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None), QuestionGroup.topic == "Thực phẩm-đồ uống").all()
+    assert res4["saved_groups"] >= 1 and len(g4) == res4["saved_groups"]
+    qg4 = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.topic == "Thực phẩm-đồ uống").all()
+    assert qg4 and all(q.part == 4 and q.difficulty == "hard" for q in qg4)
+    assert len(qg4) == res4["saved_questions"]
+
+    # KHÔNG chọn nhãn → KHÔNG câu mới nào bị gắn chủ đề (mọi câu R2 giữ topic None mặc định).
+    before = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.topic.isnot(None)).count()
+    res2 = factory_service.run_factory_to_bank(db_session, "reading_s2_notice", count=1,
+                                               verify=False, generator=None)
+    after = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.topic.isnot(None)).count()
+    assert res2["saved_questions"] >= 1
+    assert after == before   # lượt không-nhãn không thêm câu gắn chủ đề → giữ mặc định
+
+
+def test_SPEC_FACTORY_025_labels_serialized_and_filterable(db_session, admin_auth_headers):
+    """AC6 (HTTP end-to-end): sau khi sinh có chủ đề + độ khó, GET /api/v1/bank/questions serialize cột
+    topic/difficulty + LỌC được theo ?topic=&difficulty= — đúng chuỗi FE dựa vào (cột + bộ lọc 'cho tiện')."""
+    from fastapi.testclient import TestClient
+    from app.main import app as fastapi_app
+    from app.core.database import get_db
+
+    factory_service.run_factory_to_bank(db_session, "reading_s1", count=1,
+                                        topic="Sức khỏe", difficulty="hard",
+                                        verify=False, generator=None)
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        resp = client.get("/api/v1/bank/questions?topic=Sức khỏe&difficulty=hard&limit=100",
+                          headers=admin_auth_headers)
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert items, "phải có câu gắn nhãn 'Sức khỏe'/'hard' trả về"
+        assert all(it["topic"] == "Sức khỏe" and it["difficulty"] == "hard" for it in items)
+        assert all(it["part"] == 1 for it in items)
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
+def test_SPEC_FACTORY_025_labels_not_in_content_hash():
+    """AC6 (REGRESSION GUARD — mệnh đề rủi ro nhất của thay đổi): topic + difficulty NẰM NGOÀI content_hash
+    → gắn nhãn KHÔNG đổi chống-trùng/dedup. Nếu dev sau này nhét topic/difficulty vào calculate_*_hash, câu/
+    nhóm CÙNG nội dung KHÁC nhãn sẽ hết dedup → nhân đôi ngân hàng (re-import/re-run cùng bộ khác nhãn); test
+    này KHOÁ bất biến đó (không có nó, chỉnh hash vẫn để suite xanh — review đối kháng đã tái hiện)."""
+    from app.services.parser import calculate_group_hash, calculate_question_hash
+
+    q = {"set_id": "S", "number": 1, "part": 1, "type": "choice",
+         "content": "Cùng một nội dung câu hỏi", "options": {"A": "a", "B": "b"},
+         "reference_answer": "A", "topic": None, "difficulty": "medium"}
+    base_q = calculate_question_hash(q)
+    assert base_q == calculate_question_hash({**q, "topic": "Sức khỏe"})
+    assert base_q == calculate_question_hash({**q, "difficulty": "hard"})
+
+    g = {"set_id": "S", "part": 3, "passage_text": "Cùng một đoạn văn", "audio_url": None,
+         "topic": None, "difficulty": "medium", "questions": [{"content": "câu con 1"}, {"content": "câu con 2"}]}
+    base_g = calculate_group_hash(g)
+    assert base_g == calculate_group_hash({**g, "topic": "Du lịch"})
+    assert base_g == calculate_group_hash({**g, "difficulty": "hard"})
