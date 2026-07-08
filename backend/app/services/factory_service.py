@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.models.import_batch import ImportBatch
 from app.services import boss_factory, media_store, parser
-from app.services.factory_to_bank import bundle_items_to_rows
+from app.services.factory_to_bank import bundle_items_to_rows, lis_bundle_identity, lis_storage_slug
 
 logger = logging.getLogger(__name__)
 
@@ -115,16 +115,19 @@ def _persist_listening_sidecars(items: list) -> int:
         if not it.get("qc_ok", True):
             continue
         lis = it.get("lis_item") or {}
-        code = str(lis.get("code") or "").strip()
         tr = it.get("transcripts") or {}
-        if not code or not tr.get("l1") or not tr.get("l2"):
+        if not lis.get("code") or not tr.get("l1") or not tr.get("l2"):
             continue
+        # Key theo slug code.ltag (KHÔNG chỉ code): code trùng giữa 2 lượt sinh cùng seed → nếu key chỉ
+        # theo code + upsert, lượt 2 ĐÈ sidecar lượt 1 → render tải nhầm transcript (review S57h HIGH).
+        code, ltag = lis_bundle_identity(it)
+        slug = lis_storage_slug(code, ltag)
         payload = json.dumps({"transcripts": tr, "lis_item": lis}, ensure_ascii=False).encode("utf-8")
         try:
-            media_store.upload_bytes(f"listening/{code}.bundle.json", payload, "application/json")
+            media_store.upload_bytes(f"listening/{slug}.bundle.json", payload, "application/json")
             n += 1
         except media_store.MediaStoreError as exc:
-            logger.warning("Nghe: không cất được sidecar bundle %s: %s", code, exc)
+            logger.warning("Nghe: không cất được sidecar bundle %s: %s", slug, exc)
     return n
 
 

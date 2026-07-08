@@ -332,6 +332,37 @@ LIS_MANUAL_REVIEW_NOTE = (
 )
 
 
+def lis_bundle_identity(item: dict) -> tuple:
+    """(code, ltag) — định danh DUY NHẤT một bài Nghe (cho render + gom 15 câu + key sidecar).
+
+    code (LB1.90-<seed>-<idx>) TẤT ĐỊNH theo (seed,idx) → TRÙNG giữa 2 lượt sinh cùng seed dù nội dung
+    KHÁC. ltag = sha1(transcript L2 + đáp án)[:6] phái sinh NỘI DUNG → phân biệt 2 bài cùng code. PHẢI
+    dùng THỐNG NHẤT ở: content câu con '(Bài {code}·{ltag})' · trace explanation 'Mã sinh: {code}·{ltag}' ·
+    key sidecar Storage · render resolve — nếu chỉ theo code, render vớ NHẦM câu part 7 bài khác + đè
+    sidecar bài khác (review render pipeline S57h — 2 lỗi HIGH exam-integrity).
+    """
+    lis = item.get("lis_item") or {}
+    tr = item.get("transcripts") or {}
+    answers = {str(k): v for k, v in (lis.get("answers") or {}).items()}
+    l2_nums = sorted(int(k) for k in answers if str(k).isdigit() and int(k) >= 6)
+    code = str(lis.get("code") or item.get("nguon_seed") or "?")
+    ltag = hashlib.sha1(
+        (str(tr.get("l2") or "").strip() + "|" + "|".join(f"{n}:{answers.get(str(n))}" for n in l2_nums))
+        .encode("utf-8")
+    ).hexdigest()[:6]
+    return code, ltag
+
+
+def lis_bundle_token(code: str, ltag: str) -> str:
+    """Token định danh trong TEXT (content câu con + trace explanation) — '{code}·{ltag}'."""
+    return f"{code}·{ltag}"
+
+
+def lis_storage_slug(code: str, ltag: str) -> str:
+    """Slug định danh trong OBJECT PATH Storage (path-safe, không '·') — '{code}.{ltag}'."""
+    return f"{code}.{ltag}"
+
+
 def _lis_rows(items: list) -> list:
     """Nghe (SPEC-FACTORY-019, text-only) → 5 câu part 7 (chọn-tranh, choice) + 1 NHÓM part 8 (10 con fill).
 
@@ -351,11 +382,14 @@ def _lis_rows(items: list) -> list:
         l1 = [q if isinstance(q, dict) else {} for q in (tr.get("l1") or [])]
         l2_transcript = str(tr.get("l2") or "").strip()
         answers = {str(k): v for k, v in (lis.get("answers") or {}).items()}
-        code = str(lis.get("code") or it.get("nguon_seed") or "?")
+        # Định danh bài = code·ltag (ltag phái sinh nội dung) — dùng CẢ trace part 7 + content part 8 để
+        # render gom ĐÚNG 15 câu của bài này (không vớ nhầm bài cùng code khác nội dung — review S57h).
+        code, ltag = lis_bundle_identity(it)
+        token = lis_bundle_token(code, ltag)
         src = str(lis.get("src_code") or it.get("nguon_seed") or "?")
         diff = _diff(it)
         base_exp = str(it.get("explanation") or "").strip()
-        trace = f"\nMã sinh: {code} · Nguồn seed: {src}"
+        trace = f"\nMã sinh: {token} · Nguồn seed: {src}"
 
         # ---- PART 7: 5 câu chọn-tranh, mỗi câu 1 Question ĐƠN LẺ type choice ----
         for q in l1:
@@ -386,21 +420,16 @@ def _lis_rows(items: list) -> list:
             })
 
         # ---- PART 8: 1 NHÓM điền-từ, 10 câu con type fill ----
+        # token = code·ltag (ltag phái sinh nội dung) nhúng vào content mỗi câu con → content KHÁC nhau giữa
+        # các bài → không bị dedup content_hash nuốt câu con (bài học R4) + render nhận diện đúng bài (S57h).
         l2_nums = sorted(int(k) for k in answers if str(k).isdigit() and int(k) >= 6)
-        # Tag PHÁI SINH TỪ NỘI DUNG (transcript + đáp án) — KHÔNG chỉ từ mã bài. code (LB1.90-<seed>-<idx>)
-        # tất định theo (seed,idx) nên 2 lần chạy cùng seed cho CÙNG code dù Gemini viết bài KHÁC → nếu chỉ
-        # nhúng code, group hash trùng → save_parsed_items nuốt trọn khối mới (đúng lỗi R4 đã vá). ltag đổi
-        # theo nội dung → khối THẬT-SỰ-MỚI có hash khác (vào ngân hàng), còn re-import y hệt vẫn dedup đúng.
-        ltag = hashlib.sha1(
-            (l2_transcript + "|" + "|".join(f"{n}:{answers.get(str(n))}" for n in l2_nums)).encode("utf-8")
-        ).hexdigest()[:6]
         children = []
         for n in l2_nums:
             word = answers.get(str(n))
             if word is None or not str(word).strip():
                 continue
             # content thí sinh THẤY: prompt điền chỗ trống + mã bài·tag-nội-dung (chống trùng content_hash) — KHÔNG lộ đáp án.
-            content = f"(Bài {code}·{ltag}) Nghe đoạn độc thoại và điền MỘT từ vào chỗ trống số {n}."
+            content = f"(Bài {token}) Nghe đoạn độc thoại và điền MỘT từ vào chỗ trống số {n}."
             exp = (
                 LIS_MANUAL_REVIEW_NOTE
                 + f"\nĐáp án chỗ {n}: {word}"

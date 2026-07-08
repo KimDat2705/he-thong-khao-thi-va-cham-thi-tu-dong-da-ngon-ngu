@@ -698,6 +698,97 @@ def test_SPEC_FACTORY_024_render_endpoint_gating(db_session, admin_auth_headers)
         fastapi_app.dependency_overrides.clear()
 
 
+def _lis_item_same_code(base, l2seed):
+    """Item Nghe hand-built CÙNG code 'LB1.90-Z-1' nhưng NỘI DUNG khác (base) → ltag khác."""
+    answers = {str(k): "A" for k in range(1, 6)}
+    answers.update({str(n): f"{base}w{n}" for n in range(6, 16)})
+    l1 = [{"stem": f"{base} stem {i}", "options": {"A": "a", "B": "b", "C": "c"},
+           "answer": "A", "transcript": f"{base} talk {i}"} for i in range(1, 6)]
+    return {"lis_item": {"code": "LB1.90-Z-1", "src_code": "LB1.90-Z-1",
+                         "answers": answers, "l2_gaps": list(range(6, 16))},
+            "transcripts": {"l1": l1,
+                            "l2": f"{l2seed} " + " ".join(answers[str(n)] for n in range(6, 16))},
+            "difficulty_en": "medium", "qc_ok": True}
+
+
+def test_SPEC_FACTORY_024_sidecar_slug_distinguishes_same_code():
+    """Review [HIGH #2]: 2 bài CÙNG code khác nội dung → slug Storage KHÁC (ltag) → sidecar KHÔNG đè nhau."""
+    ca, la = factory_to_bank.lis_bundle_identity(_lis_item_same_code("AAA", "one"))
+    cb, lb = factory_to_bank.lis_bundle_identity(_lis_item_same_code("BBB", "two"))
+    assert ca == cb and la != lb                                    # cùng code, khác ltag
+    assert factory_to_bank.lis_storage_slug(ca, la) != factory_to_bank.lis_storage_slug(cb, lb)
+
+
+def test_SPEC_FACTORY_024_render_scoped_to_own_bundle(db_session, monkeypatch):
+    """Review [HIGH #1]: 2 bài Nghe CÙNG code, khác nội dung trong bank → render 1 bài chỉ gắn audio lên
+    câu part 7 CỦA CHÍNH BÀI ĐÓ (theo token code·ltag), KHÔNG vớ nhầm part 7 bài kia."""
+    from app.models.import_batch import ImportBatch
+    from app.services import boss_factory as bf
+    from app.services import listening_render, media_store, parser
+
+    itemA, itemB = _lis_item_same_code("AAA", "one"), _lis_item_same_code("BBB", "two")
+    batch = ImportBatch(source_file="test:lis", content_hash="lis-x", status="pending")
+    db_session.add(batch)
+    db_session.commit()
+    db_session.refresh(batch)
+    rows = (factory_to_bank.bundle_items_to_rows("listening", [itemA])
+            + factory_to_bank.bundle_items_to_rows("listening", [itemB]))
+    parser.save_parsed_items(db_session, rows, batch.id)
+    db_session.expire_all()
+
+    codeB, ltagB = factory_to_bank.lis_bundle_identity(itemB)
+    tokenB = f"{codeB}·{ltagB}"
+    groups = db_session.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None), QuestionGroup.part == 8, QuestionGroup.status == "draft").all()
+    group_b = next(g for g in groups if any(f"(Bài {tokenB})" in (c.content or "") for c in g.questions))
+
+    monkeypatch.setattr(media_store, "download_bytes", lambda path: json.dumps(itemB).encode("utf-8"))
+    monkeypatch.setattr(bf, "build_listening_audio", lambda gen, item, out_dir, to_mp3=True: {
+        "audio_path": "/f/x.mp3", "wav_path": "/f/x.wav", "mp3_path": "/f/x.mp3",
+        "duration_s": 1000.0, "format": "mp3", "n_segments": 20})
+    monkeypatch.setattr(media_store, "upload_file", lambda local, obj, content_type=None: f"https://cdn/{obj}")
+
+    res = listening_render.render_listening_media(db_session, group_b.id, generator=object(), with_images=False)
+    assert res["n_part7"] == 5                                      # CHỈ 5 câu part 7 của bài B
+    db_session.expire_all()
+    p7 = db_session.query(Question).filter(Question.part == 7, Question.status == "draft").all()
+    p7a = [q for q in p7 if "AAA stem" in (q.content or "")]
+    p7b = [q for q in p7 if "BBB stem" in (q.content or "")]
+    assert len(p7a) == 5 and len(p7b) == 5
+    assert all(q.audio_url == res["audio_url"] for q in p7b)        # bài B có audio
+    assert all(not (q.audio_url or "") for q in p7a)                # bài A KHÔNG bị gắn NHẦM audio
+
+
+def test_SPEC_FACTORY_024_render_with_images(db_session, monkeypatch):
+    """AC4: with_images → image_url = 3 URL nối phẩy CHỈ khi đủ 3 tranh; câu thiếu tranh → bỏ qua (graceful)."""
+    from app.services import boss_factory as bf
+    from app.services import listening_render, media_store
+
+    group = _seed_listening_group(db_session)
+    fake_bundle = {"lis_item": {"code": "X"}, "transcripts": {
+        "l1": [{"stem": f"Q{i}", "transcript": f"A: {i}", "options": {"A": "a", "B": "b", "C": "c"},
+                "answer": "A"} for i in range(5)], "l2": "m " * 40}}
+    monkeypatch.setattr(media_store, "download_bytes", lambda path: json.dumps(fake_bundle).encode("utf-8"))
+    monkeypatch.setattr(bf, "build_listening_audio", lambda gen, item, out_dir, to_mp3=True: {
+        "audio_path": "/f.mp3", "wav_path": "/f.wav", "mp3_path": "/f.mp3",
+        "duration_s": 1000.0, "format": "mp3", "n_segments": 20})
+    monkeypatch.setattr(media_store, "upload_file", lambda local, obj, content_type=None: f"https://cdn/{obj}")
+
+    def fake_images(gen, item, out_dir):
+        for j, q in enumerate(item["transcripts"]["l1"]):
+            q["image_urls"] = "a.png,b.png,c.png" if j < 4 else "a.png,b.png"   # câu 5 THIẾU 1 tranh
+        return {"n_images": 14, "n_failed": 1, "needs_billing": False}
+
+    monkeypatch.setattr(bf, "build_listening_images", fake_images)
+
+    res = listening_render.render_listening_media(db_session, group.id, generator=object(), with_images=True)
+    assert res["images"]["questions_with_images"] == 4             # chỉ 4 câu đủ 3 tranh
+    db_session.expire_all()
+    p7 = db_session.query(Question).filter(Question.part == 7, Question.status == "draft").all()
+    with_img = [q for q in p7 if q.image_url]
+    assert len(with_img) == 4 and all(len(q.image_url.split(",")) == 3 for q in with_img)
+
+
 def test_SPEC_FACTORY_020_db_persist_config_and_media_store(monkeypatch):
     """AC1-AC5: cấu hình DB bền (Supabase Postgres) + helper media_store — offline tất định.
 
