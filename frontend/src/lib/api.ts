@@ -420,6 +420,64 @@ export async function getFactoryTask(jobId: string): Promise<FactoryJobStatus> {
   );
 }
 
+// SPEC-FACTORY-024: render AUDIO (+ảnh chọn-tranh opt-in) cho một bộ Nghe đã có trong ngân hàng.
+// Đầu vào = id NHÓM part 8 (anchor của bộ). Op DÀI (TTS đọc trọn bài ~18-22 call + retry) → chạy nền,
+// trả job_id để poll qua getRenderListeningTask() (dùng chung endpoint /factory/tasks/{id}). Khi xong,
+// group_audio_url của nhóm part 8 + audio_url của 5 câu part 7 được gắn → cổng duyệt Nghe mở khoá.
+export interface RenderListeningImages {
+  n_images: number;
+  n_failed: number;
+  needs_billing: boolean;
+  questions_with_images: number;
+}
+
+export interface RenderListeningJobStatus {
+  job_id: string;
+  status: string; // pending | running | completed | error
+  part: string;
+  requested: number;
+  generated_count: number;
+  // Các trường kết quả (chỉ có khi status === "completed"):
+  code?: string;
+  group_id?: number;
+  audio_url?: string | null;
+  duration_s?: number;
+  duration_min?: number;
+  format?: string;
+  n_part7?: number;
+  n_segments?: number;
+  images?: RenderListeningImages | null;
+  error?: string | null;
+}
+
+export async function renderListeningMedia(payload: {
+  group_id: number;
+  with_images?: boolean;
+}): Promise<{ job_id: string; status: string }> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/factory/render-listening-media`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({
+        group_id: payload.group_id,
+        with_images: payload.with_images ?? false,
+      }),
+    }),
+  );
+}
+
+export async function getRenderListeningTask(jobId: string): Promise<RenderListeningJobStatus> {
+  return jsonOrThrow(
+    await fetch(`${API_BASE}/api/v1/factory/tasks/${encodeURIComponent(jobId)}`, {
+      method: "GET",
+      headers: { ...authHeaders() },
+    }),
+  );
+}
+
 // SPEC-BANK-007: paraphrase an existing bank question (the "seed") into N fresh
 // draft variants — reworded stem + distractors, new image for picture items,
 // CEFR-B1 difficulty label; each variant links back via source_question_id.

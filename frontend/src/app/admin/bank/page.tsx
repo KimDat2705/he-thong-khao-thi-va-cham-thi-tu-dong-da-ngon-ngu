@@ -16,6 +16,9 @@ import {
   getFactorySkills,
   type FactorySkillInfo,
   type FactoryJobStatus,
+  renderListeningMedia,
+  getRenderListeningTask,
+  type RenderListeningJobStatus,
   paraphraseBankQuestion,
   getToken,
   clearToken,
@@ -83,6 +86,13 @@ export default function BankAdminPage() {
   const selectedFactorySkill =
     factorySkills.find((s) => s.skill === factorySkill) ?? factorySkills[0];
 
+  // Render audio bộ Nghe (SPEC-FACTORY-024): render audio trọn bài cho NHÓM part 8 (anchor của bộ) →
+  // gắn audio_url cả bộ 15 câu (nhóm part 8 + 5 câu part 7) → mở khoá duyệt. Khoá theo group_id đang
+  // render để nút hiển thị đúng trạng thái; ảnh chọn-tranh part 7 là opt-in (tốn phí — mặc định tắt).
+  const [renderingGroupId, setRenderingGroupId] = useState<number | null>(null);
+  const [renderProgress, setRenderProgress] = useState<string>("");
+  const [renderWithImages, setRenderWithImages] = useState<boolean>(false);
+
   // Guard authentication
   useEffect(() => {
     const token = getToken();
@@ -108,6 +118,12 @@ export default function BankAdminPage() {
       cancelled = true;
     };
   }, [authChecked]);
+
+  // Lựa chọn ảnh chọn-tranh là TỐN PHÍ → reset về TẮT mỗi khi mở câu khác, tránh vô tình mang chọn
+  // "kèm ảnh" của bộ này sang render bộ khác (SPEC-FACTORY-024 review #5/#8).
+  useEffect(() => {
+    setRenderWithImages(false);
+  }, [selectedQuestion?.id]);
 
   // Fetch stats and questions
   async function fetchData() {
@@ -356,6 +372,97 @@ export default function BankAdminPage() {
     } finally {
       setFactoryRunning(false);
       setFactoryProgress("");
+    }
+  }
+
+  // SPEC-FACTORY-024: render audio (+ảnh opt-in) cho bộ Nghe của nhóm part 8 → gắn URL cả bộ, mở khoá duyệt.
+  // Cùng khuôn submit-job → poll như handleFactory; render là op DÀI (TTS đọc trọn bài) → chờ tối đa 15'.
+  async function handleRenderListening(groupId: number, withImages: boolean) {
+    setRenderingGroupId(groupId);
+    setError(null);
+    setSuccess(null);
+    setRenderProgress("Đang gửi yêu cầu render audio...");
+    try {
+      const { job_id } = await renderListeningMedia({ group_id: groupId, with_images: withImages });
+
+      // 400 × 3s = 20 phút chờ hiển thị: TTS đọc-2-lần trọn bài (~18-22 call) + retry/backoff có thể lâu —
+      // job vẫn chạy nền phía server nếu client bỏ đi; audio sẽ gắn khi hoàn tất.
+      const maxAttempts = 400;
+      let done: RenderListeningJobStatus | null = null;
+      let pollErrors = 0;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        let task: RenderListeningJobStatus;
+        try {
+          task = await getRenderListeningTask(job_id);
+          pollErrors = 0;
+        } catch (pollErr) {
+          // Blip mạng / Render free-tier cold-start (502/503) khi POLL — KHÔNG bỏ cuộc: render vẫn chạy
+          // nền. Chỉ thoát nếu mất phiên (401) hoặc poll hỏng liên tiếp quá nhiều (outage thật).
+          const pmsg = pollErr instanceof Error ? pollErr.message : String(pollErr);
+          if (pmsg.startsWith("401")) throw pollErr;
+          pollErrors += 1;
+          if (pollErrors >= 10) {
+            throw new Error(
+              "Mất kết nối khi theo dõi render nhiều lần liên tiếp. Job có thể VẪN chạy nền — mở lại câu Nghe sau ít phút để nghe audio.",
+            );
+          }
+          continue;
+        }
+        if (task.status === "completed") {
+          done = task;
+          break;
+        }
+        if (task.status === "error") {
+          throw new Error(task.error || "Render audio bộ Nghe thất bại.");
+        }
+        const elapsed = Math.round(((attempt + 1) * 3) / 60);
+        setRenderProgress(
+          `Đang render audio (TTS đọc trọn bài giọng C)...${elapsed >= 1 ? ` · ~${elapsed} phút` : ""}`,
+        );
+        if (attempt === maxAttempts - 1) {
+          throw new Error(
+            "Quá 20 phút chờ hiển thị. ĐỪNG bấm render lại — job VẪN chạy nền phía server; mở lại câu Nghe sau ít phút để nghe audio.",
+          );
+        }
+      }
+
+      const dur = done?.duration_min;
+      const nP7 = done?.n_part7 ?? 0;
+      // Ảnh opt-in: chỉ khoe khi THẬT SỰ gắn được ≥1 câu; 0 câu = cảnh báo (thất bại một phần, không giả vờ OK).
+      let imgNote = "";
+      if (done?.images) {
+        const imgAttached = done.images.questions_with_images ?? 0;
+        if (imgAttached > 0) {
+          imgNote = ` Kèm ảnh chọn-tranh cho ${imgAttached} câu part 7.`;
+        } else {
+          imgNote = done.images.needs_billing
+            ? " ⚠ Ảnh chọn-tranh CHƯA sinh được (cần bật billing cho khóa API) — audio vẫn OK."
+            : " ⚠ Ảnh chọn-tranh không gắn được câu nào (lỗi sinh/tải ảnh) — audio vẫn OK.";
+        }
+      }
+      setSuccess(
+        `Đã render audio bộ Nghe${dur ? ` (~${dur} phút, ${(done?.format || "mp3").toUpperCase()})` : ""} — ` +
+          `gắn cho nhóm part 8 + ${nP7} câu part 7. Bộ Nghe giờ có thể duyệt.` +
+          imgNote,
+      );
+      // Đóng ĐÚNG modal của bộ vừa render (functional set → không đụng modal khác admin mở giữa chừng);
+      // nạp lại danh sách để group_audio_url/audio_url hiện ra (nút chuyển sang "đã có audio").
+      setSelectedQuestion((cur) => (cur && cur.group_id === groupId ? null : cur));
+      await fetchData();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      // startsWith (KHÔNG includes): lỗi render có thể chứa chuỗi "401" trong id/slug/thông báo TTS →
+      // includes sẽ đăng xuất oan. Chỉ 401 THẬT từ jsonOrThrow có dạng "401: ...".
+      if (errMsg.startsWith("401")) {
+        clearToken();
+        router.push("/login");
+      } else {
+        setError(errMsg);
+      }
+    } finally {
+      setRenderingGroupId(null);
+      setRenderProgress("");
     }
   }
 
@@ -841,15 +948,28 @@ export default function BankAdminPage() {
                       </button>
                     </td>
                     <td className="py-3 px-3 text-right pr-4">
-                      {q.status === "approved" ? (
-                        <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                          Approved
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                          Draft
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        {q.status === "approved" ? (
+                          <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                            Approved
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                            Draft
+                          </span>
+                        )}
+                        {/* SPEC-FACTORY-024: cờ audio cho câu Nghe (part 7/8) — chưa audio = chưa duyệt được. */}
+                        {(q.part === 7 || q.part === 8) &&
+                          ((q.audio_url || q.group_audio_url) ? (
+                            <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20" title="Bộ Nghe đã có audio">
+                              🎧 có audio
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-600/20" title="Chưa có audio — mở câu part 8 để render">
+                              🎧 chưa audio
+                            </span>
+                          ))}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -1038,8 +1158,66 @@ export default function BankAdminPage() {
 
             {/* Footer */}
             <div className="border-t px-6 py-4 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
-              {/* BANK-007: Nhân bản (Paraphrase) — chỉ cho câu trắc nghiệm có phương án */}
-              {selectedQuestion.type === "choice" &&
+              {/* SPEC-FACTORY-024: Render audio bộ Nghe (nhóm part 8) — mở khoá duyệt câu Nghe. Ưu tiên
+                  trước Paraphrase. Part 7 (chọn-tranh) giữ nút Paraphrase; audio của nó render từ nhóm
+                  part 8 của bài, trạng thái audio xem ở cờ 🎧 trong bảng. */}
+              {selectedQuestion.part === 8 && selectedQuestion.group_id != null ? (
+                selectedQuestion.group_audio_url ? (
+                  <span className="text-xs font-medium text-green-700 flex items-center gap-1.5">
+                    <span>✓</span> Bộ Nghe đã có audio — có thể duyệt.
+                  </span>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label
+                        className="flex items-center gap-1.5 text-xs font-medium text-gray-500"
+                        title="Sinh thêm 3 tranh chọn-tranh A/B/C cho mỗi câu part 7 (dùng Imagen — tốn phí, cần bật billing)"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={renderWithImages}
+                          onChange={(e) => setRenderWithImages(e.target.checked)}
+                          disabled={renderingGroupId != null}
+                          className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 disabled:opacity-50"
+                        />
+                        Kèm ảnh chọn-tranh part 7 (tốn phí)
+                      </label>
+                      <button
+                        onClick={() =>
+                          selectedQuestion.group_id != null &&
+                          handleRenderListening(selectedQuestion.group_id, renderWithImages)
+                        }
+                        disabled={renderingGroupId != null}
+                        title="Render audio trọn bài Nghe (giọng C ~16–18′) → gắn cho nhóm part 8 + 5 câu part 7 của bài → mở khoá duyệt"
+                        className="rounded-lg bg-teal-600 hover:bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow transition focus:outline-none disabled:bg-teal-300 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {renderingGroupId === selectedQuestion.group_id ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            <span>Đang render audio...</span>
+                          </>
+                        ) : (
+                          <span>🎧 Render audio bộ Nghe</span>
+                        )}
+                      </button>
+                    </div>
+                    {renderingGroupId === selectedQuestion.group_id && (
+                      <p className="text-[11px] text-teal-600 italic animate-pulse">
+                        {renderProgress || "Đang render audio..."} Op dài (TTS đọc trọn bài) — có thể mất nhiều phút; audio gắn khi xong.
+                      </p>
+                    )}
+                    {renderingGroupId != null && renderingGroupId !== selectedQuestion.group_id && (
+                      <p className="text-[11px] text-gray-400 italic">
+                        Đang render một bộ Nghe khác — chờ xong rồi mới render bộ này.
+                      </p>
+                    )}
+                  </div>
+                )
+              ) : /* BANK-007: Nhân bản (Paraphrase) — chỉ cho câu trắc nghiệm có phương án */
+              selectedQuestion.type === "choice" &&
               selectedQuestion.options &&
               Object.keys(selectedQuestion.options).length >= 2 ? (
                 <div className="flex items-center gap-2">
