@@ -4,6 +4,7 @@ import inspect
 import logging
 import os
 import random
+import time
 import wave
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
@@ -17,6 +18,16 @@ from app.models.question_group import QuestionGroup
 from app.services.parser import calculate_question_hash, calculate_group_hash
 
 logger = logging.getLogger(__name__)
+
+# Retry/backoff cho lỗi Gemini TẠM THỜI (500/503 INTERNAL/UNAVAILABLE, 429 quá hạn) khi sinh TEXT —
+# nhánh render TTS đã có _tts_with_retry riêng; nhánh text-gen trước đây 1 cú 500 là rớt cả lô
+# (đúng gốc sự cố A3 khi Gemini chập chờn). Chỉ thử lại lỗi tạm; lỗi khác (safety, bad-request) raise ngay.
+# _call_gemini DÙNG CHUNG với Bản 1 (kể cả endpoint ĐỒNG BỘ /enrich, /paraphrase) → giữ 2 lần thử
+# (backoff 1s,2s → tối đa ~3s/_once) để không chặn worker HTTP quá lâu (review S57i).
+_GEMINI_TRANSIENT_RETRIES = 2
+# Marker CHỮ (KHÔNG dùng '500'/'429' trần — dễ khớp nhầm số trong thông điệp lỗi khác, vd 'token 1500';
+# ưu tiên mã lỗi có cấu trúc e.code khi có). review S57i.
+_GEMINI_TRANSIENT_MARKERS = ("INTERNAL", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "overloaded", "deadline")
 
 B1_TOPICS = [
     "Bản thân",
@@ -212,16 +223,27 @@ class B1QuestionGenerator:
             cfg_kw = {"response_mime_type": "application/json", "max_output_tokens": cap}
             if think is not None:
                 cfg_kw["thinking_config"] = types.ThinkingConfig(thinking_budget=think)
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=[system_instruction, user_prompt],
-                    config=types.GenerateContentConfig(**cfg_kw),
-                )
-            except Exception as e:
-                logger.error(f"Gemini API call failed: {e}")
-                raise
-            return _extract_gemini_text(response)
+            for attempt in range(_GEMINI_TRANSIENT_RETRIES + 1):
+                try:
+                    response = self.client.models.generate_content(
+                        model=self.model_name,
+                        contents=[system_instruction, user_prompt],
+                        config=types.GenerateContentConfig(**cfg_kw),
+                    )
+                    return _extract_gemini_text(response)
+                except Exception as e:
+                    # Chỉ thử lại lỗi TẠM THỜI (500/503/429). Ưu tiên mã lỗi có cấu trúc (e.code) rồi mới
+                    # tới marker chữ; lỗi khác (safety/bad-request) raise ngay.
+                    code = getattr(e, "code", None) or getattr(e, "status_code", None)
+                    transient = code in (429, 500, 503) or any(t in str(e) for t in _GEMINI_TRANSIENT_MARKERS)
+                    if transient and attempt < _GEMINI_TRANSIENT_RETRIES:
+                        wait = 2 ** attempt      # 1s, 2s, 4s
+                        logger.warning("Gemini lỗi tạm thời (lần %d/%d): %s — thử lại sau %ds",
+                                       attempt + 1, _GEMINI_TRANSIENT_RETRIES, str(e)[:120], wait)
+                        time.sleep(wait)
+                        continue
+                    logger.error(f"Gemini API call failed: {e}")
+                    raise
 
         text, truncated, usage = _once(eff_max, thinking_budget)
         if truncated or not text:

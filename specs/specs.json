@@ -1218,6 +1218,29 @@
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_024_render_with_images"
       ],
       "notes": "S57h (08/07). Slice 6 render pipeline. Audio = 1 FILE trọn bài gắn cấp-file cho cả 15 câu (khớp quyết định 'cả file không cắt'). build_listening_audio ĐÃ proven S55 (render thật 16'43\" @210wpm cũ); slice này nối vào web + đọc sidecar. media_store +download_bytes (GET public URL). REVIEW ĐỐI KHÁNG (Workflow 9 agent, 2 lăng kính×verify): 7 finding / 4 CONFIRMED → VÁ HẾT: [HIGH×2 exam-integrity, cùng gốc] code TẤT ĐỊNH trùng giữa 2 lượt sinh cùng seed → (a) _part7_of_bundle khớp theo code → vớ NHẦM part 7 bài khác gắn sai audio; (b) sidecar key theo code + upsert → lượt 2 ĐÈ sidecar lượt 1 → render tải NHẦM transcript → vá: lis_bundle_identity dùng chung → token 'code·ltag' vào CẢ trace part 7 + content part 8 + slug 'code.ltag' cho sidecar/MP3/ảnh + regression test 2-bài-cùng-code; [MED] ảnh opt-in lỗi rollback làm MẤT audio_url đã render (đắt) → commit audio TRƯỚC ảnh + upload ảnh best-effort per-câu; [LOW] thiếu test nhánh ảnh/cross-set → +3 test. 3 finding refuted (SQL LIKE inject, positional ảnh, path unsanitized). ▶ FOLLOW-UP: (a) FE nút 'Render audio' per nhóm Nghe ở /admin/bank + poll (chưa làm — file lớn + cảnh báo Next.js version lạ, làm pass sau); (b) 1 RENDER THẬT trên LIVE đo duration 16-18' (engine proven + pause 396s đo chắc → rủi ro thấp); (c) FE hiển thị 3 tranh part 7; (d) exam_generator P1 = slice riêng (bundle_id + alembic-trên-deploy C3)."
+    },
+    {
+      "id": "SPEC-FACTORY-025",
+      "domain": "FACTORY",
+      "title": "Nhà máy: giao diện Số lượng + Chủ đề/Độ khó (gợi ý mềm Cách A) + báo rõ khi sinh 0 câu + retry lỗi Gemini tạm",
+      "statement": "Căn giao diện nhà máy (Bản 2) theo Bản 1 (Đạt duyệt Bước 1) — CHỈ lớp giao diện + tham số, KHÔNG đổi schema/QuestionGroup. (1) count (Số lượng cần sinh) thay '2 ô Số đề mẫu × Biến thể/đề': run_factory_to_bank quy đổi limit=min(count, n_seeds), per_seed=ceil(count/limit) kẹp 3 (che cơ chế seed khỏi người dùng); count=None → dùng limit/per_seed (back-compat test/gọi cũ). (2) topic/difficulty (Cách A — gợi ý mềm; Bản 2 bám SEED nên không tự do như Bản 1 bịa-từ-đầu): _SteeredGenerator BỌC generator, nhét _build_steer('chủ đề X, độ khó Y') vào CUỐI user_prompt của mọi _call_gemini khi SINH — giữ nguyên FORMAT đề mẫu, hướng nội dung theo lựa chọn; CHỈ áp bước SINH, cổng kiểm đáp án dùng generator GỐC (giải độc lập, không steer). Thread topic/difficulty/count qua endpoint → dispatch_factory_job → run_factory_job → run_factory_to_bank. (3) Chống 'banner 0 câu giả-thành-công': job store surface 'generated' (số biến thể TRƯỚC cổng kiểm/QC) → FE báo CẢNH BÁO khi saved=0 (phân biệt 0-do-AI-lỗi generated=0 vs 0-do-QC-loại generated>0). (4) _call_gemini +retry/backoff lỗi Gemini TẠM THỜI (500/503/429/INTERNAL/UNAVAILABLE/RESOURCE_EXHAUSTED) — nhánh text-gen trước chỉ 1 cú 500 là rớt cả lô (gốc sự cố A3); lỗi khác raise NGAY. (5) SKILL_LABELS đổi hiện rõ Part + đánh dấu '(nhóm)' cho R3/R4/part-8 Nghe; Nghe GIỮ GỘP (Part 7+8 cả bài, chung 1 audio — Đạt duyệt).",
+      "acceptance_criteria": [
+        "count → limit=min(count, n_seeds), per_seed=ceil(count/limit) kẹp 3; result trả 'generated' + 'n_seeds'; count vượt n_seeds×3 → kẹp về n_seeds×3; count=None → dùng limit/per_seed (back-compat).",
+        "_build_steer rỗng khi không chọn; _SteeredGenerator nhét steer vào CUỐI user_prompt khi sinh + uỷ quyền thuộc tính (client...) về gốc; cổng kiểm đáp án dùng generator GỐC (KHÔNG steer).",
+        "job store surface 'generated' → phân biệt saved=0 do AI-lỗi (generated=0) vs QC-loại (generated>0); FE báo cảnh báo (không banner xanh) khi saved=0.",
+        "_call_gemini thử lại lỗi Gemini TẠM THỜI (500/503/429) với backoff rồi mới raise; lỗi KHÔNG tạm thời (safety/bad-request) raise NGAY (không thử lại).",
+        "SKILL_LABELS hiện tiền tố Part + '(nhóm)' cho R3/R4; listening giữ nhãn 'Part 7+8 · Nghe cả bài (nhóm part 8, chung 1 audio)'."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_count_derivation_and_result_fields",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_steer_appends_and_gate_uses_base",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_call_gemini_retries_transient",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_call_gemini_no_retry_on_non_transient",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_skill_labels_part_prefix_and_group"
+      ],
+      "notes": "S57i (08/07). Bước 1 của kế hoạch gộp 2 bản (Đạt: giữ Bản 1 tham khảo, sau khi cải thiện Bản 2 sẽ XOÁ Bản 1 còn 1 panel — engine Bản 1 giữ dưới Bản 2). Cách A gợi ý mềm = đúng cơ chế Bản 1 (prompt topic/difficulty, KHÔNG train model). VERIFY THẬT (local Gemini): R1 count=2 chủ đề 'Sức khỏe' → 2 câu health-themed đúng độ khó easy. A3 (bấm không ra câu) = do Gemini 500 outage ~30' lúc test, KHÔNG phải bug (chạy lại đường web listening thật → 15 câu + 1 nhóm). ▶ CÒN (Bước 2, chờ Đạt bàn): nạp 30 đề thật (EB1.2601-2630, đang QC 72 lỗi) thay 2 đề mẫu; topic/difficulty nâng lên LỌC-seed (Cách B) khi seed đã gắn nhãn; xoá panel Bản 1 sau khi Bản 2 phủ đủ."
     }
   ]
 }

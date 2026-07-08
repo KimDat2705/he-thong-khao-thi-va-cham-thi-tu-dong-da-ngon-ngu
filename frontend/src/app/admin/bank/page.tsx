@@ -29,10 +29,28 @@ import {
 // SPEC-FACTORY-017: danh sách dạng câu lấy TỪ BACKEND (/factory/skills — parts + gate).
 // Bộ này chỉ là FALLBACK khi fetch lỗi (mạng/BE cũ) để panel không trống.
 const FALLBACK_FACTORY_SKILLS: FactorySkillInfo[] = [
-  { skill: "reading_s1", label: "R1 · Đọc phần 1 — trắc nghiệm (4 phương án)", parts: [1], gate: "ai" },
-  { skill: "reading_s2_notice", label: "R2 · Đọc phần 2 — thông báo (3 phương án)", parts: [2], gate: "ai" },
-  { skill: "reading_s3_comprehension", label: "R3 · Đọc phần 3 — đoạn văn + câu hỏi", parts: [3], gate: "ai" },
-  { skill: "reading_s4_cloze", label: "R4 · Đọc phần 4 — điền từ vào chỗ trống", parts: [4], gate: "ai" },
+  { skill: "reading_s1", label: "Part 1 · R1 Đọc — trắc nghiệm (câu đơn)", parts: [1], gate: "ai" },
+  { skill: "reading_s2_notice", label: "Part 2 · R2 Đọc — thông báo (câu đơn)", parts: [2], gate: "ai" },
+  { skill: "reading_s3_comprehension", label: "Part 3 · R3 Đọc — đoạn văn (nhóm: 1 đoạn + 5 câu)", parts: [3], gate: "ai" },
+  { skill: "reading_s4_cloze", label: "Part 4 · R4 Đọc — điền từ (nhóm: 1 đoạn + 10 chỗ)", parts: [4], gate: "ai" },
+];
+
+// 14 chủ đề B1 (khớp backend B1_TOPICS + panel Bản 1). value = chuỗi gửi cho AI, label = hiển thị.
+const B1_TOPIC_OPTIONS: { value: string; label: string }[] = [
+  { value: "Bản thân", label: "Bản thân" },
+  { value: "Nhà cửa-gia đình-môi trường", label: "Nhà cửa - Gia đình - Môi trường" },
+  { value: "Cuộc sống hằng ngày", label: "Cuộc sống hằng ngày" },
+  { value: "Vui chơi-giải trí", label: "Vui chơi - Giải trí" },
+  { value: "Đi lại-du lịch", label: "Đi lại - Du lịch" },
+  { value: "Mối quan hệ", label: "Mối quan hệ" },
+  { value: "Sức khỏe", label: "Sức khỏe" },
+  { value: "Giáo dục", label: "Giáo dục" },
+  { value: "Mua bán", label: "Mua bán" },
+  { value: "Thực phẩm-đồ uống", label: "Thực phẩm - Đồ uống" },
+  { value: "Các dịch vụ", label: "Các dịch vụ" },
+  { value: "Địa điểm-địa danh", label: "Địa điểm - Địa danh" },
+  { value: "Ngôn ngữ", label: "Ngôn ngữ" },
+  { value: "Thời tiết", label: "Thời tiết" },
 ];
 
 export default function BankAdminPage() {
@@ -74,11 +92,12 @@ export default function BankAdminPage() {
   const [paraphrasing, setParaphrasing] = useState<boolean>(false);
   const [paraphraseCount, setParaphraseCount] = useState<number>(3);
 
-  // Nhà máy sinh câu (SPEC-FACTORY-016/017)
+  // Nhà máy sinh câu (SPEC-FACTORY-016/017; giao diện căn theo Bản 1: số lượng + chủ đề + độ khó)
   const [factorySkills, setFactorySkills] = useState<FactorySkillInfo[]>(FALLBACK_FACTORY_SKILLS);
   const [factorySkill, setFactorySkill] = useState<string>("reading_s1");
-  const [factoryLimit, setFactoryLimit] = useState<number>(3);
-  const [factoryPerSeed, setFactoryPerSeed] = useState<number>(1);
+  const [factoryCount, setFactoryCount] = useState<number>(5);            // Số lượng cần sinh
+  const [factoryTopic, setFactoryTopic] = useState<string>("");           // Cách A: gợi ý mềm chủ đề
+  const [factoryDifficulty, setFactoryDifficulty] = useState<string>(""); // Cách A: gợi ý mềm độ khó
   const [factoryEngine, setFactoryEngine] = useState<string>("gemini");
   const [factoryVerify, setFactoryVerify] = useState<boolean>(true);
   const [factoryRunning, setFactoryRunning] = useState<boolean>(false);
@@ -314,10 +333,16 @@ export default function BankAdminPage() {
     setSuccess(null);
     setFactoryProgress("Đang gửi yêu cầu tới nhà máy...");
     try {
+      // 'count' = Số lượng cần sinh. W1 gộp mỗi 5 câu thành 1 khối → làm tròn bội số 5 (tránh khối lẻ).
+      const count =
+        factorySkill === "writing_w1_rewrite"
+          ? Math.max(5, Math.round(factoryCount / 5) * 5)
+          : factoryCount;
       const { job_id } = await submitFactoryJob({
         skill: factorySkill,
-        limit: factoryLimit,
-        per_seed: factoryPerSeed,
+        count,
+        topic: factoryTopic || undefined,
+        difficulty: factoryDifficulty || undefined,
         engine: factoryEngine,
         verify: factoryVerify,
       });
@@ -346,15 +371,35 @@ export default function BankAdminPage() {
       }
 
       const saved = (done?.saved_questions ?? 0) + (done?.saved_groups ?? 0);
+      const gen = done?.generated ?? 0;
+      const skipped = done?.skipped_questions ?? 0;
+      // Vá "0 câu giả-thành-công" (banner ĐỎ, không xanh) — phân biệt 3 nguyên nhân (review S57i):
+      // AI lỗi/bận (gen=0) · sinh được nhưng TRÙNG câu đã có (skipped>0) · không qua cổng kiểm.
+      if (saved === 0) {
+        setError(
+          gen === 0
+            ? "Không sinh được câu nào — AI (Gemini) có thể đang bận/lỗi tạm thời. Thử lại sau ít phút."
+            : skipped > 0
+              ? `Sinh được ${gen} biến thể nhưng đều TRÙNG câu đã có (kho câu gốc còn hạn chế). Đổi chủ đề/độ khó hoặc chạy lại để có biến thể mới.`
+              : `Sinh được ${gen} biến thể nhưng KHÔNG câu nào qua cổng kiểm đáp án. Thử lại hoặc đổi tham số.`,
+        );
+        return;   // khối finally vẫn chạy (tắt spinner); không báo thành công, không nhảy bộ lọc.
+      }
       const suspect = done?.answer_suspect ?? 0;
       const gate = selectedFactorySkill?.gate ?? "ai";
+      // Báo THIẾU HỤT khi kho câu gốc không đủ sinh tới số lượng yêu cầu (gen < count = chạm trần seed —
+      // gen và count cùng đơn vị 'đơn vị sinh' của skill: câu/nhóm/bài). Chống hiểu nhầm "đủ số lượng".
+      const shortfall = gen < count
+        ? ` (Kho câu gốc chỉ đủ sinh ${gen}/${count} lượt — chạy lại hoặc đổi chủ đề để có thêm biến thể.)`
+        : "";
       setSuccess(
         `Nhà máy đã sinh & lưu ${saved} câu/nhóm câu vào ngân hàng (dạng Nháp).` +
           (gate === "manual"
             ? " Dạng tự luận KHÔNG có cổng kiểm đáp án AI — giáo viên soát tay toàn bộ trước khi duyệt."
             : factoryVerify
               ? ` Cổng kiểm đáp án gắn cờ ⚠ NGHI cho ${suspect} câu trong lô vừa sinh — giáo viên soát kỹ.`
-              : ""),
+              : "") +
+          shortfall,
       );
       setExamType("VSTEP_B1");
       setStatus("draft");
@@ -363,7 +408,7 @@ export default function BankAdminPage() {
       await fetchData();
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      if (errMsg.includes("401")) {
+      if (errMsg.startsWith("401")) {
         clearToken();
         router.push("/login");
       } else {
@@ -658,21 +703,18 @@ export default function BankAdminPage() {
           <span>🏭</span> Nhà máy sinh câu — bám đề thật + cổng kiểm đáp án AI
         </h3>
         <p className="text-xs text-emerald-700 mb-4">
-          Sinh câu Đọc (R1–R4) và Viết (W1–W2) từ <b>đề mẫu</b> làm gốc (không bịa nội dung). Dạng có đáp án
-          đóng được một AI khác <b>giải độc lập</b> để soát — câu nghi ngờ gắn cờ <b>⚠ NGHI</b> trong phần giải
-          thích; dạng tự luận (W2) <b>không có cổng kiểm</b> — giáo viên soát tay. Câu sinh vào ngân hàng dạng
-          {" "}<b>Nháp</b> để giáo viên duyệt.
+          Sinh câu <b>Đọc / Viết / Nói / Nghe</b> từ <b>đề mẫu</b> làm gốc (giữ đúng KIỂU đề thật, không bịa
+          cấu trúc). Chọn <b>chủ đề</b> + <b>độ khó</b> để hướng nội dung câu sinh (gợi ý cho AI). Dạng có đáp
+          án đóng được một AI khác <b>giải độc lập</b> soát — câu nghi ngờ gắn cờ <b>⚠ NGHI</b>; dạng tự luận /
+          Nói / Nghe <b>không có cổng kiểm</b> — giáo viên soát tay. Câu sinh vào ngân hàng dạng {" "}
+          <b>Nháp</b> để giáo viên duyệt.
         </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-gray-500 uppercase">Dạng câu</label>
             <select
               value={factorySkill}
-              onChange={(e) => {
-                setFactorySkill(e.target.value);
-                // W1 gộp khối 5 câu/đề → mặc định lô là bội số 5 để không tạo khối lẻ
-                if (e.target.value === "writing_w1_rewrite") setFactoryLimit(5);
-              }}
+              onChange={(e) => setFactorySkill(e.target.value)}
               disabled={factoryRunning}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
             >
@@ -685,32 +727,52 @@ export default function BankAdminPage() {
                 ? "✍ Tự luận — KHÔNG có cổng kiểm đáp án AI, giáo viên soát tay toàn bộ."
                 : "🛡 Có cổng kiểm đáp án AI (giải độc lập rồi so đáp án)."}
               {factorySkill === "writing_w1_rewrite" &&
-                " Khối chuẩn = 5 câu — nên để Số đề mẫu × Biến thể/đề là bội số của 5."}
+                " Khối chuẩn = 5 câu — số lượng tự làm tròn về bội số 5."}
+              {(factorySkill === "reading_s3_comprehension" || factorySkill === "reading_s4_cloze") &&
+                " Mỗi 'số lượng' = 1 nhóm (1 đoạn + nhiều câu hỏi con)."}
+              {factorySkill === "listening" &&
+                " Mỗi 'số lượng' = 1 bài Nghe trọn (5 câu chọn-tranh + nhóm 10 câu điền), chung 1 audio."}
             </p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase">Số đề mẫu</label>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Số lượng cần sinh</label>
             <input
               type="number"
               min={1}
               max={30}
-              value={factoryLimit}
-              onChange={(e) => setFactoryLimit(Math.min(30, Math.max(1, Number(e.target.value))))}
+              value={factoryCount}
+              onChange={(e) => setFactoryCount(Math.min(30, Math.max(1, Number(e.target.value))))}
               disabled={factoryRunning}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase">Biến thể/đề</label>
-            <input
-              type="number"
-              min={1}
-              max={3}
-              value={factoryPerSeed}
-              onChange={(e) => setFactoryPerSeed(Math.min(3, Math.max(1, Number(e.target.value))))}
+            <label className="block text-xs font-medium text-gray-500 uppercase">Chủ đề</label>
+            <select
+              value={factoryTopic}
+              onChange={(e) => setFactoryTopic(e.target.value)}
               disabled={factoryRunning}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
-            />
+            >
+              <option value="">Ngẫu nhiên (theo đề mẫu)</option>
+              {B1_TOPIC_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase">Độ khó</label>
+            <select
+              value={factoryDifficulty}
+              onChange={(e) => setFactoryDifficulty(e.target.value)}
+              disabled={factoryRunning}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100"
+            >
+              <option value="">Ngẫu nhiên (theo đề mẫu)</option>
+              <option value="easy">Dễ (Easy)</option>
+              <option value="medium">Trung bình (Medium)</option>
+              <option value="hard">Khó (Hard)</option>
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase">Engine</label>

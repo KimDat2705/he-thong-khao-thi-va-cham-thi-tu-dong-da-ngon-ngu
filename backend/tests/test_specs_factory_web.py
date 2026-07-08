@@ -890,3 +890,100 @@ def test_factory_batch_marked_failed_on_save_error(db_session, monkeypatch):
     db_session.expire_all()
     batches = db_session.query(ImportBatch).filter(ImportBatch.source_file == "factory:reading_s1").all()
     assert batches and all(b.status == "failed" for b in batches)
+
+
+# ============================================================================
+# SPEC-FACTORY-025 — Giao diện nhà máy căn theo Bản 1: Số lượng + Chủ đề/Độ khó
+# (gợi ý mềm Cách A) + báo rõ khi sinh 0 câu + retry lỗi Gemini tạm thời.
+# ============================================================================
+
+def test_SPEC_FACTORY_025_count_derivation_and_result_fields(db_session):
+    """AC1: count (Số lượng cần sinh) → quy đổi seed×biến-thể theo n_seeds; result có 'generated' + 'n_seeds'."""
+    r1 = factory_service.run_factory_to_bank(db_session, "reading_s1", count=1, verify=False, generator=None)
+    assert r1["generated"] == 1                          # count=1 → đúng 1 biến thể
+    assert isinstance(r1.get("n_seeds"), int) and r1["n_seeds"] >= 1
+
+    n = r1["n_seeds"]
+    r2 = factory_service.run_factory_to_bank(db_session, "reading_s1", count=n * 3 + 10,
+                                             verify=False, generator=None)
+    assert 1 <= r2["generated"] <= n * 3, r2             # kẹp trần n_seeds×3 (per_seed cap 3)
+
+    # KHÔNG over-generate: count giữa dải (n_seeds < count < n_seeds×3) → generated KHÔNG vượt count
+    # (review S57i: derivation ceil cũ làm count=6/n_seeds=5 → 10; nay bám sát + cắt items[:count]).
+    if n >= 2:
+        mid = n + 1
+        rm = factory_service.run_factory_to_bank(db_session, "reading_s1", count=mid,
+                                                 verify=False, generator=None)
+        assert rm["generated"] <= mid, rm
+
+    # count=None → đường gọi cũ (limit/per_seed) vẫn chạy (giữ tương thích test/gọi cũ).
+    r3 = factory_service.run_factory_to_bank(db_session, "reading_s1", limit=2, per_seed=1,
+                                             verify=False, generator=None)
+    assert r3["generated"] >= 1
+
+
+def test_SPEC_FACTORY_025_steer_appends_and_gate_uses_base():
+    """AC2: _build_steer rỗng khi không chọn; _SteeredGenerator nhét steer vào CUỐI user_prompt khi SINH,
+    uỷ quyền thuộc tính khác về generator gốc (cổng kiểm dùng generator GỐC — KHÔNG steer)."""
+    assert factory_service._build_steer(None, None) == ""
+    steer = factory_service._build_steer("Sức khỏe", "easy")
+    assert "Sức khỏe" in steer and "easy" in steer
+
+    class _Fake:
+        client = "real-client"
+
+        def _call_gemini(self, system_instruction, user_prompt, **kw):
+            return user_prompt   # echo để soi prompt
+
+    base = _Fake()
+    wrapped = factory_service._SteeredGenerator(base, "\n\nSTEER-MARK")
+    assert wrapped.client == "real-client"                             # uỷ quyền thuộc tính về gốc
+    out = wrapped._call_gemini("sys", "PROMPT-GỐC")
+    assert out.startswith("PROMPT-GỐC") and out.endswith("STEER-MARK")  # steer ở CUỐI prompt
+    assert base._call_gemini("sys", "PROMPT-GỐC") == "PROMPT-GỐC"       # generator gốc KHÔNG bị steer
+
+
+def test_SPEC_FACTORY_025_call_gemini_retries_transient(monkeypatch):
+    """AC4: _call_gemini thử lại lỗi Gemini TẠM THỜI (500/503/429) rồi mới raise (không rớt ngay 1 lần)."""
+    from app.services import b1_question_gen as bq
+    gen = bq.B1QuestionGenerator.__new__(bq.B1QuestionGenerator)
+    gen.model_name = "test-model"
+    calls = {"n": 0}
+
+    class _Models:
+        def generate_content(self, **kw):
+            calls["n"] += 1
+            raise RuntimeError("503 UNAVAILABLE: model overloaded")
+
+    gen.client = type("C", (), {"models": _Models()})()
+    monkeypatch.setattr(bq.time, "sleep", lambda s: None)   # bỏ sleep thật
+    with pytest.raises(Exception):
+        gen._call_gemini("sys", "user", max_output_tokens=256, thinking_budget=0)
+    assert calls["n"] == bq._GEMINI_TRANSIENT_RETRIES + 1   # đã thử lại nhiều lần
+
+
+def test_SPEC_FACTORY_025_call_gemini_no_retry_on_non_transient(monkeypatch):
+    """AC4: lỗi KHÔNG phải tạm thời (safety/bad-request) → raise NGAY, KHÔNG thử lại."""
+    from app.services import b1_question_gen as bq
+    gen = bq.B1QuestionGenerator.__new__(bq.B1QuestionGenerator)
+    gen.model_name = "test-model"
+    calls = {"n": 0}
+
+    class _Models:
+        def generate_content(self, **kw):
+            calls["n"] += 1
+            raise ValueError("SAFETY: blocked prompt")
+
+    gen.client = type("C", (), {"models": _Models()})()
+    monkeypatch.setattr(bq.time, "sleep", lambda s: None)
+    with pytest.raises(Exception):
+        gen._call_gemini("sys", "user", max_output_tokens=256, thinking_budget=0)
+    assert calls["n"] == 1   # không thử lại
+
+
+def test_SPEC_FACTORY_025_skill_labels_part_prefix_and_group():
+    """AC5: nhãn skill hiện rõ Part + đánh dấu '(nhóm)' cho R3/R4/Nghe; Nghe giữ GỘP part 7+8 (chung audio)."""
+    labels = factory_service.SKILL_LABELS
+    assert labels["reading_s1"].startswith("Part 1")
+    assert "nhóm" in labels["reading_s3_comprehension"] and "nhóm" in labels["reading_s4_cloze"]
+    assert "Part 7+8" in labels["listening"] and "audio" in labels["listening"].lower()

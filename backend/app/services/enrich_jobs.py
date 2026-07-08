@@ -192,10 +192,14 @@ def run_factory_job(
     per_seed: int = 1,
     engine: str = "gemini",
     verify: bool = True,
+    topic: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    count: Optional[int] = None,
 ) -> None:
     """Chạy một lượt nhà máy → lưu ngân hàng, ghi kết quả vào job store.
 
     engine='mock' → generator=None (không gọi Gemini, chỉ test luồng); ngược lại B1QuestionGenerator.
+    topic/difficulty: gợi ý mềm cho AI (Cách A). count: Số lượng cần sinh (quy đổi seed×biến-thể).
     Mở DB session riêng (chạy ngoài request). Test trỏ SessionLocal vào engine test để soi câu đã lưu.
     """
     from app.services import factory_service
@@ -206,7 +210,8 @@ def run_factory_job(
     try:
         generator = None if engine == "mock" else B1QuestionGenerator()
         result = factory_service.run_factory_to_bank(
-            db, skill, limit=limit, per_seed=per_seed, verify=verify, generator=generator
+            db, skill, limit=limit, per_seed=per_seed, verify=verify, generator=generator,
+            topic=topic, difficulty=difficulty, count=count,
         )
         _set(
             job_id,
@@ -217,6 +222,12 @@ def run_factory_job(
             saved_groups=result["saved_groups"],
             qc_ok=result["qc_ok"],
             answer_suspect=result["answer_suspect"],
+            # 'generated' = số biến thể sinh được TRƯỚC cổng kiểm/QC; 'skipped_questions' = số bị TRÙNG khi
+            # lưu; 'n_seeds' = số câu gốc THẬT → FE báo rõ khi saved=0 (AI-lỗi vs QC-loại vs TRÙNG) và khi
+            # saved < số lượng yêu cầu (trần kho câu gốc). Chống banner "0 câu" giả-thành-công (review S57i).
+            generated=result["generated"],
+            skipped_questions=result["skipped_questions"],
+            n_seeds=result["n_seeds"],
         )
         logger.info(f"Factory job {job_id} completed: {result}")
     except Exception as exc:  # surface any failure to the client
@@ -234,14 +245,17 @@ def dispatch_factory_job(
     per_seed: int,
     engine: str,
     verify: bool,
+    topic: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    count: Optional[int] = None,
 ) -> None:
     """Khởi chạy factory job trên daemon thread (hoặc inline khi RUN_JOBS_INLINE cho test)."""
     if RUN_JOBS_INLINE:
-        run_factory_job(job_id, skill, limit, per_seed, engine, verify)
+        run_factory_job(job_id, skill, limit, per_seed, engine, verify, topic, difficulty, count)
         return
     threading.Thread(
         target=run_factory_job,
-        args=(job_id, skill, limit, per_seed, engine, verify),
+        args=(job_id, skill, limit, per_seed, engine, verify, topic, difficulty, count),
         daemon=True,
     ).start()
 

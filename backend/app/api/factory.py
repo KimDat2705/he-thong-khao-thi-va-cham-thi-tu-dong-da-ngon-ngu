@@ -5,6 +5,8 @@ cho giáo viên soát/duyệt. Job chạy nền (lô sinh + kiểm đáp án lâ
 
 Phạm vi: ĐỌC R1–R4 + VIẾT W1/W2 + NÓI (Nghe = slice sau). Chỉ admin/teacher.
 """
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -19,11 +21,14 @@ router = APIRouter(prefix="/api/v1/factory", tags=["Factory"])
 
 
 class FactoryGenerateRequest(BaseModel):
-    skill: str                                      # khóa trong factory_service.FACTORY_SKILLS (R1-R4 + W1/W2)
-    limit: int = Field(3, ge=1, le=30)              # số seed lấy để sinh
-    per_seed: int = Field(1, ge=1, le=3)            # số biến thể mỗi seed
+    skill: str                                      # khóa trong factory_service.FACTORY_SKILLS (R1-R4 + W1/W2 + Nói + Nghe)
+    count: Optional[int] = Field(None, ge=1, le=30) # Số lượng cần sinh (giao diện như Bản 1); None → dùng limit/per_seed
+    limit: int = Field(3, ge=1, le=30)              # (nội bộ/back-compat) số seed lấy để sinh
+    per_seed: int = Field(1, ge=1, le=3)            # (nội bộ/back-compat) số biến thể mỗi seed
     engine: str = "gemini"                          # "gemini" (thật) | "mock" (test luồng)
-    verify: bool = True                             # bật cổng kiểm đáp án AI (R1–R4 + W1; W2 không áp dụng)
+    verify: bool = True                             # bật cổng kiểm đáp án AI (R1–R4 + W1; W2/Nói/Nghe không áp dụng)
+    topic: Optional[str] = None                     # Cách A: gợi ý mềm chủ đề cho AI khi sinh biến thể
+    difficulty: Optional[str] = None                # Cách A: gợi ý mềm độ khó (easy|medium|hard)
 
 
 class RenderListeningRequest(BaseModel):
@@ -52,17 +57,20 @@ def generate_async(
             status_code=400,
             detail=f"Dạng câu không hỗ trợ: {payload.skill}. Hiện hỗ trợ: {supported}.",
         )
-    # Cùng trần lô với /enrich-async (chia sẻ job store): số đề × biến thể/đề ≤ MAX_ASYNC_COUNT.
-    if payload.limit * payload.per_seed > enrich_jobs.MAX_ASYNC_COUNT:
+    # Cùng trần lô với /enrich-async (chia sẻ job store). count (Số lượng cần sinh) ưu tiên; nếu không
+    # có thì dùng số đề × biến thể/đề (đường gọi cũ/test).
+    effective = payload.count if payload.count is not None else payload.limit * payload.per_seed
+    if effective > enrich_jobs.MAX_ASYNC_COUNT:
         raise HTTPException(
             status_code=400,
-            detail=f"Mỗi lượt tối đa {enrich_jobs.MAX_ASYNC_COUNT} câu (số đề × biến thể/đề).",
+            detail=f"Mỗi lượt tối đa {enrich_jobs.MAX_ASYNC_COUNT} câu.",
         )
     engine = payload.engine if payload.engine in ("gemini", "mock") else "gemini"
 
-    job_id = enrich_jobs.create_job(payload.skill, payload.limit * payload.per_seed)
+    job_id = enrich_jobs.create_job(payload.skill, effective)
     enrich_jobs.dispatch_factory_job(
-        job_id, payload.skill, payload.limit, payload.per_seed, engine, payload.verify
+        job_id, payload.skill, payload.limit, payload.per_seed, engine, payload.verify,
+        topic=payload.topic, difficulty=payload.difficulty, count=payload.count,
     )
     return {"job_id": job_id, "status": "pending"}
 

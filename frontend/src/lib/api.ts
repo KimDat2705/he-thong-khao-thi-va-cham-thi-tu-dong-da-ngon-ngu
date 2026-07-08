@@ -389,13 +389,20 @@ export interface FactoryJobStatus {
   saved_groups?: number;
   qc_ok?: number;
   answer_suspect?: number;
+  // 'generated' = số biến thể TRƯỚC cổng kiểm/QC; 'skipped_questions' = số bị TRÙNG khi lưu; 'n_seeds'
+  // = số câu gốc thật → phân biệt 0-do-AI-lỗi / 0-do-QC-loại / 0-do-TRÙNG, và báo khi thiếu hụt trần seed.
+  generated?: number;
+  skipped_questions?: number;
+  n_seeds?: number;
   error?: string | null;
 }
 
+// count = Số lượng cần sinh (giao diện như Bản 1); topic/difficulty = gợi ý mềm cho AI (Cách A).
 export async function submitFactoryJob(payload: {
   skill: string;
-  limit: number;
-  per_seed: number;
+  count: number;
+  topic?: string;
+  difficulty?: string;
   engine: string;
   verify: boolean;
 }): Promise<{ job_id: string; status: string }> {

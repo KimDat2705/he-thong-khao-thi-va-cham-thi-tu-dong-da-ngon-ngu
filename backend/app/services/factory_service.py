@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import uuid
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,45 @@ _SEED_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "tests", "fixtures", "factory_sample",
 )
+
+# --- Chủ đề / Độ khó (Cách A — gợi ý mềm cho AI) -----------------------------------------------
+# Nhà máy (Bản 2) sinh biến thể BÁM SEED thật → chủ đề/độ khó KHÔNG tự do như Bản 1 (bịa từ đầu).
+# Cách A: GIỮ NGUYÊN format đề mẫu, nhét "yêu cầu thêm" (chủ đề/độ khó người dùng chọn) vào cuối
+# prompt sinh biến thể — đúng cơ chế Bản 1 đang dùng. Bọc generator ở MỘT chỗ để KHÔNG phải sửa 8
+# hàm build_*_variants. CHỈ áp cho bước SINH, KHÔNG áp cho cổng kiểm đáp án (gate giải độc lập).
+_DIFF_VI = {"easy": "Dễ", "medium": "Trung bình", "hard": "Khó"}
+
+
+def _build_steer(topic: Optional[str], difficulty: Optional[str]) -> str:
+    """Câu 'yêu cầu thêm' nhét vào cuối user_prompt khi sinh biến thể (rỗng nếu không chọn gì)."""
+    lines = []
+    if topic:
+        lines.append(f'- Chủ đề nội dung: "{topic}". Viết câu/ngữ liệu XOAY QUANH chủ đề này.')
+    if difficulty:
+        dv = _DIFF_VI.get(difficulty, difficulty)
+        lines.append(f"- Mức độ khó: {dv} ({difficulty}). Điều chỉnh từ vựng/ngữ pháp cho đúng mức này.")
+    if not lines:
+        return ""
+    return ("\n\n--- YÊU CẦU THÊM (điều chỉnh theo người dùng — GIỮ NGUYÊN cấu trúc/format như đề mẫu):\n"
+            + "\n".join(lines))
+
+
+class _SteeredGenerator:
+    """Bọc generator: nhét 'yêu cầu thêm' (chủ đề/độ khó) vào cuối user_prompt của MỌI lần _call_gemini,
+    KHÔNG phải sửa từng hàm build_*_variants. Uỷ quyền mọi thuộc tính khác (client, model_name...) về gốc."""
+
+    def __init__(self, base, steer: str):
+        self._base = base
+        self._steer = steer
+
+    def _call_gemini(self, system_instruction, user_prompt, *args, **kwargs):
+        if self._steer:
+            user_prompt = f"{user_prompt}{self._steer}"
+        return self._base._call_gemini(system_instruction, user_prompt, *args, **kwargs)
+
+    def __getattr__(self, name):
+        # Chỉ gọi khi thuộc tính KHÔNG có trên wrapper (_base/_steer/_call_gemini đã có) → uỷ quyền về gốc.
+        return getattr(self._base, name)
 
 # skill (tên bundle boss_factory) → (nạp seed, sinh biến thể). ĐỌC R1–R4 + VIẾT W1/W2 + NÓI + NGHE.
 FACTORY_SKILLS = {
@@ -53,14 +93,14 @@ _SKILL_SEED_FILE = {
 
 # Nhãn hiển thị cho giao diện (khớp cách gọi ở /admin/bank).
 SKILL_LABELS = {
-    "reading_s1": "R1 · Đọc phần 1 (trắc nghiệm 4 phương án)",
-    "reading_s2_notice": "R2 · Đọc phần 2 (thông báo, 3 phương án)",
-    "reading_s3_comprehension": "R3 · Đọc phần 3 (đoạn văn + câu hỏi)",
-    "reading_s4_cloze": "R4 · Đọc phần 4 (điền từ vào chỗ trống)",
-    "writing_w1_rewrite": "W1 · Viết phần 1 (viết lại câu — khối 5 câu/đề)",
-    "writing_w2_letter": "W2 · Viết phần 2 (viết thư ~100 từ, tự luận)",
-    "speaking": "S · Nói (phát triển chủ đề — chấm AI, GV soát)",
-    "listening": "L · Nghe (5 chọn-tranh part 7 + 10 điền-từ part 8 — kịch bản text, audio slice sau)",
+    "reading_s1": "Part 1 · R1 Đọc — trắc nghiệm (câu đơn)",
+    "reading_s2_notice": "Part 2 · R2 Đọc — thông báo (câu đơn)",
+    "reading_s3_comprehension": "Part 3 · R3 Đọc — đoạn văn (nhóm: 1 đoạn + 5 câu)",
+    "reading_s4_cloze": "Part 4 · R4 Đọc — điền từ (nhóm: 1 đoạn + 10 chỗ)",
+    "writing_w1_rewrite": "Part 5 · W1 Viết — viết lại câu (khối 5 câu)",
+    "writing_w2_letter": "Part 6 · W2 Viết — viết thư (tự luận)",
+    "speaking": "Part 11 · Nói — phát triển chủ đề (GV soát tay)",
+    "listening": "Part 7+8 · Nghe cả bài (nhóm part 8, chung 1 audio)",
 }
 
 # Part VSTEP_B1 mà câu của skill đổ vào (FE auto-chuyển bộ lọc sau khi sinh; Nghe span 2 part
@@ -138,19 +178,49 @@ def run_factory_to_bank(
     per_seed: int = 1,
     verify: bool = True,
     generator=None,
+    topic: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    count: Optional[int] = None,
 ) -> dict:
     """Chạy nhà máy cho 1 skill và lưu câu sinh vào ngân hàng (draft). Trả về bảng tổng kết.
 
     generator=None → chế độ MOCK (không gọi Gemini, để test luồng); ngược lại dùng B1QuestionGenerator.
+    topic/difficulty (Cách A): gợi ý mềm cho AI khi SINH (không đụng cổng kiểm). count (Số lượng cần
+    sinh — giao diện Bản 2 như Bản 1): quy đổi sang seed×biến-thể theo số seed THẬT có; None → dùng
+    limit/per_seed trực tiếp (giữ tương thích test/gọi cũ).
     """
     if skill not in FACTORY_SKILLS:
         raise ValueError(f"skill không hỗ trợ: {skill!r}")
     load_seeds, build_variants = FACTORY_SKILLS[skill]
 
     seeds = load_seeds(_load_seed_bank(skill))
+    n_seeds = len(seeds)
+
+    # 'count' = Số lượng cần sinh → quy đổi (limit, per_seed) sao cho TỔNG limit×per_seed BÁM SÁT count
+    # (không vượt xa), trần cứng = n_seeds×3. per_seed nhỏ nhất trước (trải đều nhiều seed) rồi limit vừa
+    # đủ → tránh over-generate (review S57i: ceil(count/limit) làm dư, vd count=6/n_seeds=5 → 10). Che
+    # cơ chế seed khỏi giao diện (Đạt: giống Bản 1, 1 ô số lượng).
+    if count is not None and n_seeds:
+        want = max(1, int(count))
+        per_seed = max(1, min(3, -(-want // n_seeds)))       # ceil(want/n_seeds), kẹp trần 3
+        limit = max(1, min(n_seeds, -(-want // per_seed)))   # ceil(want/per_seed), kẹp n_seeds
+
     if limit:
         seeds = seeds[: int(limit)]
-    items = build_variants(seeds, per_seed=int(per_seed), generator=generator)
+
+    # Steer chủ đề/độ khó (Cách A) CHỈ cho bước SINH; cổng kiểm dùng generator GỐC (giải độc lập,
+    # không được lái theo chủ đề/độ khó).
+    build_gen = generator
+    if generator is not None:
+        steer = _build_steer(topic, difficulty)
+        if steer:
+            build_gen = _SteeredGenerator(generator, steer)
+
+    items = build_variants(seeds, per_seed=int(per_seed), generator=build_gen)
+    if count is not None:
+        # Cắt về ĐÚNG số lượng yêu cầu (derivation có thể dư ≤ per_seed-1; giữ đơn vị của skill: câu /
+        # nhóm / bài — items là 1 đơn vị mỗi phần tử). Không vượt count → không lách trần MAX_ASYNC_COUNT.
+        items = items[: int(count)]
 
     if verify and skill in boss_factory.VERIFY_SUPPORTED_SKILLS:
         boss_factory.verify_bundle_answers(items, skill, generator)
@@ -185,6 +255,7 @@ def run_factory_to_bank(
     )
     return {
         "skill": skill,
+        "n_seeds": n_seeds,
         "generated": len(items),
         "qc_ok": sum(1 for it in items if it.get("qc_ok")),
         "saved_questions": saved["imported_questions"],
