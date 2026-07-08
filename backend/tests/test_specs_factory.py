@@ -1304,13 +1304,24 @@ def test_SPEC_FACTORY_013_gemini_truncation_guard():
     assert calls[1]["max_output_tokens"] > calls[0]["max_output_tokens"]   # retry NÂNG trần
     assert calls[1]["thinking_budget"] == 0                                 # retry TẮT thinking
 
-    # AC3: cắt cả 2 lần → raise RuntimeError rõ ràng (không nuốt âm thầm).
+    # AC3: cắt cả 2 lần → raise RuntimeError rõ ràng (không nuốt âm thầm). Thông điệp bao cả trường hợp
+    # JSON hỏng cú pháp (guard mở rộng S57j) → khớp "sau retry".
     gen = _fake_gen([
         _FakeResp([_FakePart("x", thought=True)], MAX),
         _FakeResp([_FakePart("y", thought=True)], MAX),
     ])
-    with pytest.raises(RuntimeError, match="truncat"):
+    with pytest.raises(RuntimeError, match="sau retry"):
         gen._call_gemini("sys", "user")
+
+    # AC (S57j): JSON HỎNG cú pháp (KHÔNG cắt — dạng phức tạp R3/R4 hay lỗi) → retry → phục hồi, KHÔNG
+    # trả text hỏng để caller json.loads chết (gốc 'chưa sinh được').
+    gen = _fake_gen([
+        _FakeResp([_FakePart('{"bad": 1,,}')], OK),   # JSON hỏng cú pháp, finish STOP
+        _FakeResp([_FakePart('{"good": 1}')], OK),
+    ])
+    out = gen._call_gemini("sys", "user", max_output_tokens=8192)
+    assert out == '{"good": 1}'
+    assert len(gen.client.models.calls) == 2          # đã retry vì JSON lần 1 hỏng
 
     # AC4: env override trần > 65536 → kẹp về <=65536 (không để API từ chối).
     gen = _fake_gen([_FakeResp([_FakePart("{}")], OK)])

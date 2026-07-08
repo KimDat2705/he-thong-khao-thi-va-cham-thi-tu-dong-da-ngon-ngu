@@ -29,6 +29,19 @@ _GEMINI_TRANSIENT_RETRIES = 2
 # ưu tiên mã lỗi có cấu trúc e.code khi có). review S57i.
 _GEMINI_TRANSIENT_MARKERS = ("INTERNAL", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "overloaded", "deadline")
 
+
+def _is_valid_json(text: str) -> bool:
+    """True nếu text parse được thành JSON. _call_gemini luôn đặt response_mime_type=json → mọi phản hồi
+    PHẢI là JSON; dạng phức tạp (R3/R4/Nghe: đoạn văn + nhiều câu + đáp án) thi thoảng bị AI trả JSON HỎNG
+    cú pháp (thiếu dấu phẩy…) → parse lỗi → drop âm thầm ('chưa sinh được'). Kiểm ở đây để RETRY (S57j)."""
+    if not text:
+        return False
+    try:
+        json.loads(text)
+        return True
+    except (ValueError, TypeError):
+        return False
+
 B1_TOPICS = [
     "Bản thân",
     "Nhà cửa-gia đình-môi trường",
@@ -246,14 +259,16 @@ class B1QuestionGenerator:
                     raise
 
         text, truncated, usage = _once(eff_max, thinking_budget)
-        if truncated or not text:
+        # Retry khi: bị cắt (MAX_TOKENS) / rỗng / JSON HỎNG cú pháp (dạng phức tạp R3/R4/Nghe hay lỗi —
+        # gốc 'chưa sinh được' S57j). Retry trần cao hơn + thinking=0 (nhường token cho JSON đầy đủ).
+        if truncated or not text or not _is_valid_json(text):
             retry_cap = min(65536, max(eff_max * 2, 32768))
-            logger.warning("Gemini output bị cắt/rỗng (cap=%s, thinking=%s, usage=%s) — retry cap=%s + thinking=0",
+            logger.warning("Gemini output cắt/rỗng/JSON-hỏng (cap=%s, thinking=%s, usage=%s) — retry cap=%s + thinking=0",
                            eff_max, thinking_budget, usage, retry_cap)
             text, truncated, usage = _once(retry_cap, 0)
-            if truncated or not text:
+            if truncated or not text or not _is_valid_json(text):
                 raise RuntimeError(
-                    f"Gemini response truncated (MAX_TOKENS) — JSON không đầy đủ sau retry (usage={usage}).")
+                    f"Gemini JSON không hợp lệ/không đầy đủ sau retry (cắt={truncated}, usage={usage}).")
         return text
 
     def generate_r1_questions(self, db: Session, count: int, topic: Optional[str] = None, req_difficulty: Optional[str] = None, seed: Optional[int] = None) -> int:
