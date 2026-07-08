@@ -614,6 +614,90 @@ def test_SPEC_FACTORY_023_listening_bundle_sidecar(db_session, monkeypatch):
     assert res2["sidecars_stored"] == 0
 
 
+def _seed_listening_group(db_session):
+    """Sinh 1 bộ Nghe text-only vào bank (mock) → trả nhóm part 8 draft vừa tạo."""
+    factory_service.run_factory_to_bank(db_session, "listening", limit=1, per_seed=1,
+                                        verify=False, generator=None)
+    db_session.expire_all()
+    return db_session.query(QuestionGroup).filter(
+        QuestionGroup.exam_id.is_(None), QuestionGroup.part == 8, QuestionGroup.status == "draft"
+    ).first()
+
+
+def test_SPEC_FACTORY_024_render_listening_audio(db_session, monkeypatch):
+    """Render (mock TTS/Storage): audio 1 file trọn bài → gắn audio_url lên nhóm part 8 + 5 câu part 7;
+    SAU render cổng approve KHÔNG còn chặn (audio đủ) → duyệt cả bộ 15 câu được."""
+    from app.services import boss_factory as bf
+    from app.services import listening_render, media_store
+
+    group = _seed_listening_group(db_session)
+    assert group is not None
+
+    fake_bundle = {"lis_item": {"code": "X"}, "transcripts": {
+        "l1": [{"stem": f"Q{i}", "transcript": f"A: hi {i}\nB: yes {i}",
+                "options": {"A": "a", "B": "b", "C": "c"}, "answer": "A"} for i in range(5)],
+        "l2": "monologue " * 40}}
+    monkeypatch.setattr(media_store, "download_bytes",
+                        lambda path: json.dumps(fake_bundle).encode("utf-8"))
+    monkeypatch.setattr(bf, "build_listening_audio",
+                        lambda gen, item, out_dir, to_mp3=True: {
+                            "audio_path": "/fake/x.mp3", "wav_path": "/fake/x.wav", "mp3_path": "/fake/x.mp3",
+                            "duration_s": 1020.0, "format": "mp3", "n_segments": 20})
+    monkeypatch.setattr(media_store, "upload_file",
+                        lambda local, obj, content_type=None: f"https://cdn/{obj}")
+
+    res = listening_render.render_listening_media(db_session, group.id, generator=object(), with_images=False)
+    assert res["n_part7"] == 5
+    assert res["audio_url"].endswith(".mp3") and res["duration_min"] == 17.0    # 1020s = 17'
+    db_session.expire_all()
+
+    g = db_session.get(QuestionGroup, group.id)
+    assert g.audio_url == res["audio_url"]                                       # audio cấp NHÓM part 8
+    p7 = db_session.query(Question).filter(
+        Question.exam_id.is_(None), Question.part == 7, Question.status == "draft").all()
+    assert len(p7) == 5 and all(q.audio_url == res["audio_url"] for q in p7)     # audio CẢ 5 câu part 7
+
+    # Cổng approve TRƯỚC render chặn (audio trống); SAU render mở khoá → duyệt cả bộ 15 câu.
+    ids = [q.id for q in p7] + [c.id for c in g.questions]
+    assert bank_admin.approve_questions(db_session, ids) == 15
+
+
+def test_SPEC_FACTORY_024_render_missing_sidecar_raises(db_session, monkeypatch):
+    """Bộ Nghe sinh TRƯỚC khi có Storage (thiếu sidecar) → download lỗi → ValueError rõ (không crash job câm)."""
+    from app.services import listening_render, media_store
+
+    group = _seed_listening_group(db_session)
+
+    def _boom(path):
+        raise media_store.MediaStoreError("HTTP 404")
+
+    monkeypatch.setattr(media_store, "download_bytes", _boom)
+    with pytest.raises(ValueError, match="sidecar|Storage|bundle"):
+        listening_render.render_listening_media(db_session, group.id, generator=object(), with_images=False)
+
+
+def test_SPEC_FACTORY_024_render_endpoint_gating(db_session, admin_auth_headers):
+    """API render: ẩn danh 401 · candidate 403 · nhóm không tồn tại/không phải part 8 → 400."""
+    from fastapi.testclient import TestClient
+
+    from app.core.database import get_db
+    from app.core.security import create_access_token
+    from app.main import app as fastapi_app
+
+    fastapi_app.dependency_overrides[get_db] = lambda: db_session
+    client = TestClient(fastapi_app)
+    try:
+        assert client.post("/api/v1/factory/render-listening-media",
+                           json={"group_id": 1}).status_code == 401
+        cand = create_access_token(data={"sub": "testcandidate", "role": "candidate"})
+        assert client.post("/api/v1/factory/render-listening-media", json={"group_id": 1},
+                           headers={"Authorization": f"Bearer {cand}"}).status_code == 403
+        assert client.post("/api/v1/factory/render-listening-media", json={"group_id": 999999},
+                           headers=admin_auth_headers).status_code == 400
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
 def test_SPEC_FACTORY_020_db_persist_config_and_media_store(monkeypatch):
     """AC1-AC5: cấu hình DB bền (Supabase Postgres) + helper media_store — offline tất định.
 

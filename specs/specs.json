@@ -1193,6 +1193,27 @@
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_023_listening_bundle_sidecar"
       ],
       "notes": "S57g (07-08/07). Slice 6 (Nghe full media) NỀN TẢNG — làm sau khi Đạt duyệt D2 (bật billing key hiện tại cho ảnh) / D3 (trả phí TTS key hiện tại) / D5 (P1 ghép trọn 1 bài khi sinh đề). Nghiên cứu đa-agent 2 workflow (bundle-linkage+transcripts / audio-render+exam_gen+cost): phát hiện Slice 3 VỨT transcripts gốc + KHÔNG có cột liên kết 15 câu 1 bài. Hướng chốt KHÔNG đổi schema cho render: sidecar Storage + token mã bài. CÒN LẠI Slice 6 (spec sau): (a) job render audio NỀN (build_listening_audio là op DÀI ~18-22 call TTS/vài-10+ phút/~49MB RAM MP3 → KHÔNG chạy inline) + upload MP3 Storage + gắn audio_url cả 15 câu (thỏa cổng approve); (b) ảnh chọn-tranh part 7 OPT-IN (default off, chi tiêu có chủ đích) + cổng kiểm ảnh = GV soát (không có vision tự động); (c) exam_generator P1 ghép trọn 1 bài Nghe — CẦN cột bundle_id thật + alembic-trên-deploy (mối lo C3 review S57b) → tách slice riêng, Đạt duyệt đổi schema LIVE trước. Re-calibration duration THẬT chưa đo (chờ slice render); pause offline đo chắc."
+    },
+    {
+      "id": "SPEC-FACTORY-024",
+      "domain": "FACTORY",
+      "title": "Render AUDIO (+ảnh opt-in) cho bộ Nghe trong ngân hàng → gắn audio_url → mở khoá duyệt",
+      "statement": "Slice 6 render: đưa AUDIO thật cho bộ Nghe đã soát (Slice 3 để audio_url=None → cổng approve chặn). listening_render.render_listening_media(db, group_id, generator, with_images): nhận diện bộ qua NHÓM part 8 (anchor GV chọn) → đọc mã bài từ content câu con ('(Bài {code}·{ltag})') → tải BUNDLE THÔ từ sidecar Storage (SPEC-FACTORY-023) → boss_factory.build_listening_audio (giọng C, đọc-2-lần, pause Cambridge) → 1 file MP3 trọn bài → media_store.upload_file → gắn audio_url cấp-FILE lên nhóm part 8 + 5 câu part 7 standalone (gom qua token 'Mã sinh: {code} ·' trong explanation). Ảnh chọn-tranh part 7 = OPT-IN (build_listening_images → upload 3 PNG → image_url 3-URL nối phẩy; FE hiển thị 3 tranh = follow-up). Op DÀI (nhiều call TTS) → chạy JOB NỀN (enrich_jobs.run_render_lis_job daemon thread, KHÔNG inline) + endpoint POST /api/v1/factory/render-listening-media (admin/teacher). KHÔNG đổi schema (khóa-bài dùng nhóm part 8 + token mã bài).",
+      "acceptance_criteria": [
+        "render_listening_media(group_id nhóm part 8): tải sidecar → build_listening_audio (mock) → upload MP3 → gắn audio_url lên nhóm part 8 + 5 câu part 7 (cùng 1 URL file trọn bài); trả duration_s/duration_min/n_part7.",
+        "SAU render → cổng approve SPEC-FACTORY-019 KHÔNG còn chặn (part 7 có audio_url + part 8 con có group_audio_url) → approve_questions cả bộ 15 câu thành công.",
+        "Thiếu sidecar (bộ sinh TRƯỚC khi có Storage) / Storage lỗi / JSON hỏng / nhóm không phải part 8 bank → ValueError thông điệp rõ (→ HTTP 400 ở endpoint / job status='error', KHÔNG câm).",
+        "Ảnh part 7 OPT-IN (with_images=True): build_listening_images → upload 3 PNG A/B/C → image_url 3-URL nối phẩy (chỉ khi đủ 3); graceful skip ảnh lỗi (không crash).",
+        "API POST /factory/render-listening-media (admin/teacher): ẩn danh 401 · candidate 403 · nhóm không tồn tại/không part 8 → 400; op DÀI chạy nền poll /factory/tasks/{id}. Test offline tất định (mock TTS + Storage)."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_024_render_listening_audio",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_024_render_missing_sidecar_raises",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_024_render_endpoint_gating"
+      ],
+      "notes": "S57h (08/07). Slice 6 render pipeline. Audio = 1 FILE trọn bài gắn cấp-file cho cả 15 câu (khớp quyết định 'cả file không cắt'). build_listening_audio ĐÃ proven S55 (render thật 16'43\" @210wpm cũ); slice này nối vào web + đọc sidecar. media_store +download_bytes (GET public URL). ▶ FOLLOW-UP: (a) FE nút 'Render audio' per nhóm Nghe ở /admin/bank + poll (chưa làm — file lớn + cảnh báo Next.js version lạ, làm pass sau); (b) 1 RENDER THẬT trên LIVE đo duration xác nhận 16-18' + tinh chỉnh re-calibration nếu lệch (engine proven + pause 396s đo chắc → rủi ro thấp); (c) FE hiển thị 3 tranh part 7 từ image_url nối phẩy; (d) exam_generator P1 ghép trọn 1 bài = slice riêng (bundle_id + alembic-trên-deploy C3)."
     }
   ]
 }

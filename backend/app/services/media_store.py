@@ -70,3 +70,21 @@ def upload_file(local_path: str, object_path: str, content_type: str = None) -> 
     """Upload một file trên disk (vd MP3 vừa render) → PUBLIC URL."""
     with open(local_path, "rb") as f:
         return upload_bytes(object_path, f.read(), content_type=content_type)
+
+
+def download_bytes(object_path: str) -> bytes:
+    """Tải nội dung một object từ bucket PUBLIC (vd sidecar bundle Nghe listening/{code}.bundle.json)
+    để slice render đọc lại transcript gốc. Bucket public → GET thẳng public URL (không cần Bearer)."""
+    if not is_configured():
+        raise MediaStoreError(
+            "Supabase Storage chưa cấu hình (cần env SUPABASE_URL + SUPABASE_SERVICE_KEY) — "
+            "không tải được media runtime."
+        )
+    url = public_url(object_path)
+    try:
+        resp = httpx.get(url, timeout=_UPLOAD_TIMEOUT)
+    except httpx.HTTPError as exc:
+        raise MediaStoreError(f"Tải media lỗi mạng: {exc}") from exc
+    if resp.status_code != 200:
+        raise MediaStoreError(f"Tải media thất bại HTTP {resp.status_code}: {object_path}")
+    return resp.content

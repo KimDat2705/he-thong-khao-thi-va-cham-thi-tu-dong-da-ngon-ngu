@@ -7,8 +7,11 @@ Phạm vi: ĐỌC R1–R4 + VIẾT W1/W2 + NÓI (Nghe = slice sau). Chỉ admin/
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.core.deps import require_role
+from app.models.question_group import QuestionGroup
 from app.models.user import User
 from app.services import enrich_jobs, factory_service
 
@@ -21,6 +24,11 @@ class FactoryGenerateRequest(BaseModel):
     per_seed: int = Field(1, ge=1, le=3)            # số biến thể mỗi seed
     engine: str = "gemini"                          # "gemini" (thật) | "mock" (test luồng)
     verify: bool = True                             # bật cổng kiểm đáp án AI (R1–R4 + W1; W2 không áp dụng)
+
+
+class RenderListeningRequest(BaseModel):
+    group_id: int                                   # nhóm Nghe part 8 (anchor) của bộ cần render audio
+    with_images: bool = False                       # sinh thêm ảnh chọn-tranh part 7 (opt-in, billing)
 
 
 @router.get("/skills")
@@ -56,6 +64,31 @@ def generate_async(
     enrich_jobs.dispatch_factory_job(
         job_id, payload.skill, payload.limit, payload.per_seed, engine, payload.verify
     )
+    return {"job_id": job_id, "status": "pending"}
+
+
+@router.post("/render-listening-media")
+def render_listening_media(
+    payload: RenderListeningRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "teacher")),
+):
+    """Render AUDIO (+ảnh opt-in) cho bộ Nghe của nhóm part 8 → gắn audio_url cả bộ (mở khoá duyệt).
+
+    Op DÀI (nhiều call TTS) → chạy nền, trả job_id ngay; poll GET /api/v1/factory/tasks/{job_id}.
+    Nghe audio là 1 file trọn bài (đọc-2-lần, pause Cambridge, giọng C). Ảnh chọn-tranh = opt-in (billing).
+    """
+    group = (db.query(QuestionGroup)
+             .filter(QuestionGroup.id == payload.group_id, QuestionGroup.exam_id.is_(None),
+                     QuestionGroup.part == 8).first())
+    if group is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Không tìm thấy nhóm Nghe (part 8) id={payload.group_id} trong ngân hàng.",
+        )
+
+    job_id = enrich_jobs.create_job("render_listening", 1)
+    enrich_jobs.dispatch_render_lis_job(job_id, payload.group_id, payload.with_images)
     return {"job_id": job_id, "status": "pending"}
 
 

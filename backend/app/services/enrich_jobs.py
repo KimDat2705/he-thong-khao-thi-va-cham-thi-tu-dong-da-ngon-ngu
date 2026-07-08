@@ -244,3 +244,43 @@ def dispatch_factory_job(
         args=(job_id, skill, limit, per_seed, engine, verify),
         daemon=True,
     ).start()
+
+
+# ----------------------------------------------------------------------------
+# RENDER AUDIO (+ảnh) cho bộ Nghe đã có trong ngân hàng (SPEC-FACTORY-024). Op DÀI (nhiều call TTS +
+# retry, vài→10+ phút) → BẮT BUỘC chạy nền, KHÔNG inline request. Tái dùng job store ở trên.
+# ----------------------------------------------------------------------------
+
+def run_render_lis_job(job_id: str, group_id: int, with_images: bool = False) -> None:
+    """Render audio (+ảnh opt-in) cho bộ Nghe của nhóm part 8 `group_id` → gắn URL, ghi kết quả job store.
+
+    Mở DB session riêng (chạy ngoài request). Cần B1QuestionGenerator có client (GEMINI_API_KEY) cho TTS.
+    """
+    from app.services import listening_render
+    from app.services.b1_question_gen import B1QuestionGenerator
+
+    _set(job_id, status="running")
+    db = SessionLocal()
+    try:
+        generator = B1QuestionGenerator()
+        result = listening_render.render_listening_media(db, group_id, generator, with_images=with_images)
+        _set(job_id, status="completed", generated_count=1, **result)
+        logger.info(f"Render Nghe job {job_id} completed: {result}")
+    except Exception as exc:  # surface any failure to the client
+        db.rollback()
+        _set(job_id, status="error", error=str(exc))
+        logger.error(f"Render Nghe job {job_id} failed: {exc}")
+    finally:
+        db.close()
+
+
+def dispatch_render_lis_job(job_id: str, group_id: int, with_images: bool) -> None:
+    """Khởi chạy render job trên daemon thread (hoặc inline khi RUN_JOBS_INLINE cho test)."""
+    if RUN_JOBS_INLINE:
+        run_render_lis_job(job_id, group_id, with_images)
+        return
+    threading.Thread(
+        target=run_render_lis_job,
+        args=(job_id, group_id, with_images),
+        daemon=True,
+    ).start()
