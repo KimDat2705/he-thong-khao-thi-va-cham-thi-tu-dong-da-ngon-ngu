@@ -1,3 +1,18 @@
+# Session Handoff — PHIÊN 09/07/2026 (S57m: HÚT DỮ LIỆU VOA LÀM CORPUS SEED & TÍCH HỢP NGÂN HÀNG CHÍNH — BƯỚC B)
+
+> **🔖 TRẠNG THÁI (S57m — ĐÃ GỘP LOCAL, CHƯA COMMIT/PUSH):** pytest **41/41 passed** cho `factory_web`. Đạt duyệt gộp và chỉ thị: **Làm xong không commit/push** để Đạt tự kiểm soát dưới máy.
+> - **BỐI CẢNH**: Tiếp tục Bước B của kế hoạch mở rộng nguồn đề hạt giống, tự động thu thập từ VOA Learning English (để có bản quyền sạch và giọng đọc thật cho Listening). Sau đó tích hợp gộp các hạt giống này thẳng vào ngân hàng hạt giống chính.
+> - **ĐÃ LÀM**: 
+>   - (1) **Scraper VOA**: Script `fetch_voa_corpus.py` thu thập thành công 15 bài viết thô (đầy đủ text và đường dẫn audio MP3).
+>   - (2) **R3 Converter**: Script `convert_voa_to_r3.py` gọi Gemini API sinh 5 câu hỏi Đọc hiểu (Part 3) cho 14 bài viết thành công, lưu định dạng `bank_voa_r3.json`.
+>   - (3) **Listening Converter**: Script `convert_voa_to_lis.py` tải tệp audio .mp3 thật từ VOA về máy và sinh kịch bản Nghe 5 trắc nghiệm + 10 câu điền từ cho 2 bài viết, lưu `pool_voa_lis.json`.
+>   - (4) **Tích hợp hạt giống**: Đã chạy merge gộp 14 đề đọc VOA vào `bank_raw.json` (tổng 28 đề) và 2 đề nghe VOA vào `pool_lis.json` (tổng 9 đề).
+> - **VERIFY**: Chạy `pytest tests/test_specs_factory_web.py` pass 41/41 test cases. Dữ liệu VOA tương thích cấu trúc và không gây lỗi khi parser load.
+> - **▶ ĐẦU PHIÊN SAU**: 
+>   - (1) Đạt kiểm tra nội dung hai file hạt giống chính đã gộp local (`bank_raw.json` và `pool_lis.json`) và tự commit/push lên GitHub khi hài lòng.
+>   - (2) **Bước 2**: Nạp 30 đề thật `EB1.2601-2630` khi sếp sửa xong QC.
+>   - (3) Hoàn thiện các phân hệ hoãn: Xoay vòng secrets bảo mật (DB pw + service key + admin pw), kiểm thử chịu tải (SCALE-003), và phát triển phân hệ Tiếng Trung/HSK.
+
 # Session Handoff — PHIÊN 09/07/2026 (S57l: NẠP CORPUS SEED B1 production 14 đề — bước A "nạp đề" — SPEC-FACTORY-026)
 
 > **🔖 TRẠNG THÁI (S57l — ĐÃ PUSH, CI ✅):** pytest **123/0** (+4 test 026), ruff/arch/traceability sạch. Git `main`=**`11fa4f8`** (10 file, +5422), **CI success**. Spec 67 (66 active/1 planned). Đạt duyệt KẾ HOẠCH (plan mode) + cho phép push.

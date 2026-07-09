@@ -1195,3 +1195,14 @@
 - **REVIEW ĐỐI KHÁNG (Workflow 15 agent, 3 lăng kính×verify): 8 confirmed → vá**: [HIGH mock/keyless — LIVE có key VẪN OK] `_mock_w2_variant` chọn domain theo idx biến-thể → per_seed=1 (đường UI) mọi seed idx=0 → 14 đề đều domain "Bản thân" → cổng near-dup (jaccard≥0.85) loại 13/14 → **chỉ lưu 1 câu W2** (nuốt đa dạng 14 chủ đề); VÁ = domain+token dẫn-xuất theo `ma_de` (hash) × `idx` → distinct 2 chiều (seed↔seed VÀ biến-thể↔biến-thể; test 017 per_seed=2 giữ). [MED hygiene] corpus untracked → phải `git add` + lỗi rõ. [LOW] R2 header "11-15 (5 points)" nhưng 4 notice → header ĐỘNG; docstring cũ trỏ fixture → cập nhật. **Accept (không vá, LOW/uncertain — near-dup QC + GV + generation-gate xử lý)**: vài R1/W1 stem trùng-gần giữa đề; R4 EB1.9003 happy/relaxed hoán đổi được.
 - **Verify**: pytest **123/0** (+4 test 026), ruff/arch/traceability sạch, parse-gate PASS, nhà máy load+sinh từ corpus (mock) đủ dạng. **ĐÃ PUSH main=`11fa4f8`** (10 file, +5422), **CI ✅ success**.
 - **Next steps**: (1) Đạt test LIVE sau Render build → sinh câu thấy đa dạng hơn hẳn (14 chủ đề, nhiều kiểu cấu trúc); (2) **Bước B** (slice sau): pipeline hút VOA public-domain → seed R3/Nghe; (3) **Bước 2**: nạp 30 đề thật `EB1.2601-2630` khi sếp hết lỗi QC (thay/bổ sung corpus). HOÃN: CN/HSK, SCALE-003, rotate 3 secrets S57.
+
+### Session 57m -- 2026-07-09 (Hút dữ liệu VOA làm Corpus Seed & Tích hợp ngân hàng chính)
+- **Bối cảnh**: Người dùng yêu cầu triển khai tiếp Bước B của kế hoạch mở rộng nguồn đề hạt giống, tự động thu thập từ VOA (để có bản quyền sạch và giọng đọc thật cho Listening). Sau đó tiến hành tích hợp gộp các hạt giống này thẳng vào ngân hàng hạt giống chính.
+- **ĐÃ LÀM**: 
+  - (1) Viết script cào tin tức VOA Learning English: `fetch_voa_corpus.py` tự động lấy 15 bài báo thô đầy đủ văn bản và đường dẫn file audio.
+  - (2) Viết script convert sang R3: `convert_voa_to_r3.py` gọi Gemini API sinh 5 câu hỏi Đọc hiểu (Part 3) cho 14/15 bài viết (1 bài bị 503), lưu định dạng `bank_voa_r3.json`.
+  - (3) Viết script convert sang Listening: `convert_voa_to_lis.py` tải tệp audio .mp3 thật từ VOA về máy và sinh kịch bản Nghe 5 trắc nghiệm + 10 câu điền từ, lưu `pool_voa_lis.json`.
+  - (4) Tích hợp: Thực hiện gộp 14 đề đọc VOA vào `bank_raw.json` (tổng 28 đề) và 2 đề nghe VOA vào `pool_lis.json` (tổng 9 đề).
+- **Verification**: Chạy `pytest tests/test_specs_factory_web.py` tất cả 41/41 test cases pass, xác minh dữ liệu VOA tương thích cấu trúc và không gây lỗi khi parser load.
+- **Status**: Các file cào/convert mới đã được commit & push lên `main` ở lượt trước (`014f77d`). Riêng file gộp `bank_raw.json` và `pool_lis.json` đã chỉnh sửa local theo mong muốn của Đạt (Đạt muốn tự push sau khi test hoặc đồng ý push trực tiếp).
+- **Next steps**: (1) Chờ Đạt kiểm tra giao diện/local; (2) Bước 2: Nạp 30 đề thật khi sếp sửa xong QC; (3) Hoàn thiện các phân hệ hoãn.

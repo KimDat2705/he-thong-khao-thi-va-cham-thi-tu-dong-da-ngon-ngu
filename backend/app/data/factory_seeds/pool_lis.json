@@ -285,5 +285,145 @@
       "14": "confident",
       "15": "grammar"
     }
+  },
+  {
+    "code": "VOA.LIS.1000",
+    "src_code": "VOA.LIS.1000",
+    "audio_name": "VOA.LIS.1000.mp3",
+    "l1_stems": [
+      "Which countries are the first to receive cancer medicines through the new WHO project?",
+      "How does the childhood cancer survival rate in wealthy countries compare to poorer ones?",
+      "How many children are expected to receive medicines if the program reaches 50 countries?",
+      "Why do about 70 percent of children in low-resource settings die from cancer?",
+      "Who is funding the new WHO initiative with a 200 million dollar contribution?"
+    ],
+    "l1_options": {
+      "1": {
+        "A": "Mongolia and Uzbekistan",
+        "B": "Ecuador and Jordan",
+        "C": "El Salvador and Moldova"
+      },
+      "2": {
+        "A": "It is about the same at 80 percent.",
+        "B": "It is much higher, around 80 percent compared to under 30 percent.",
+        "C": "It is slightly lower due to limited resources."
+      },
+      "3": {
+        "A": "Around 5,000 children",
+        "B": "Exactly 400,000 children",
+        "C": "Up to 120,000 children"
+      },
+      "4": {
+        "A": "They lack access to specialized hospitals and doctors.",
+        "B": "They face supply issues and use low-quality or incorrect treatments.",
+        "C": "They are diagnosed too late to receive any medicine."
+      },
+      "5": {
+        "A": "Agence France-Presse",
+        "B": "St. Jude Children's Research Hospital",
+        "C": "The United Nations Health Agency"
+      }
+    },
+    "l2_summary": "The WHO has launched a program to deliver free cancer medicines to children in poor countries, starting with a pilot phase in countries like Mongolia. During this initial stage, the initiative expects to help approximately _____ (6) _____ children in 30 hospitals. While wealthy nations enjoy survival rates of about _____ (7) _____ percent, poorer countries see rates under 30 percent. Over the next five to seven years, the platform aims to expand to _____ (8) _____ countries. According to the WHO, around _____ (9) _____ children globally are diagnosed with cancer annually. Many die due to supply chain problems, incorrect treatments, or the use of _____ (10) _____ medicines. The program, which began in _____ (11) _____, is a partnership with St. Jude Children’s Research Hospital, which contributed _____ (12) _____ dollars for its creation. The WHO emphasizes that the medicine supply will be _____ (13) _____ and free of charge. Organizers are currently working on the program's long-term _____ (14) _____ to keep it running. Finally, governments are showing more interest because childhood cancer is becoming a leading _____ (15) _____ of death in wealthier nations.",
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "A",
+      "2": "B",
+      "3": "C",
+      "4": "B",
+      "5": "B",
+      "6": "5,000",
+      "7": "80",
+      "8": "50",
+      "9": "400,000",
+      "10": "low-quality",
+      "11": "December 2021",
+      "12": "200 million",
+      "13": "uninterrupted",
+      "14": "sustainability",
+      "15": "cause"
+    },
+    "source_url": "https://learningenglish.voanews.com/a/who-launches-new-cancer-drug-plan-for-children-/7972396.html"
+  },
+  {
+    "code": "VOA.LIS.1002",
+    "src_code": "VOA.LIS.1002",
+    "audio_name": "VOA.LIS.1002.mp3",
+    "l1_stems": [
+      "When was Yellowstone National Park established?",
+      "Why does Yellowstone have many geysers and boiling mud?",
+      "How often does the famous geyser \"Old Faithful\" erupt?",
+      "What is true about Yellowstone's weather in the winter?",
+      "Which animal population in Yellowstone is the largest of its kind in the world?"
+    ],
+    "l1_options": {
+      "1": {
+        "A": "In 1872",
+        "B": "In 1988",
+        "C": "In 2024"
+      },
+      "2": {
+        "A": "Because of its extremely high altitude",
+        "B": "Because it sits on top of an active super volcano",
+        "C": "Because of the deep canyons and cold rivers"
+      },
+      "3": {
+        "A": "Every 30 minutes",
+        "B": "Every hour",
+        "C": "Every 90 minutes"
+      },
+      "4": {
+        "A": "It is extremely cold, but parts of the park remain open.",
+        "B": "It is mild enough for all areas of the park to stay open.",
+        "C": "It forces the park to close completely to visitors."
+      },
+      "5": {
+        "A": "Grizzly bear",
+        "B": "Bison",
+        "C": "Wolf"
+      }
+    },
+    "l2_summary": "Yellowstone, established in _____ (6) _____, is the world’s first national park, located mostly in _____ (7) _____. It sits on top of an active _____ (8) _____ which creates heat and pressure underground. This pressure results in more than _____ (9) _____ geysers, with \"Old Faithful\" erupting roughly every 90 minutes. Despite very cold winters, the park is always open to _____ (10) _____. One notable landscape is the canyon containing the _____ (11) _____ which drops 93 meters. After being damaged by _____ (12) _____ in 1988, the park has recovered with new plants and trees. Yellowstone is also home to the US's largest group of _____ (13) _____, including about _____ (14) _____ wild bison counted in the year _____ (15) _____.",
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "A",
+      "2": "B",
+      "3": "C",
+      "4": "A",
+      "5": "B",
+      "6": "1872",
+      "7": "Wyoming",
+      "8": "super volcano",
+      "9": "300",
+      "10": "visitors",
+      "11": "Lower Falls",
+      "12": "forest fires",
+      "13": "wild animals",
+      "14": "4,500",
+      "15": "2024"
+    },
+    "source_url": "https://learningenglish.voanews.com/a/yellowstone-the-world-s-first-national-park/7974034.html"
   }
 ]
