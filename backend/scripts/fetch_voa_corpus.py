@@ -2,7 +2,11 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import os
+import sys
 import re
+
+sys.path.insert(0, os.path.dirname(__file__))
+from voa_clean import clean_paragraphs  # noqa: E402
 
 # Các chuyên mục của VOA Learning English
 CATEGORIES = [
@@ -10,52 +14,48 @@ CATEGORIES = [
     "https://learningenglish.voanews.com/z/955",  # Education
     "https://learningenglish.voanews.com/z/986",  # Health & Lifestyle
 ]
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+TIMEOUT = (10, 30)   # (connect, read) — tránh treo vô hạn khi VOA/CDN chậm (vá S57m)
 
 def fetch_category_links(cat_url):
     print(f"Fetching category: {cat_url}")
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    resp = requests.get(cat_url, headers=headers)
+    resp = requests.get(cat_url, headers=HEADERS, timeout=TIMEOUT)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.content, "html.parser")
-    
+
     links = []
-    # Tìm các link bài viết có dạng /a/...html
+    # Tìm các link bài viết có dạng /a/...html — GIỮ THỨ TỰ trang (không list(set) làm mất thứ tự).
     for a in soup.find_all("a", href=re.compile(r"^/a/.*?\.html$")):
-        href = a.get("href")
-        full_url = f"https://learningenglish.voanews.com{href}"
+        full_url = f"https://learningenglish.voanews.com{a.get('href')}"
         if full_url not in links:
             links.append(full_url)
-    return list(set(links))
+    return links
 
 def scrape_article(url):
     print(f"Scraping: {url}")
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
-        resp = requests.get(url, headers=headers)
+        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
         resp.raise_for_status()
     except Exception as e:
         print(f"Error fetching {url}: {e}")
         return None
-        
+
     soup = BeautifulSoup(resp.content, "html.parser")
-    
+
     # Title
     title_tag = soup.find("h1", class_="title")
     title = title_tag.text.strip() if title_tag else ""
-    
+
     # Date
     date_tag = soup.find("time")
     pub_date = date_tag.get("datetime") if date_tag else ""
-    
-    # Text content (paragraphs)
+
+    # Text content — gom mọi <p> rồi LÀM SẠCH bằng voa_clean (bỏ 'No media source', glossary, footer;
+    # vá S57m: bộ lọc cũ chỉ bắt 'Words in This Story' nên rác lọt vào mọi seed).
     content_div = soup.find("div", id="article-content")
-    paragraphs = []
-    if content_div:
-        for p in content_div.find_all("p"):
-            text = p.text.strip()
-            if text and not text.startswith("Words in This Story"):
-                paragraphs.append(text)
-    
+    raw_paras = [p.text.strip() for p in content_div.find_all("p")] if content_div else []
+    paragraphs = clean_paragraphs("\n".join(raw_paras))
+
     # Audio link
     audio_url = ""
     # Look for links that end with mp3 or contain audio

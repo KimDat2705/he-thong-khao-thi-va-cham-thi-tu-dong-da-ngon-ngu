@@ -4,40 +4,111 @@
     "src_code": "VOA.LIS.1000",
     "audio_name": "VOA.LIS.1000.mp3",
     "l1_stems": [
-      "Which countries are the first to receive cancer medicines through the new WHO project?",
-      "How does the childhood cancer survival rate in wealthy countries compare to poorer ones?",
-      "How many children are expected to receive medicines if the program reaches 50 countries?",
-      "Why do about 70 percent of children in low-resource settings die from cancer?",
-      "Who is funding the new WHO initiative with a 200 million dollar contribution?"
+      "What is the main goal of the WHO's new platform?",
+      "How do childhood cancer survival rates in low- and middle-income nations compare to those in wealthy nations?",
+      "How many countries does the program hope to reach in the next five to seven years?",
+      "Who partnered with the WHO to establish this program?",
+      "Why are governments in middle- and high-income countries paying more attention to childhood cancer?"
     ],
     "l1_options": {
       "1": {
-        "A": "Mongolia and Uzbekistan",
-        "B": "Ecuador and Jordan",
-        "C": "El Salvador and Moldova"
+        "A": "To train doctors in wealthy nations.",
+        "B": "To provide free cancer medicines to children in poorer countries.",
+        "C": "To build new cancer hospitals in Mongolia and Uzbekistan."
       },
       "2": {
-        "A": "It is about the same at 80 percent.",
-        "B": "It is much higher, around 80 percent compared to under 30 percent.",
-        "C": "It is slightly lower due to limited resources."
+        "A": "They are below 30 percent in poorer countries, compared to around 80 percent in wealthy nations.",
+        "B": "They are about the same in both poorer and wealthier countries.",
+        "C": "They are around 80 percent in poorer countries, which is higher than in wealthy nations."
       },
       "3": {
-        "A": "Around 5,000 children",
-        "B": "Exactly 400,000 children",
-        "C": "Up to 120,000 children"
+        "A": "6 countries",
+        "B": "30 countries",
+        "C": "50 countries"
       },
       "4": {
-        "A": "They lack access to specialized hospitals and doctors.",
-        "B": "They face supply issues and use low-quality or incorrect treatments.",
-        "C": "They are diagnosed too late to receive any medicine."
+        "A": "Governments of Ecuador and Jordan",
+        "B": "St. Jude Children's Research Hospital in the United States",
+        "C": "A French news agency"
       },
       "5": {
-        "A": "Agence France-Presse",
-        "B": "St. Jude Children's Research Hospital",
-        "C": "The United Nations Health Agency"
+        "A": "Because the WHO is forcing them to cover all treatment costs.",
+        "B": "Because childhood cancer is increasingly becoming a leading cause of death there.",
+        "C": "Because they want to receive free medicines from the program."
       }
     },
-    "l2_summary": "The WHO has launched a program to deliver free cancer medicines to children in poor countries, starting with a pilot phase in countries like Mongolia. During this initial stage, the initiative expects to help approximately _____ (6) _____ children in 30 hospitals. While wealthy nations enjoy survival rates of about _____ (7) _____ percent, poorer countries see rates under 30 percent. Over the next five to seven years, the platform aims to expand to _____ (8) _____ countries. According to the WHO, around _____ (9) _____ children globally are diagnosed with cancer annually. Many die due to supply chain problems, incorrect treatments, or the use of _____ (10) _____ medicines. The program, which began in _____ (11) _____, is a partnership with St. Jude Children’s Research Hospital, which contributed _____ (12) _____ dollars for its creation. The WHO emphasizes that the medicine supply will be _____ (13) _____ and free of charge. Organizers are currently working on the program's long-term _____ (14) _____ to keep it running. Finally, governments are showing more interest because childhood cancer is becoming a leading _____ (15) _____ of death in wealthier nations.",
+    "l2_summary": "The WHO has launched a platform to give free cancer treatments to children in low- and middle-income nations. During the (6) ___ period, six countries, starting with Mongolia and Uzbekistan, will receive these medicines. Currently, the survival (7) ___ for children with cancer in poorer countries are under 30 percent, which is much lower than in (8) ___ nations. The project aims to expand to 50 countries in the next five to seven years, helping up to 120,000 (9) ___. Every year, approximately 400,000 children develop cancer worldwide, and many die due to poor-quality medicines or (10) ___ problems. This program was first announced in (11) ___ 2021 as a partnership between the WHO and St. Jude Children's Research Hospital, which provided 200 (12) ___ dollars to launch it. The program will offer (13) ___ medicines, and organizers are working to ensure its long-term (14) ___. According to Andre Ilbawi, childhood cancer is also becoming a major cause of (15) ___ in richer nations.",
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "B",
+      "2": "A",
+      "3": "C",
+      "4": "B",
+      "5": "B",
+      "6": "pilot",
+      "7": "rates",
+      "8": "wealthy",
+      "9": "children",
+      "10": "supply",
+      "11": "December",
+      "12": "million",
+      "13": "free",
+      "14": "sustainability",
+      "15": "death"
+    },
+    "source_url": "https://learningenglish.voanews.com/a/who-launches-new-cancer-drug-plan-for-children-/7972396.html",
+    "source_attribution": "Agence France-Presse"
+  },
+  {
+    "code": "VOA.LIS.1001",
+    "src_code": "VOA.LIS.1001",
+    "audio_name": "VOA.LIS.1001.mp3",
+    "l1_stems": [
+      "What is the new record set by the French scientists?",
+      "Compared to the previous record from China, the new French record is...",
+      "What is the main goal of nuclear fusion research?",
+      "Why is nuclear fusion difficult for scientists to control?",
+      "Why have operations at the ITER project been postponed?"
+    ],
+    "l1_options": {
+      "1": {
+        "A": "Maintaining a plasma state for 22 minutes",
+        "B": "Reaching temperatures of 100 million degrees Celsius",
+        "C": "Building the world's largest tokamak"
+      },
+      "2": {
+        "A": "twice as long",
+        "B": "25 percent longer",
+        "C": "about the same length"
+      },
+      "3": {
+        "A": "To produce safe nuclear weapons",
+        "B": "To copy reactions that occur in the sun",
+        "C": "To create stronger magnets for power plants"
+      },
+      "4": {
+        "A": "Because it requires very high temperatures",
+        "B": "Because it uses too much water to cool down",
+        "C": "Because the magnets used are not strong enough"
+      },
+      "5": {
+        "A": "Because participating countries lost interest",
+        "B": "Because of technical failures in the machine",
+        "C": "Because of repeated delays and rising costs"
+      }
+    },
+    "l2_summary": "French scientists recently achieved a new record by keeping hydrogen atoms in a state of (6) ___ for over 22 minutes using a machine called a (7) ___. This experiment aims to replicate the nuclear reactions inside the (8) ___ to produce clean (9) ___ in the future. To control the hot atoms, scientists use powerful (10) ___. However, if the temperature reaches 100 million degrees Celsius, the plasma can become (11) ___ and hard to manage. In the future, the team wants to increase the duration to several (12) ___ and test the heat effects. A large international project named (13) ___ is currently being built in southern (14) ___, but its start has been delayed due to rising (15) ___.",
     "l2_gaps": [
       6,
       7,
@@ -53,21 +124,22 @@
     "answers": {
       "1": "A",
       "2": "B",
-      "3": "C",
-      "4": "B",
-      "5": "B",
-      "6": "5,000",
-      "7": "80",
-      "8": "50",
-      "9": "400,000",
-      "10": "low-quality",
-      "11": "December 2021",
-      "12": "200 million",
-      "13": "uninterrupted",
-      "14": "sustainability",
-      "15": "cause"
+      "3": "B",
+      "4": "A",
+      "5": "C",
+      "6": "plasma",
+      "7": "tokamak",
+      "8": "sun",
+      "9": "energy",
+      "10": "magnets",
+      "11": "unstable",
+      "12": "hours",
+      "13": "ITER",
+      "14": "France",
+      "15": "costs"
     },
-    "source_url": "https://learningenglish.voanews.com/a/who-launches-new-cancer-drug-plan-for-children-/7972396.html"
+    "source_url": "https://learningenglish.voanews.com/a/france-sets-new-plasma-record-in-hunt-for-nuclear-fusion/7983265.html",
+    "source_attribution": "AFP, Agence France-Presse"
   },
   {
     "code": "VOA.LIS.1002",
@@ -75,39 +147,39 @@
     "audio_name": "VOA.LIS.1002.mp3",
     "l1_stems": [
       "When was Yellowstone National Park established?",
-      "Why does Yellowstone have many geysers and boiling mud?",
-      "How often does the famous geyser \"Old Faithful\" erupt?",
-      "What is true about Yellowstone's weather in the winter?",
-      "Which animal population in Yellowstone is the largest of its kind in the world?"
+      "Why does Yellowstone have geysers and boiling mud?",
+      "How often does the famous geyser 'Old Faithful' erupt?",
+      "What occurred in Yellowstone during the summer of 1988?",
+      "What was the estimated population of wild bison in Yellowstone in 2024?"
     ],
     "l1_options": {
       "1": {
-        "A": "In 1872",
-        "B": "In 1988",
-        "C": "In 2024"
+        "A": "1872",
+        "B": "1988",
+        "C": "2024"
       },
       "2": {
-        "A": "Because of its extremely high altitude",
-        "B": "Because it sits on top of an active super volcano",
-        "C": "Because of the deep canyons and cold rivers"
+        "A": "Due to its high plateau elevation",
+        "B": "Because of underground pressure and heat from an active volcano",
+        "C": "As a result of freezing cold winter temperatures"
       },
       "3": {
-        "A": "Every 30 minutes",
-        "B": "Every hour",
-        "C": "Every 90 minutes"
+        "A": "Every 90 minutes",
+        "B": "Every 24 hours",
+        "C": "Every 365 days"
       },
       "4": {
-        "A": "It is extremely cold, but parts of the park remain open.",
-        "B": "It is mild enough for all areas of the park to stay open.",
-        "C": "It forces the park to close completely to visitors."
+        "A": "The park was first opened to winter visitors",
+        "B": "Forest fires burned large areas of the park",
+        "C": "The Yellowstone River completely dried up"
       },
       "5": {
-        "A": "Grizzly bear",
-        "B": "Bison",
-        "C": "Wolf"
+        "A": "About 2,400",
+        "B": "About 9,000",
+        "C": "About 4,500"
       }
     },
-    "l2_summary": "Yellowstone, established in _____ (6) _____, is the world’s first national park, located mostly in _____ (7) _____. It sits on top of an active _____ (8) _____ which creates heat and pressure underground. This pressure results in more than _____ (9) _____ geysers, with \"Old Faithful\" erupting roughly every 90 minutes. Despite very cold winters, the park is always open to _____ (10) _____. One notable landscape is the canyon containing the _____ (11) _____ which drops 93 meters. After being damaged by _____ (12) _____ in 1988, the park has recovered with new plants and trees. Yellowstone is also home to the US's largest group of _____ (13) _____, including about _____ (14) _____ wild bison counted in the year _____ (15) _____.",
+    "l2_summary": "Yellowstone is the world's (6) ___ national park, covering nearly 9,000 square kilometers, mostly in the state of (7) ___. The park is unique because it sits on an active super (8) ___. The underground pressure forces (9) ___ to shoot hot water into the air, such as 'Old Faithful', which erupts regularly. At an average height of 2,400 meters, the winter weather is extremely (10) ___. Visitors can walk near the top of the Lower Falls in the Yellowstone Canyon, which is 365 meters (11) ___. Although forest (12) ___ destroyed large parts of the park in 1988, the land has recovered and is now covered with plants and (13) ___ trees. Yellowstone is home to various wild (14) ___, including the largest population of wild (15) ___ in the world.",
     "l2_gaps": [
       6,
       7,
@@ -123,20 +195,21 @@
     "answers": {
       "1": "A",
       "2": "B",
-      "3": "C",
-      "4": "A",
-      "5": "B",
-      "6": "1872",
+      "3": "A",
+      "4": "B",
+      "5": "C",
+      "6": "first",
       "7": "Wyoming",
-      "8": "super volcano",
-      "9": "300",
-      "10": "visitors",
-      "11": "Lower Falls",
-      "12": "forest fires",
-      "13": "wild animals",
-      "14": "4,500",
-      "15": "2024"
+      "8": "volcano",
+      "9": "geysers",
+      "10": "cold",
+      "11": "deep",
+      "12": "fires",
+      "13": "young",
+      "14": "animals",
+      "15": "bison"
     },
-    "source_url": "https://learningenglish.voanews.com/a/yellowstone-the-world-s-first-national-park/7974034.html"
+    "source_url": "https://learningenglish.voanews.com/a/yellowstone-the-world-s-first-national-park/7974034.html",
+    "source_attribution": "VOA Learning English"
   }
 ]
