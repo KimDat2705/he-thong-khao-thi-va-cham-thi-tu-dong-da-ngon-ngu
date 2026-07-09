@@ -5,9 +5,10 @@ cổng kiểm đáp án AI (R1–R4 + W1; W2 tự luận không có → converte
 chuyển sang hàng ngân hàng → lưu vào DB dưới dạng nháp (draft) cho giáo viên soát/duyệt
 tại /admin/bank.
 
-Seed dùng bộ MẪU TỔNG HỢP trong repo (backend/tests/fixtures/factory_sample/) — an toàn công khai,
-KHÔNG chứa dữ liệu bản quyền của đối tác. Đọc/Viết dùng bank_raw.json, Nói dùng pool_speak.json,
-Nghe dùng pool_lis.json. Đổi sang đề thật của đối tác = thay các file này.
+Seed PRODUCTION = corpus B1 tự-soạn-nguyên-gốc trong repo (backend/app/data/factory_seeds/, SPEC-FACTORY-026)
+— an toàn công khai, KHÔNG chứa dữ liệu bản quyền. Đọc/Viết dùng bank_raw.json, Nói dùng pool_speak.json,
+Nghe dùng pool_lis.json. Thư mục seed resolve qua env FACTORY_SEED_DIR (test ép về fixture 2-đề
+backend/tests/fixtures/factory_sample/ cho tất định). Đổi sang 30 đề thật đối tác (Bước 2) = thay các file này.
 
 Phạm vi: ĐỌC R1–R4 (SPEC-FACTORY-016) + VIẾT W1/W2 (SPEC-FACTORY-017) + NÓI (SPEC-FACTORY-018) +
 NGHE text-only (SPEC-FACTORY-019: kịch bản vào ngân hàng, audio render ở slice sau).
@@ -26,11 +27,18 @@ from app.services.factory_to_bank import bundle_items_to_rows, lis_bundle_identi
 
 logger = logging.getLogger(__name__)
 
-# backend/app/services/factory_service.py → backend/tests/fixtures/factory_sample/
-_SEED_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "tests", "fixtures", "factory_sample",
+# Corpus seed PRODUCTION: backend/app/services/factory_service.py → backend/app/data/factory_seeds/
+# (2 lần dirname: services → app). Bộ đề mẫu B1 tự soạn (SPEC-FACTORY-026), ship cùng backend.
+_DEFAULT_SEED_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "factory_seeds",
 )
+
+
+def _seed_dir() -> str:
+    """Thư mục seed, resolve TẠI CALL-TIME (đọc env mỗi lần gọi): env FACTORY_SEED_DIR override
+    (conftest ép về fixture 2-đề để test giữ tất định), mặc định = corpus production."""
+    return os.environ.get("FACTORY_SEED_DIR") or _DEFAULT_SEED_DIR
 
 # --- Chủ đề / Độ khó (Cách A — gợi ý mềm cho AI) -----------------------------------------------
 # Nhà máy (Bản 2) sinh biến thể BÁM SEED thật → chủ đề/độ khó KHÔNG tự do như Bản 1 (bịa từ đầu).
@@ -135,7 +143,16 @@ def _load_seed_bank(skill: str):
     """Đọc file seed mẫu ĐÚNG theo skill (bank_raw.json / pool_speak.json). Trả nội dung JSON thô
     (list cho Đọc/Viết, dict thẻ cho Nói) — loader của skill tự chuẩn hoá."""
     fname = _SKILL_SEED_FILE.get(skill, "bank_raw.json")
-    with open(os.path.join(_SEED_DIR, fname), encoding="utf-8") as f:
+    path = os.path.join(_seed_dir(), fname)
+    if not os.path.exists(path):
+        # Thông điệp rõ (chỉ ra thư mục seed + env) thay vì FileNotFoundError trần — giúp chẩn đoán
+        # khi corpus chưa được commit/ship (bank_raw.json phải nằm trong backend/app/data/factory_seeds/).
+        raise FileNotFoundError(
+            f"Không tìm thấy file seed nhà máy '{fname}' trong thư mục seed '{_seed_dir()}'. "
+            f"Kiểm tra corpus backend/app/data/factory_seeds/ đã được commit/ship chưa "
+            f"(hoặc đặt env FACTORY_SEED_DIR trỏ đúng thư mục)."
+        )
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

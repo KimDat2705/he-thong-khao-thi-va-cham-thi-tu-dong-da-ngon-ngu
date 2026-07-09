@@ -9,6 +9,7 @@ W2 tự luận → converter chèn note GV soát tay).
 Test offline tất định: mock (generator=None) cho luồng sinh+lưu; _StubChecker cho cổng kiểm đáp án.
 """
 import json
+import os
 
 import pytest
 
@@ -1121,3 +1122,84 @@ def test_SPEC_FACTORY_025_labels_not_in_content_hash():
     base_g = calculate_group_hash(g)
     assert base_g == calculate_group_hash({**g, "topic": "Du lịch"})
     assert base_g == calculate_group_hash({**g, "difficulty": "hard"})
+
+
+# ============================================================================
+# SPEC-FACTORY-026 — Corpus SEED B1 production (tự soạn nguyên gốc, 14 chủ đề) làm seed nhà máy
+# thay/bổ sung fixture 2-đề. Tách seed test↔production qua env FACTORY_SEED_DIR.
+# ============================================================================
+
+_CORPUS_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "app", "data", "factory_seeds"))
+
+
+def _load_corpus(fname):
+    with open(os.path.join(_CORPUS_DIR, fname), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def test_SPEC_FACTORY_026_corpus_parses_all_skills():
+    """AC1: corpus production backend/app/data/factory_seeds/ parse được qua MỌI loader boss_factory,
+    đủ 8 dạng + ĐA DẠNG hơn hẳn fixture 2-đề (fixture: R1=5,R3=1,R4=1,W1=1) → nhà máy sinh phong phú hơn."""
+    from app.services import boss_factory as bf
+    bank = _load_corpus("bank_raw.json")
+    assert len(bank) >= 10                                   # ~14 đề (1/chủ đề)
+    r1, r2, r3, r4 = (bf.load_r1_seeds(bank), bf.load_r2_seeds(bank),
+                      bf.load_r3_seeds(bank), bf.load_r4_seeds(bank))
+    w1, w2 = bf.load_w1_seeds(bank), bf.load_w2_seeds(bank)
+    sp = bf.load_speak_seeds(_load_corpus("pool_speak.json"))
+    ls = bf.load_lis_seeds(_load_corpus("pool_lis.json"))
+    # Mọi dạng có seed + nhiều hơn hẳn fixture (chống corpus vô tình rỗng/mất dạng khi build fresh).
+    assert len(r1) >= 20 and len(r2) >= 20 and len(r3) >= 10 and len(r4) >= 10
+    assert len(w1) >= 10 and len(w2) >= 10 and len(sp) >= 10 and len(ls) >= 5
+
+
+def test_SPEC_FACTORY_026_corpus_internal_consistency():
+    """AC2: đáp án corpus nhất quán nội bộ (chống seed hỏng đẩy câu lỗi vào nhà máy) — R1 answer∈options;
+    R4 answers∈hộp-từ & đủ 10 chỗ 21-30; Nói domain∈14 chủ đề; Nghe l2_gaps khớp khóa L2 (10 chỗ)."""
+    from app.services import boss_factory as bf
+    bank = _load_corpus("bank_raw.json")
+    for s in bf.load_r1_seeds(bank):
+        assert s["answer"] in s["options"], f"R1 {s['ma_de']}"
+    for s in bf.load_r4_seeds(bank):
+        boxn = {bf._norm_word(w) for w in s["box"]}
+        assert len(s["answers"]) == 10 and all(bf._norm_word(v) in boxn for v in s["answers"].values()), s["ma_de"]
+    for s in bf.load_speak_seeds(_load_corpus("pool_speak.json")):
+        assert bf._norm_domain(s["domain_guess"]) in bf._DOMAINS_14_NORM, s["domain_guess"]
+    for s in bf.load_lis_seeds(_load_corpus("pool_lis.json")):
+        gaps = [int(n) for n in s["l2_gaps"]]
+        assert len(gaps) == 10 and all(str(n) in s["answers"] for n in gaps), s["code"]
+
+
+def test_SPEC_FACTORY_026_seed_dir_env_resolution(monkeypatch):
+    """AC3: _seed_dir() resolve TẠI CALL-TIME — env FACTORY_SEED_DIR override → dùng; unset → default =
+    corpus production (backend/app/data/factory_seeds). Nhờ vậy conftest ép fixture, prod dùng corpus."""
+    from app.services import factory_service as fs
+    monkeypatch.setenv("FACTORY_SEED_DIR", os.path.join("X", "seed-override"))
+    assert fs._seed_dir().endswith(os.path.join("X", "seed-override"))
+    monkeypatch.delenv("FACTORY_SEED_DIR", raising=False)
+    assert fs._seed_dir() == fs._DEFAULT_SEED_DIR
+    assert fs._seed_dir().endswith(os.path.join("app", "data", "factory_seeds"))
+
+
+def test_SPEC_FACTORY_026_factory_generates_from_corpus(db_session, monkeypatch):
+    """AC4: nhà máy chạy end-to-end trên CORPUS production (mock) → sinh + lưu draft; n_seeds phản ánh
+    corpus (>=20 R1), sinh nhiều câu KHÁC nhau (đa dạng cấu trúc — mục tiêu corpus). GUARD chống 'sập
+    còn 1' do near-dup: W2/Nói mock phải giữ ĐA DẠNG theo seed (review 026 HIGH: mock W2 chọn domain
+    theo idx → 14 đề đều 'Bản thân' → near-dup loại 13/14)."""
+    from app.services import factory_service as fs
+    monkeypatch.delenv("FACTORY_SEED_DIR", raising=False)   # bỏ override fixture → dùng corpus prod
+
+    res = fs.run_factory_to_bank(db_session, "reading_s1", count=8, verify=False, generator=None)
+    assert res["n_seeds"] >= 20 and res["saved_questions"] >= 5      # 8 seed khác nhau → nhiều câu
+    res2 = fs.run_factory_to_bank(db_session, "reading_s2_notice", count=8, verify=False, generator=None)
+    assert res2["saved_questions"] >= 5
+    res3 = fs.run_factory_to_bank(db_session, "reading_s3_comprehension", count=2,
+                                  verify=False, generator=None)
+    assert res3["n_seeds"] >= 10 and res3["saved_groups"] >= 1
+
+    # W2 (Viết thư) + Nói: mỗi seed 1 đề → KHÔNG được near-dup nuốt về 1 (guard mock đa-dạng-theo-seed).
+    resw2 = fs.run_factory_to_bank(db_session, "writing_w2_letter", count=10, verify=False, generator=None)
+    assert resw2["n_seeds"] >= 10 and resw2["saved_questions"] >= 8, resw2   # KHÔNG sập còn 1
+    resspk = fs.run_factory_to_bank(db_session, "speaking", count=8, verify=False, generator=None)
+    assert resspk["saved_questions"] >= 6, resspk

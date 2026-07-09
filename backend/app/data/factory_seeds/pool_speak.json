@@ -1,0 +1,240 @@
+{
+  "SB1.9000": {
+    "code": "SB1.9000",
+    "src_code": "SB1.9000",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe yourself and the kind of person you are. You should say what you look like, what your personality is like, and what you enjoy doing, and explain one thing you would like to change about yourself.",
+    "domain_guess": "Bản thân",
+    "part1": [
+      "Can you tell me your full name and where you are from?",
+      "What do you usually do in your free time?",
+      "Who do you live with at the moment?"
+    ],
+    "part3": [
+      "Do you think people's personalities change as they grow older? Why or why not?",
+      "How important is it for someone to know their own strengths and weaknesses?",
+      "In what ways can a person become more confident?"
+    ]
+  },
+  "SB1.9001": {
+    "code": "SB1.9001",
+    "src_code": "SB1.9001",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a place in your home where you like to spend time. You should say where it is, what it looks like, what you usually do there, and explain why you like it.",
+    "domain_guess": "Nhà cửa-gia đình-môi trường",
+    "part1": [
+      "Do you live in a house or a flat?",
+      "Who do you live with in your home?",
+      "What is your favourite room in your house, and why?"
+    ],
+    "part3": [
+      "What can families do to save energy at home?",
+      "Do you think modern houses are better than older houses? Why or why not?",
+      "How can living in a big city affect the environment?"
+    ]
+  },
+  "SB1.9002": {
+    "code": "SB1.9002",
+    "src_code": "SB1.9002",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a typical day in your life. You should say what you usually do in the morning, in the afternoon and in the evening, and explain which part of the day you enjoy the most and why.",
+    "domain_guess": "Cuộc sống hằng ngày",
+    "part1": [
+      "What time do you usually get up in the morning?",
+      "Do you have breakfast every day?",
+      "How do you usually travel to school or to work?"
+    ],
+    "part3": [
+      "How has daily life in your country changed compared with the past?",
+      "Do you think people today are busier than people were twenty years ago? Why?",
+      "What can people do to have a healthier daily routine?"
+    ]
+  },
+  "SB1.9003": {
+    "code": "SB1.9003",
+    "src_code": "SB1.9003",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a form of entertainment or a fun activity that you really enjoy. You should say what it is, how often you do it, who you usually do it with, and explain why you enjoy it so much.",
+    "domain_guess": "Vui chơi-giải trí",
+    "part1": [
+      "What do you usually do in your free time?",
+      "Do you prefer watching films at home or at the cinema? Why?",
+      "How often do you go out with your friends to have fun?"
+    ],
+    "part3": [
+      "Do you think people today have enough free time for entertainment? Why or why not?",
+      "How has technology changed the way young people entertain themselves?",
+      "Do you think spending money on entertainment is always worth it? Explain your opinion."
+    ]
+  },
+  "SB1.9004": {
+    "code": "SB1.9004",
+    "src_code": "SB1.9004",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a memorable trip or holiday you have taken. You should say where you went, who you went with, and what you did there, and explain why this trip was so memorable for you.",
+    "domain_guess": "Đi lại-du lịch",
+    "part1": [
+      "How do you usually travel to school or work every day?",
+      "Do you enjoy travelling? Why or why not?",
+      "What is the most interesting place you have visited so far?"
+    ],
+    "part3": [
+      "What are the advantages and disadvantages of travelling by plane compared with travelling by train?",
+      "How has tourism in your country changed over the last twenty years?",
+      "Do you think people will travel more or less in the future? Why?"
+    ]
+  },
+  "SB1.9005": {
+    "code": "SB1.9005",
+    "src_code": "SB1.9005",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a person who has had an important influence on your life. You should say who this person is, how you know them, and what they are like, and explain why this relationship is important to you.",
+    "domain_guess": "Mối quan hệ",
+    "part1": [
+      "Can you tell me a little about your family?",
+      "Do you have many close friends?",
+      "How do you usually spend time with your friends?"
+    ],
+    "part3": [
+      "Why do you think some friendships last for a very long time while others do not?",
+      "How has technology changed the way people keep in touch with friends and family?",
+      "Do you think it is better to have a few close friends or many acquaintances? Why?"
+    ]
+  },
+  "SB1.9006": {
+    "code": "SB1.9006",
+    "src_code": "SB1.9006",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a healthy habit that you have or would like to have. You should say what the habit is, how often you do it, why it is good for your health, and how it makes you feel.",
+    "domain_guess": "Sức khỏe",
+    "part1": [
+      "Do you think you have a healthy lifestyle?",
+      "What do you usually eat for breakfast?",
+      "How often do you do exercise?"
+    ],
+    "part3": [
+      "Why do you think some young people do not exercise enough?",
+      "How can schools help their students to stay healthy?",
+      "Do you think people today are healthier than they were in the past? Why or why not?"
+    ]
+  },
+  "SB1.9007": {
+    "code": "SB1.9007",
+    "src_code": "SB1.9007",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a teacher who has helped you a lot in your studies. You should say who this teacher is, what subject he or she teaches, and explain why this teacher is important to you.",
+    "domain_guess": "Giáo dục",
+    "part1": [
+      "What subjects do you study at school?",
+      "Do you enjoy going to school? Why or why not?",
+      "How do you usually get to school every day?"
+    ],
+    "part3": [
+      "Do you think students today study harder than students in the past? Why?",
+      "What are the advantages and disadvantages of online learning?",
+      "How could schools in your country be improved?"
+    ]
+  },
+  "SB1.9008": {
+    "code": "SB1.9008",
+    "src_code": "SB1.9008",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a time when you bought something that you really liked. You should say what you bought, where and when you bought it, why you chose it, and how you felt about it.",
+    "domain_guess": "Mua bán",
+    "part1": [
+      "Do you enjoy going shopping? Why or why not?",
+      "What kinds of things do you usually buy every week?",
+      "Do you prefer shopping in markets or in supermarkets?"
+    ],
+    "part3": [
+      "What are the advantages and disadvantages of shopping online?",
+      "How have people's shopping habits changed in your country in recent years?",
+      "Do you think advertisements make people buy things that they do not really need? Why?"
+    ]
+  },
+  "SB1.9009": {
+    "code": "SB1.9009",
+    "src_code": "SB1.9009",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a meal you really enjoyed. You should say when and where you had it, who you were with, and what you ate and drank, and then explain why you enjoyed it so much.",
+    "domain_guess": "Thực phẩm-đồ uống",
+    "part1": [
+      "What did you have for breakfast this morning?",
+      "Do you prefer eating at home or eating in restaurants? Why?",
+      "What is your favourite kind of food or drink?"
+    ],
+    "part3": [
+      "Do you think people's eating habits have changed compared with the past? In what way?",
+      "What are the main advantages and disadvantages of fast food?",
+      "How can schools encourage young people to eat more healthily?"
+    ]
+  },
+  "SB1.9010": {
+    "code": "SB1.9010",
+    "src_code": "SB1.9010",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a service (for example a shop, a restaurant, a hospital, or a bus service) that you often use. You should say what the service is, how often you use it, and explain why it is useful to you.",
+    "domain_guess": "Các dịch vụ",
+    "part1": [
+      "What services do you often use in your daily life?",
+      "Do you prefer shopping in stores or using online delivery services? Why?",
+      "How do you usually contact a company when you have a problem with a service?"
+    ],
+    "part3": [
+      "How have online services changed the way people live in your country?",
+      "What are the advantages and disadvantages of self-service machines, such as those in supermarkets?",
+      "Do you think good customer service is important for a business? Why or why not?"
+    ]
+  },
+  "SB1.9011": {
+    "code": "SB1.9011",
+    "src_code": "SB1.9011",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a place or landmark that you have visited and enjoyed. You should say where it is, what you did there, and explain why you liked it.",
+    "domain_guess": "Địa điểm-địa danh",
+    "part1": [
+      "Where do you live, and what is it like?",
+      "Do you enjoy visiting new places? Why or why not?",
+      "What is a famous place near your hometown?"
+    ],
+    "part3": [
+      "Why do you think some places become popular with tourists?",
+      "What are the good and bad effects of tourism on a local area?",
+      "How can we protect famous landmarks for future generations?"
+    ]
+  },
+  "SB1.9012": {
+    "code": "SB1.9012",
+    "src_code": "SB1.9012",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a foreign language you would like to learn. You should say what language it is, why you want to learn it, and how you plan to learn it.",
+    "domain_guess": "Ngôn ngữ",
+    "part1": [
+      "What languages can you speak?",
+      "When did you start learning English?",
+      "Do you think English is important for your future? Why?"
+    ],
+    "part3": [
+      "Why do you think many people around the world want to learn English?",
+      "What do you think are the best ways to learn a foreign language?",
+      "Should schools teach more than one foreign language? Why or why not?"
+    ]
+  },
+  "SB1.9013": {
+    "code": "SB1.9013",
+    "src_code": "SB1.9013",
+    "set_file": "corpus_b1_authored",
+    "part2_topic": "Describe a day when the weather was very special or unusual for you. You should say when it happened, what the weather was like, what you did on that day, and how you felt about it.",
+    "domain_guess": "Thời tiết",
+    "part1": [
+      "What is the weather like today where you live?",
+      "Which season of the year do you like the most, and why?",
+      "Do you usually check the weather forecast before you go out?"
+    ],
+    "part3": [
+      "How does the weather affect people's daily activities and their mood?",
+      "Do you think the weather in your country has changed over the last few years, and in what ways?",
+      "What can people do to protect themselves during extreme weather such as storms or heatwaves?"
+    ]
+  }
+}

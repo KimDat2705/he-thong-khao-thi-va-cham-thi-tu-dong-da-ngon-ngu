@@ -1246,6 +1246,27 @@
         "tests/test_specs_factory_web.py::test_SPEC_FACTORY_025_labels_not_in_content_hash"
       ],
       "notes": "S57i (08/07). Bước 1 của kế hoạch gộp 2 bản (Đạt: giữ Bản 1 tham khảo, sau khi cải thiện Bản 2 sẽ XOÁ Bản 1 còn 1 panel — engine Bản 1 giữ dưới Bản 2). Cách A gợi ý mềm = đúng cơ chế Bản 1 (prompt topic/difficulty, KHÔNG train model). VERIFY THẬT (local Gemini): R1 count=2 chủ đề 'Sức khỏe' → 2 câu health-themed đúng độ khó easy. A3 (bấm không ra câu) = do Gemini 500 outage ~30' lúc test, KHÔNG phải bug (chạy lại đường web listening thật → 15 câu + 1 nhóm). ▶ CÒN (Bước 2, chờ Đạt bàn): nạp 30 đề thật (EB1.2601-2630, đang QC 72 lỗi) thay 2 đề mẫu; topic/difficulty nâng lên LỌC-seed (Cách B) khi seed đã gắn nhãn; xoá panel Bản 1 sau khi Bản 2 phủ đủ. S57k (08/07) — follow-up AC6: gắn NHÃN chủ đề + ĐỘ KHÓ đã chọn vào cột topic/difficulty (câu/nhóm/câu con) thay vì None/độ-khó-seed, để GV lọc; thuần backend (FE đã có cột + đã gửi topic/difficulty), độ khó kẹp enum easy|medium|hard, content_hash ngoài topic/difficulty nên không đụng dedup. Verify: pytest 119/0, review đối kháng 6-agent (2 lăng kính sạch, 1 finding test-coverage → thêm regression guard + mutation-test xác nhận guard bắt lỗi)."
+    },
+    {
+      "id": "SPEC-FACTORY-026",
+      "domain": "FACTORY",
+      "title": "Nhà máy: corpus SEED B1 production (tự soạn nguyên gốc, 14 chủ đề) + tách seed test↔production",
+      "statement": "Nhà máy Bản 2 sinh biến thể bằng cách BÁM SEED — trước chỉ có 2 đề mẫu (fixture) → thiếu đa dạng cấu trúc (dễ trùng). Bổ sung CORPUS SEED B1 PRODUCTION tự soạn nguyên gốc (KHÔNG sao chép đề bản quyền; nghiên cứu nguồn mở cho thấy không có ngân hàng đề VSTEP B1 mở-sẵn để nạp thẳng — Đạt chốt 'A trước, B sau': A=soạn mới, B=hút VOA public-domain slice sau). (1) 3 file trong backend/app/data/factory_seeds/ (bank_raw.json ~14 đề mỗi đề 1 chủ đề B1 đủ s1/s2/s3/s4/w1/w2 + pool_speak.json ~14 thẻ + pool_lis.json ~7 set) + SOURCES.md ghi provenance; nằm trong app/ nên ship cùng backend (không .gitignore, cloud_bootstrap không đụng). (2) Tách seed test↔production: factory_service._seed_dir() RESOLVE TẠI CALL-TIME (env FACTORY_SEED_DIR override, mặc định = corpus prod); conftest set FACTORY_SEED_DIR=fixture 2-đề để MỌI test factory hiện có giữ tất định. (3) Corpus soạn qua Workflow (14 agent author + verify đối kháng độc-lập-giải mỗi item R1-R4 + 7 agent Nghe); render nội-dung-có-cấu-trúc → đúng format loader bằng code deterministic (chuyển gánh nặng định dạng từ LLM sang code); parse-gate (chính loader) + nhất quán nội bộ (R1 answer∈options, R4 answers∈hộp-từ & đủ 10 chỗ, Nói domain∈14). Kết quả seeds: R1=42 R2=56 R3=14 R4=14 W1=70 W2=14 Speak=14 Lis=7 (đa dạng hơn hẳn fixture).",
+      "acceptance_criteria": [
+        "Corpus backend/app/data/factory_seeds/{bank_raw,pool_speak,pool_lis}.json parse được qua MỌI load_*_seeds; ~14 đề; mỗi dạng có seed nhiều hơn hẳn fixture (R1>=20, R2>=20, R3>=10, R4>=10, W1>=10, W2>=10, Speak>=10, Lis>=5).",
+        "Đáp án corpus nhất quán nội bộ: R1 answer∈options; R4 answers∈hộp-từ & đủ 10 chỗ 21-30; Nói domain_guess∈14 chủ đề (DOMAINS_14); Nghe l2_gaps (10) khớp khóa L2 của answers.",
+        "factory_service._seed_dir() đọc env FACTORY_SEED_DIR tại call-time: env set→dùng override; unset→_DEFAULT_SEED_DIR = backend/app/data/factory_seeds (conftest ép fixture cho test, prod dùng corpus).",
+        "run_factory_to_bank chạy end-to-end trên corpus production (mock) → n_seeds phản ánh corpus (>=20 R1), sinh + lưu draft nhiều câu (đa dạng cấu trúc)."
+      ],
+      "verification": "pytest",
+      "status": "active",
+      "tests": [
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_026_corpus_parses_all_skills",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_026_corpus_internal_consistency",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_026_seed_dir_env_resolution",
+        "tests/test_specs_factory_web.py::test_SPEC_FACTORY_026_factory_generates_from_corpus"
+      ],
+      "notes": "S57l (09/07). Đạt chốt 'A trước, B sau' sau research nguồn mở (VOA public-domain sạch nhất nhưng là bài báo không phải đề; Cambridge/VSTEP đúng khuôn nhưng bản quyền). Corpus TỰ SOẠN nguyên gốc qua Workflow 35 agent (14 author + 14 verify đối kháng + 7 Nghe, 0 lỗi); verify phase bắt+sửa mơ hồ thật (vd R1 'yesterday' ép quá khứ). Assembler render structured→loader-format (scratchpad) + parse-gate. Deferred: Bước B (hút VOA R3/Nghe) + Bước 2 (30 đề thật EB1.2601-2630 khi hết lỗi QC) thay/bổ sung corpus. GV vẫn là cổng duyệt cuối."
     }
   ]
 }

@@ -10,6 +10,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # Override database URL to SQLite for testing
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
+# Nhà máy sinh câu: ép thư mục seed về fixture 2-đề (tất định) cho MỌI test factory; production
+# (không set env này) dùng corpus backend/app/data/factory_seeds/. _load_seed_bank đọc env tại
+# call-time nên đặt ở module-level (chạy lúc import, trước mọi test) là đủ.
+os.environ["FACTORY_SEED_DIR"] = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "fixtures", "factory_sample"))
+
 from app.core.database import Base
 from app.models.user import User
 from app.models.exam import Exam

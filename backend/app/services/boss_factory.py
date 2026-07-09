@@ -1398,14 +1398,25 @@ def load_w2_seeds(bank: list) -> list:
 
 
 def _mock_w2_variant(seed: dict, idx: int) -> dict:
-    """Biến thể MOCK tất định (không gọi mạng) — stand-in cho test (song song _mock_variant R1)."""
+    """Biến thể MOCK tất định (không gọi mạng) — stand-in cho test (song song _mock_variant R1).
+
+    Domain + các token phái sinh ỔN ĐỊNH THEO SEED (hash ma_de) chứ KHÔNG theo idx biến-thể: với
+    per_seed=1 (đường 'Số lượng' của UI) mọi seed đều idx=0 → nếu chọn theo idx thì 14 đề đều cùng
+    domain 'Bản thân' → cổng near-dup (jaccard≥0.85) loại 13/14 → chỉ lưu 1 câu (review 026 HIGH).
+    Nhét >=3 token duy-nhất-theo-seed (tag + số dẫn xuất) để jaccard giữa 2 đề <0.85 KỂ CẢ trùng
+    domain, mà KHÔNG copy nguyên văn bối cảnh seed (qc_w2 chặn copy)."""
     diff = ["easy", "medium", "hard"][idx % 3]
-    domain = DOMAINS_14[idx % len(DOMAINS_14)]
-    tag = seed.get("ma_de") or "seed"
+    tag = str(seed.get("ma_de") or "seed")
+    h = int(hashlib.sha1(tag.encode("utf-8")).hexdigest(), 16)
+    domain = DOMAINS_14[h % len(DOMAINS_14)]
+    # n phái sinh theo CẢ seed (h) LẪN idx → distinct trên hai chiều: seed↔seed (per_seed=1, đường UI)
+    # và biến-thể↔biến-thể cùng seed (per_seed>1) → không near-dup ở cả hai (test 017 per_seed=2).
+    n = (h + idx * 7919) % 9973
     return {
-        "role": f"You are Minh. This is part of a letter from your penfriend about {domain} ({tag}/{idx + 1}).",
-        "situation": f"Bối cảnh mẫu {tag} phiên {idx + 1}: penfriend viết về chủ đề {domain}.",
-        "points": [f"Ý 1 về {domain} ({tag}/{idx + 1})", f"Ý 2 về {domain} ({tag}/{idx + 1})"],
+        "role": f"You are Minh. This is part of a letter from your English penfriend (mã {tag}).",
+        "situation": (f"Penfriend {tag} viết về {domain}: thư số {n}, mã lớp {n % 97}, "
+                      f"nhóm {n % 53}, phiên {idx + 1}. Hãy trả lời kể về {domain} của bạn."),
+        "points": [f"Ý 1 cho {tag} về {domain}", f"Ý 2 cho {tag} (số {n})"],
         "instruction": W2_INSTRUCTION,
         "domain_guess": domain,
         "difficulty": diff,

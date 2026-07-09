@@ -1,0 +1,289 @@
+[
+  {
+    "code": "LB1.9000",
+    "src_code": "LB1.9000",
+    "audio_name": "LB1.9000.mp3",
+    "l1_stems": [
+      "What is the woman's job?",
+      "What does the man like doing in his free time?",
+      "How does the speaker go to work every day?",
+      "What is the girl's favourite subject at school?",
+      "What pet does the speaker have at home?"
+    ],
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "B",
+      "2": "C",
+      "3": "A",
+      "4": "B",
+      "5": "B",
+      "6": "accountant",
+      "7": "train",
+      "8": "reading",
+      "9": "cooking",
+      "10": "noodles",
+      "11": "grandmother",
+      "12": "countryside",
+      "13": "vegetables",
+      "14": "manager",
+      "15": "countries"
+    }
+  },
+  {
+    "code": "LB1.9001",
+    "src_code": "LB1.9001",
+    "audio_name": "LB1.9001.mp3",
+    "l1_stems": [
+      "What does the woman do first every morning?",
+      "How does the man go to work?",
+      "What is the woman buying at the market?",
+      "What does the family do after dinner?",
+      "What is the boy doing on Saturday morning?"
+    ],
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "A",
+      "2": "B",
+      "3": "C",
+      "4": "A",
+      "5": "B",
+      "6": "wake",
+      "7": "coffee",
+      "8": "work",
+      "9": "lunch",
+      "10": "afternoon",
+      "11": "gym",
+      "12": "dinner",
+      "13": "television",
+      "14": "book",
+      "15": "sleep"
+    }
+  },
+  {
+    "code": "LB1.9002",
+    "src_code": "LB1.9002",
+    "audio_name": "LB1.9002.mp3",
+    "l1_stems": [
+      "How does the woman go to work now?",
+      "What did the man leave behind at the airport?",
+      "Where are the two friends going for their holiday?",
+      "What time does the next train leave?",
+      "What will the weather be like when they arrive?"
+    ],
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "C",
+      "2": "A",
+      "3": "A",
+      "4": "B",
+      "5": "B",
+      "6": "guide",
+      "7": "bus",
+      "8": "souvenirs",
+      "9": "walk",
+      "10": "hat",
+      "11": "lunch",
+      "12": "expensive",
+      "13": "scenery",
+      "14": "time",
+      "15": "rules"
+    }
+  },
+  {
+    "code": "LB1.9003",
+    "src_code": "LB1.9003",
+    "audio_name": "LB1.9003.mp3",
+    "l1_stems": [
+      "What does Lan do every morning to stay healthy?",
+      "What does the doctor tell the boy to do?",
+      "What does Mai have for breakfast?",
+      "Why did Tom go to the hospital?",
+      "How does Mr. Hung relax after work?"
+    ],
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "A",
+      "2": "B",
+      "3": "C",
+      "4": "A",
+      "5": "B",
+      "6": "breakfast",
+      "7": "water",
+      "8": "exercise",
+      "9": "sleep",
+      "10": "hands",
+      "11": "vegetables",
+      "12": "sugar",
+      "13": "breath",
+      "14": "doctor",
+      "15": "lifestyle"
+    }
+  },
+  {
+    "code": "LB1.9004",
+    "src_code": "LB1.9004",
+    "audio_name": "LB1.9004.mp3",
+    "l1_stems": [
+      "What did the woman buy at the supermarket this morning?",
+      "How will the man pay for his shopping?",
+      "How much did the woman pay for the shirt?",
+      "Where does the man like to buy his clothes?",
+      "What is the woman going to buy for her sister?"
+    ],
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "A",
+      "2": "B",
+      "3": "B",
+      "4": "A",
+      "5": "C",
+      "6": "market",
+      "7": "busy",
+      "8": "vegetables",
+      "9": "cheap",
+      "10": "discount",
+      "11": "bag",
+      "12": "scarf",
+      "13": "gift",
+      "14": "cash",
+      "15": "happy"
+    }
+  },
+  {
+    "code": "LB1.9005",
+    "src_code": "LB1.9005",
+    "audio_name": "LB1.9005.mp3",
+    "l1_stems": [
+      "You will hear a short conversation. Where is the woman and what is she doing? Choose the correct picture.",
+      "You will hear a customer in a restaurant. What does the customer order? Choose the correct picture.",
+      "You will hear a man at the bank. What is the man doing? Choose the correct picture.",
+      "You will hear a conversation at a hair salon. What is happening? Choose the correct picture.",
+      "You will hear a phone call about a repair service. What service does the woman need? Choose the correct picture."
+    ],
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "B",
+      "2": "B",
+      "3": "B",
+      "4": "A",
+      "5": "A",
+      "6": "services",
+      "7": "office",
+      "8": "shop",
+      "9": "clinic",
+      "10": "helpful",
+      "11": "bank",
+      "12": "library",
+      "13": "mechanic",
+      "14": "restaurant",
+      "15": "welcome"
+    }
+  },
+  {
+    "code": "LB1.9006",
+    "src_code": "LB1.9006",
+    "audio_name": "LB1.9006.mp3",
+    "l1_stems": [
+      "What does the speaker use to find the meaning of a new word?",
+      "Which language is Maria studying at university this year?",
+      "How does Tom practise his English every evening?",
+      "What did the teacher put on the board at the start of the lesson?",
+      "What does the speaker use to remember new vocabulary?"
+    ],
+    "l2_gaps": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "answers": {
+      "1": "A",
+      "2": "B",
+      "3": "B",
+      "4": "A",
+      "5": "A",
+      "6": "languages",
+      "7": "English",
+      "8": "vocabulary",
+      "9": "dictionary",
+      "10": "practice",
+      "11": "listening",
+      "12": "speaking",
+      "13": "mistakes",
+      "14": "confident",
+      "15": "grammar"
+    }
+  }
+]

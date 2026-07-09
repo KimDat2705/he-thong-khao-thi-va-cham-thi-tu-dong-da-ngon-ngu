@@ -1,0 +1,4718 @@
+[
+  {
+    "ma_de": "EB1.9000",
+    "topic": "Bản thân",
+    "s1": {
+      "1": {
+        "stem": "My name is Linh and I ...... English at a language centre every evening after work.",
+        "options": {
+          "A": "study",
+          "B": "am studying",
+          "C": "studies",
+          "D": "studied"
+        },
+        "answer": "A"
+      },
+      "2": {
+        "stem": "My brother told me that he ...... very busy at work yesterday.",
+        "options": {
+          "A": "is",
+          "B": "was",
+          "C": "will be",
+          "D": "being"
+        },
+        "answer": "B"
+      },
+      "3": {
+        "stem": "I have lived in this small town ...... 2015, so I know almost everyone here.",
+        "options": {
+          "A": "for",
+          "B": "in",
+          "C": "on",
+          "D": "since"
+        },
+        "answer": "D"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Please write your full name and date of birth clearly at the top of the form before you hand it in. A. You must fill in your personal details before giving in the form. B. You can hand in the form without writing your name. C. You should write only your name on the back of the form. 12. This is a quiet study area. Please set your phone to silent and speak in a low voice while you are here. A. Phones are not allowed inside this area at all. B. Visitors should keep the noise down while they are here. C. You may make long phone calls if you sit near the door. 13. New members: please bring one recent photo of yourself and a copy of your ID card to register at the front desk. A. New members need to send their photo by email first. B. You can register online without showing any documents. C. To join, you must bring a photo and a copy of your ID. 14. Tell us about yourself! Add a short profile and a friendly picture so that other students can get to know you. A. Students should write a long essay about their whole life. B. You are asked to share a brief profile and a photo of yourself. C. You must delete your old profile picture straight away."
+      }
+    ],
+    "s2_answers": {
+      "11": "A",
+      "12": "B",
+      "13": "C",
+      "14": "B"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Hello, my name is Minh and I am nineteen years old. I come from a small town in the north of Vietnam, but I now live in the city because I am a first-year student. I study business at university, and I hope to open my own coffee shop one day. In my free time, I love reading novels and playing badminton with my classmates. I am quite shy when I meet new people, but my friends say that I am kind and always ready to help. I usually spend my weekends with my family, and my mother often teaches me how to cook traditional dishes."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. How old is Minh?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Sixteen"
+      },
+      {
+        "kind": "p",
+        "text": "B. Eighteen"
+      },
+      {
+        "kind": "p",
+        "text": "C. Nineteen"
+      },
+      {
+        "kind": "p",
+        "text": "D. Twenty"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. Why does Minh live in the city now?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Because he was born there."
+      },
+      {
+        "kind": "p",
+        "text": "B. Because he is a first-year university student."
+      },
+      {
+        "kind": "p",
+        "text": "C. Because he already owns a coffee shop."
+      },
+      {
+        "kind": "p",
+        "text": "D. Because his whole family moved there."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What does Minh hope to do in the future?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Become a business teacher."
+      },
+      {
+        "kind": "p",
+        "text": "B. Move back to his small hometown."
+      },
+      {
+        "kind": "p",
+        "text": "C. Open his own coffee shop."
+      },
+      {
+        "kind": "p",
+        "text": "D. Play badminton for a living."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. What do Minh's friends say about him?"
+      },
+      {
+        "kind": "p",
+        "text": "A. He is kind and always ready to help."
+      },
+      {
+        "kind": "p",
+        "text": "B. He is loud and very funny."
+      },
+      {
+        "kind": "p",
+        "text": "C. He is lazy at the weekends."
+      },
+      {
+        "kind": "p",
+        "text": "D. He is an excellent cook."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. What does Minh usually do at the weekends?"
+      },
+      {
+        "kind": "p",
+        "text": "A. He travels to other cities alone."
+      },
+      {
+        "kind": "p",
+        "text": "B. He spends time with his family."
+      },
+      {
+        "kind": "p",
+        "text": "C. He works in a coffee shop."
+      },
+      {
+        "kind": "p",
+        "text": "D. He studies business by himself."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "C",
+      "17": "B",
+      "18": "C",
+      "19": "A",
+      "20": "B"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "myself live get person time taking responsible tired believe goals herself making place happy wish"
+      },
+      {
+        "kind": "p",
+        "text": "My name is Hoa and I would like to tell you a little about (21) ....... I am twenty years old and I (22) ...... in a busy city with my family. Every morning I (23) ...... up early and go to work by bus. I am a friendly (24) ......, and I really enjoy meeting new people. In my free (25) ......, I like listening to music and (26) ...... photos of nature. My friends think I am (27) ...... because I always finish my tasks on time. Sometimes I feel (28) ...... after a long day, but I always try to stay positive. I (29) ...... that hard work will help me reach my (30) ...... in the future."
+      }
+    ],
+    "s4_answers": {
+      "21": "myself",
+      "22": "live",
+      "23": "get",
+      "24": "person",
+      "25": "time",
+      "26": "taking",
+      "27": "responsible",
+      "28": "tired",
+      "29": "believe",
+      "30": "goals"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "I am not as tall as my older brother."
+      },
+      {
+        "kind": "p",
+        "text": "My older brother ______"
+      },
+      {
+        "kind": "p",
+        "text": "I started learning English five years ago."
+      },
+      {
+        "kind": "p",
+        "text": "I have ______"
+      },
+      {
+        "kind": "p",
+        "text": "It is a long time since I last saw my best friend."
+      },
+      {
+        "kind": "p",
+        "text": "I have not ______"
+      },
+      {
+        "kind": "p",
+        "text": "My sister is very good at drawing portraits."
+      },
+      {
+        "kind": "p",
+        "text": "My sister can ______"
+      },
+      {
+        "kind": "p",
+        "text": "People say that I look like my mother."
+      },
+      {
+        "kind": "p",
+        "text": "I am said ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "My older brother is taller than I am.",
+      "2": "I have been learning English for five years.",
+      "3": "I have not seen my best friend for a long time.",
+      "4": "My sister can draw portraits very well.",
+      "5": "I am said to look like my mother."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have a new penfriend from Australia named Emma. In her first letter, she wants to know more about you."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words to reply to her."
+      },
+      {
+        "kind": "p",
+        "text": "In your letter, answer her two questions:"
+      },
+      {
+        "kind": "p",
+        "text": "1) What do you like doing in your free time? 2) What is your family like?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9001",
+    "topic": "Nhà cửa-gia đình-môi trường",
+    "s1": {
+      "1": {
+        "stem": "We ...... in this old house since 2015, and we still love it.",
+        "options": {
+          "A": "lived",
+          "B": "have lived",
+          "C": "live",
+          "D": "are living"
+        },
+        "answer": "B"
+      },
+      "2": {
+        "stem": "My new flat is ...... than my old one because it has a big garden.",
+        "options": {
+          "A": "good",
+          "B": "best",
+          "C": "better",
+          "D": "the best"
+        },
+        "answer": "C"
+      },
+      "3": {
+        "stem": "Please remember to ...... the lights before you leave the house to save energy.",
+        "options": {
+          "A": "turn on",
+          "B": "look after",
+          "C": "give up",
+          "D": "turn off"
+        },
+        "answer": "D"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Please put all glass bottles in the green bin and paper in the blue bin. A. Glass and paper go in the same bin. B. Different materials must be separated for recycling. C. Only paper can be recycled here. 12. The lift is out of order today. Residents on the upper floors please use the stairs. A. Everyone must take the lift as usual. B. People living high up need to walk up the stairs. C. The lift is being cleaned this morning. 13. Water will be cut off on Sunday morning while the pipes are repaired. Please store water in advance. A. There will be no water on Sunday morning. B. The pipes are broken forever. C. Residents must pay for the new pipes. 14. Family swimming hours are for parents with young children only. Please keep the pool area quiet. A. Anyone can swim during these hours. B. These hours are reserved for families with small children. C. Children may swim here without their parents."
+      }
+    ],
+    "s2_answers": {
+      "11": "B",
+      "12": "B",
+      "13": "A",
+      "14": "B"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "The Nguyen family lives in a small house near the city. Last year, they decided to make their home greener. First, they put solar panels on the roof to get free energy from the sun. Then they started growing vegetables in the back garden, so they buy less food from the market. Every week, the children sort the rubbish into different boxes for recycling. Their mother also fixed the old taps because they wasted a lot of water. At first, the changes were not easy, but now the family spends less money and feels proud. They believe that small actions at home can help protect the environment for everyone."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. What did the Nguyen family decide to do last year?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Move into the city centre"
+      },
+      {
+        "kind": "p",
+        "text": "B. Make their home greener"
+      },
+      {
+        "kind": "p",
+        "text": "C. Sell their old house"
+      },
+      {
+        "kind": "p",
+        "text": "D. Buy a much bigger garden"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. Why did they put solar panels on the roof?"
+      },
+      {
+        "kind": "p",
+        "text": "A. To get free energy from the sun"
+      },
+      {
+        "kind": "p",
+        "text": "B. To make the house look taller"
+      },
+      {
+        "kind": "p",
+        "text": "C. To keep the rain off the roof"
+      },
+      {
+        "kind": "p",
+        "text": "D. To sell electricity to neighbours"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What do the children do every week?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Cook the family's vegetables"
+      },
+      {
+        "kind": "p",
+        "text": "B. Clean the panels on the roof"
+      },
+      {
+        "kind": "p",
+        "text": "C. Sort the rubbish for recycling"
+      },
+      {
+        "kind": "p",
+        "text": "D. Repair the old taps"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. Why did the mother fix the old taps?"
+      },
+      {
+        "kind": "p",
+        "text": "A. They were brand new"
+      },
+      {
+        "kind": "p",
+        "text": "B. They looked very ugly"
+      },
+      {
+        "kind": "p",
+        "text": "C. They were too expensive"
+      },
+      {
+        "kind": "p",
+        "text": "D. They wasted a lot of water"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. What does the family believe?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Only the government can protect nature"
+      },
+      {
+        "kind": "p",
+        "text": "B. Small actions at home can help the environment"
+      },
+      {
+        "kind": "p",
+        "text": "C. Green homes always cost too much money"
+      },
+      {
+        "kind": "p",
+        "text": "D. Recycling at home is a waste of time"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "A",
+      "18": "C",
+      "19": "D",
+      "20": "B"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "think family turn sweater save recycle bike environment teach change waste forget window dirty spend"
+      },
+      {
+        "kind": "p",
+        "text": "Saving energy at home is easier than many people (21) ....... There are simple habits that every (22) ...... can follow. When you leave a room, always (23) ...... off the lights. In winter, wear a warm (24) ...... instead of turning up the heater too high. You can also (25) ...... water by taking shorter showers. Many families now (26) ...... their glass, paper and plastic instead of throwing everything away. Riding a (27) ...... or walking to school is better for the (28) ...... than going by car. Parents should (29) ...... their children why these habits are important. If everyone makes a small (30) ......, our planet will be cleaner and healthier."
+      }
+    ],
+    "s4_answers": {
+      "21": "think",
+      "22": "family",
+      "23": "turn",
+      "24": "sweater",
+      "25": "save",
+      "26": "recycle",
+      "27": "bike",
+      "28": "environment",
+      "29": "teach",
+      "30": "change"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "This house is more modern than that one."
+      },
+      {
+        "kind": "p",
+        "text": "That house ______"
+      },
+      {
+        "kind": "p",
+        "text": "I started living in this flat two years ago."
+      },
+      {
+        "kind": "p",
+        "text": "I have ______"
+      },
+      {
+        "kind": "p",
+        "text": "My brother is too young to live alone."
+      },
+      {
+        "kind": "p",
+        "text": "My brother is not ______"
+      },
+      {
+        "kind": "p",
+        "text": "They will plant more trees in the park next year."
+      },
+      {
+        "kind": "p",
+        "text": "More trees ______"
+      },
+      {
+        "kind": "p",
+        "text": "We should turn off the taps to save water."
+      },
+      {
+        "kind": "p",
+        "text": "If we ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "That house is not as modern as this one.",
+      "2": "I have lived in this flat for two years.",
+      "3": "My brother is not old enough to live alone.",
+      "4": "More trees will be planted in the park next year.",
+      "5": "If we turn off the taps, we can save water."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have a new penfriend from England called Tom."
+      },
+      {
+        "kind": "p",
+        "text": "He wants to know about your home and your family."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words to Tom and answer his two questions:"
+      },
+      {
+        "kind": "p",
+        "text": "What does your house look like, and what do you and your family do to protect the environment at home?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9002",
+    "topic": "Cuộc sống hằng ngày",
+    "s1": {
+      "1": {
+        "stem": "If it ...... tomorrow, we will stay at home and watch a film.",
+        "options": {
+          "A": "rains",
+          "B": "will rain",
+          "C": "rained",
+          "D": "is going to rain"
+        },
+        "answer": "A"
+      },
+      "2": {
+        "stem": "It is a public library, so you ...... talk loudly inside.",
+        "options": {
+          "A": "mustn't",
+          "B": "must",
+          "C": "should",
+          "D": "have to"
+        },
+        "answer": "A"
+      },
+      "3": {
+        "stem": "My sister enjoys ...... to music while she does the housework.",
+        "options": {
+          "A": "listening",
+          "B": "to listen",
+          "C": "listen",
+          "D": "listens"
+        },
+        "answer": "A"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Lift out of order. Please use the stairs. A. The lift is working normally today. B. The lift is broken, so take the stairs. C. The stairs are closed this week. 12. Wet floor. Please walk carefully. A. The floor is wet, so you should be careful when you walk. B. The floor is completely dry and safe. C. You are not allowed to enter this area. 13. The last bus tonight leaves at 10:30. Please be on time. A. There are no more buses after 10:30 tonight. B. Buses run all through the night here. C. The bus station is closed this evening. 14. Special offer: buy two coffees and get one more free, today only. A. Every cup of coffee is free for everyone today. B. If you buy two coffees today, you get a third one free. C. The cafe is closed for the whole day today."
+      }
+    ],
+    "s2_answers": {
+      "11": "B",
+      "12": "A",
+      "13": "A",
+      "14": "B"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Linda is a nurse who lives in a small town. On weekdays, she wakes up at six o'clock and drinks a cup of tea before work. She rides her bicycle to the hospital because the roads are often busy in the morning. Her shift starts at seven and finishes at three in the afternoon. After work, she usually buys fresh vegetables at the market near her home and cooks dinner for her family. In the evening, Linda likes reading books or calling her sister who lives in another city. She goes to bed early because her job makes her very tired. On weekends, she relaxes in the garden and meets her friends."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. What is Linda's job?"
+      },
+      {
+        "kind": "p",
+        "text": "A. She is a teacher."
+      },
+      {
+        "kind": "p",
+        "text": "B. She is a nurse."
+      },
+      {
+        "kind": "p",
+        "text": "C. She is a cook."
+      },
+      {
+        "kind": "p",
+        "text": "D. She is a gardener."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. How does Linda travel to the hospital?"
+      },
+      {
+        "kind": "p",
+        "text": "A. By car"
+      },
+      {
+        "kind": "p",
+        "text": "B. By bus"
+      },
+      {
+        "kind": "p",
+        "text": "C. By bicycle"
+      },
+      {
+        "kind": "p",
+        "text": "D. On foot"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What time does Linda's shift finish?"
+      },
+      {
+        "kind": "p",
+        "text": "A. At six o'clock"
+      },
+      {
+        "kind": "p",
+        "text": "B. At seven o'clock"
+      },
+      {
+        "kind": "p",
+        "text": "C. At three in the afternoon"
+      },
+      {
+        "kind": "p",
+        "text": "D. In the evening"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. What does Linda usually do after work?"
+      },
+      {
+        "kind": "p",
+        "text": "A. She buys vegetables and cooks dinner."
+      },
+      {
+        "kind": "p",
+        "text": "B. She goes to the cinema with friends."
+      },
+      {
+        "kind": "p",
+        "text": "C. She works all day in the garden."
+      },
+      {
+        "kind": "p",
+        "text": "D. She travels to another city."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. Why does Linda go to bed early?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Because she wakes up very late."
+      },
+      {
+        "kind": "p",
+        "text": "B. Because her job makes her tired."
+      },
+      {
+        "kind": "p",
+        "text": "C. Because she reads too many books."
+      },
+      {
+        "kind": "p",
+        "text": "D. Because she lives in a small town."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "C",
+      "18": "C",
+      "19": "A",
+      "20": "B"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "gets washes breakfast goes start day lunch plays does bed reads dinner finish night makes"
+      },
+      {
+        "kind": "p",
+        "text": "Every morning, Tom (21) ...... up at half past six. He (22) ...... his face and brushes his teeth. Then he eats a quick (23) ...... with bread and eggs. Tom (24) ...... to school by bus because it is far from his house. His classes (25) ...... at eight o'clock in the morning. During the (26) ......, he studies many subjects such as maths and English. At noon, he has (27) ...... with his friends in the school canteen. After school, Tom (28) ...... football with his friends in the park. In the evening, he (29) ...... his homework and helps his mother cook dinner. He usually goes to (30) ...... at ten o'clock."
+      }
+    ],
+    "s4_answers": {
+      "21": "gets",
+      "22": "washes",
+      "23": "breakfast",
+      "24": "goes",
+      "25": "start",
+      "26": "day",
+      "27": "lunch",
+      "28": "plays",
+      "29": "does",
+      "30": "bed"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "This is the best coffee I have ever tasted."
+      },
+      {
+        "kind": "p",
+        "text": "I have never ______"
+      },
+      {
+        "kind": "p",
+        "text": "My brother is too young to drive a car."
+      },
+      {
+        "kind": "p",
+        "text": "My brother is not ______"
+      },
+      {
+        "kind": "p",
+        "text": "She started learning English five years ago."
+      },
+      {
+        "kind": "p",
+        "text": "She has ______"
+      },
+      {
+        "kind": "p",
+        "text": "It isn't necessary for you to wash the dishes tonight."
+      },
+      {
+        "kind": "p",
+        "text": "You ______"
+      },
+      {
+        "kind": "p",
+        "text": "I find it difficult to wake up early every morning."
+      },
+      {
+        "kind": "p",
+        "text": "Waking up early every morning ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "I have never tasted better coffee than this.",
+      "2": "My brother is not old enough to drive a car.",
+      "3": "She has been learning English for five years.",
+      "4": "You don't have to wash the dishes tonight.",
+      "5": "Waking up early every morning is difficult for me."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have a new penfriend named Alex from Canada. Alex wants to learn about your daily life in Vietnam."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words to Alex. In your letter, you should answer these two questions:"
+      },
+      {
+        "kind": "p",
+        "text": "What do you usually do on a normal weekday?"
+      },
+      {
+        "kind": "p",
+        "text": "How do you spend your free time at the weekend?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9003",
+    "topic": "Vui chơi-giải trí",
+    "s1": {
+      "1": {
+        "stem": "If I ...... more free time, I would go to the cinema every weekend.",
+        "options": {
+          "A": "have",
+          "B": "had",
+          "C": "will have",
+          "D": "have had"
+        },
+        "answer": "B"
+      },
+      "2": {
+        "stem": "The amusement park ...... we visited last summer has just opened a new roller coaster.",
+        "options": {
+          "A": "who",
+          "B": "what",
+          "C": "which",
+          "D": "whose"
+        },
+        "answer": "C"
+      },
+      "3": {
+        "stem": "How ...... tickets do we need to buy for the whole family to see the show?",
+        "options": {
+          "A": "much",
+          "B": "many",
+          "C": "some",
+          "D": "any"
+        },
+        "answer": "B"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. CINEMA CLOSES EARLY FOR CLEANING TODAY. The last film ends at 6 in the evening. Screenings will start again tomorrow morning. A. The cinema will not show any films tomorrow. B. Films will be shown again the next day. C. The cinema is closed for the whole week. 12. BOWLING ALLEY OFFER: Students get a free drink with every game played before 5 in the afternoon on weekdays. A. Students receive a free game every weekday. B. The free drink is only given at weekends. C. Students who bowl before 5 on a weekday get a free drink. 13. SWIMMING POOL RULES: Children under eight years old must be with an adult in the water at all times. A. Young children are not allowed to swim here. B. A grown-up must stay with children under eight. C. Adults are not allowed to enter the pool. 14. CONCERT TONIGHT: All tickets are now sold out. Please check our website for any seats that are returned. A. There are no tickets left, but returned seats may appear online. B. You can still buy tickets at the door tonight. C. The concert has been cancelled."
+      }
+    ],
+    "s2_answers": {
+      "11": "B",
+      "12": "C",
+      "13": "B",
+      "14": "A"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "The Green Valley Funfair opens every summer in our town, and it is one of the most popular events of the year. This year the funfair has more than twenty rides, including a giant wheel that gives visitors a beautiful view of the whole valley. Families with young children love the gentle carousel, while teenagers prefer the fast roller coaster near the entrance. In the evening, a small stage hosts free music shows, and food stalls sell snacks from many countries. Tickets are cheaper if you buy them online before the weekend. Last year, more than ten thousand people visited, and the organisers hope this summer will be even busier."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. What is the passage mainly about?"
+      },
+      {
+        "kind": "p",
+        "text": "A. A summer funfair in a town"
+      },
+      {
+        "kind": "p",
+        "text": "B. A famous roller coaster"
+      },
+      {
+        "kind": "p",
+        "text": "C. An online ticket website"
+      },
+      {
+        "kind": "p",
+        "text": "D. A national music competition"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. What can visitors see from the giant wheel?"
+      },
+      {
+        "kind": "p",
+        "text": "A. The roller coaster only"
+      },
+      {
+        "kind": "p",
+        "text": "B. The food stalls"
+      },
+      {
+        "kind": "p",
+        "text": "C. The whole valley"
+      },
+      {
+        "kind": "p",
+        "text": "D. The music stage"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. Who prefers the fast roller coaster?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Young children"
+      },
+      {
+        "kind": "p",
+        "text": "B. Teenagers"
+      },
+      {
+        "kind": "p",
+        "text": "C. Whole families"
+      },
+      {
+        "kind": "p",
+        "text": "D. The musicians"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. How can visitors pay less for their tickets?"
+      },
+      {
+        "kind": "p",
+        "text": "A. By arriving very early"
+      },
+      {
+        "kind": "p",
+        "text": "B. By buying tickets online before the weekend"
+      },
+      {
+        "kind": "p",
+        "text": "C. By watching the free music shows"
+      },
+      {
+        "kind": "p",
+        "text": "D. By bringing young children"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. What do the organisers hope for this summer?"
+      },
+      {
+        "kind": "p",
+        "text": "A. That the funfair will move to another town"
+      },
+      {
+        "kind": "p",
+        "text": "B. That fewer people will come"
+      },
+      {
+        "kind": "p",
+        "text": "C. That the funfair will be even busier"
+      },
+      {
+        "kind": "p",
+        "text": "D. That all the rides will be free"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "A",
+      "17": "C",
+      "18": "B",
+      "19": "B",
+      "20": "C"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "entertainment watch out hobby happy visit music busy relaxed enjoy boring expensive quickly ticket sleep"
+      },
+      {
+        "kind": "p",
+        "text": "Many people enjoy different kinds of (21) ...... in their free time. Some like to stay at home and (22) ...... films or play video games, while others prefer to go (23) ...... and meet friends. Playing sports is a popular (24) ...... because it keeps people healthy and (25) ....... On weekends, families often (26) ...... museums, parks or the cinema together. Listening to (27) ...... is another common way to relax after a (28) ...... day at work or school. Doing something fun is important because it helps us feel (29) ...... and reduces stress. Whatever you choose, the most important thing is to (30) ...... your time and have fun."
+      }
+    ],
+    "s4_answers": {
+      "21": "entertainment",
+      "22": "watch",
+      "23": "out",
+      "24": "hobby",
+      "25": "happy",
+      "26": "visit",
+      "27": "music",
+      "28": "busy",
+      "29": "relaxed",
+      "30": "enjoy"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "The concert was so loud that we couldn't hear each other."
+      },
+      {
+        "kind": "p",
+        "text": "It was such ______"
+      },
+      {
+        "kind": "p",
+        "text": "People say that the new theme park is amazing."
+      },
+      {
+        "kind": "p",
+        "text": "The new theme park ______"
+      },
+      {
+        "kind": "p",
+        "text": "I started playing the guitar five years ago."
+      },
+      {
+        "kind": "p",
+        "text": "I have ______"
+      },
+      {
+        "kind": "p",
+        "text": "The film was very boring, so we left the cinema early."
+      },
+      {
+        "kind": "p",
+        "text": "Because ______"
+      },
+      {
+        "kind": "p",
+        "text": "Playing board games is more enjoyable than watching television."
+      },
+      {
+        "kind": "p",
+        "text": "Watching television ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "It was such a loud concert that we couldn't hear each other.",
+      "2": "The new theme park is said to be amazing.",
+      "3": "I have played the guitar for five years.",
+      "4": "Because the film was very boring, we left the cinema early.",
+      "5": "Watching television is not as enjoyable as playing board games."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have a penfriend called Alex from Canada. In his last letter, Alex told you about a music festival he went to and asked how you spend your free time."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words replying to Alex."
+      },
+      {
+        "kind": "p",
+        "text": "- What do you usually do for fun at the weekend?"
+      },
+      {
+        "kind": "p",
+        "text": "- Which new kind of entertainment would you like to try in the future, and why?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9004",
+    "topic": "Đi lại-du lịch",
+    "s1": {
+      "1": {
+        "stem": "Our luggage ...... to the hotel by the tour guide yesterday afternoon.",
+        "options": {
+          "A": "delivered",
+          "B": "was delivered",
+          "C": "was delivering",
+          "D": "has delivering"
+        },
+        "answer": "B"
+      },
+      "2": {
+        "stem": "Riding a bike around the city is ...... enjoyable way to explore new places.",
+        "options": {
+          "A": "a",
+          "B": "the",
+          "C": "an",
+          "D": "this"
+        },
+        "answer": "C"
+      },
+      "3": {
+        "stem": "...... the weather was cold, we still enjoyed our walking tour of the old town.",
+        "options": {
+          "A": "Because",
+          "B": "Although",
+          "C": "So",
+          "D": "Therefore"
+        },
+        "answer": "B"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Platform 4: The 9:15 train to Brighton is delayed by 30 minutes. We are sorry for any inconvenience. A. The train to Brighton will leave earlier than planned. B. Passengers for Brighton must wait longer than expected. C. The train to Brighton has been cancelled today. 12. Airport shuttle bus runs every 20 minutes from Gate 2, between 6:00 and 23:00 daily. A. The shuttle bus stops running after eleven in the evening. B. The shuttle bus comes only once every hour. C. The shuttle bus runs only at the weekend. 13. Hotel guests: free breakfast is served in the dining room until 9:30. Please bring your room key. A. Guests can have breakfast at any time of the day. B. Guests must pay extra money for their breakfast. C. Breakfast is free but only before half past nine. 14. Taxi rank closed for repairs. Please use the pick-up point outside the main entrance instead. A. Travellers should find a taxi at the main entrance. B. No taxis are available at this station today. C. The main entrance is closed to all visitors."
+      }
+    ],
+    "s2_answers": {
+      "11": "B",
+      "12": "A",
+      "13": "C",
+      "14": "A"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Last summer, Maria and her family decided to explore the north of Portugal by train instead of driving. They liked the idea of relaxing and watching the countryside pass by the window. Their first stop was Porto, a lively city famous for its old bridges and riverside cafés. They spent two days walking through narrow streets and tasting local food. From Porto, they took a slow regional train into the Douro Valley, where green hills are covered with vineyards. Maria's favourite moment was a short boat trip along the river at sunset. Although the journey took longer than a car, the family agreed that travelling by train was far more enjoyable and much less stressful."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. How did Maria's family travel around the north of Portugal?"
+      },
+      {
+        "kind": "p",
+        "text": "A. By car"
+      },
+      {
+        "kind": "p",
+        "text": "B. By train"
+      },
+      {
+        "kind": "p",
+        "text": "C. By plane"
+      },
+      {
+        "kind": "p",
+        "text": "D. By boat"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. Why did the family like travelling this way?"
+      },
+      {
+        "kind": "p",
+        "text": "A. It was the cheapest option available."
+      },
+      {
+        "kind": "p",
+        "text": "B. They could relax and watch the scenery."
+      },
+      {
+        "kind": "p",
+        "text": "C. It was much faster than driving a car."
+      },
+      {
+        "kind": "p",
+        "text": "D. They wanted to avoid the countryside."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What is Porto famous for, according to the passage?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Its tall mountains and forests"
+      },
+      {
+        "kind": "p",
+        "text": "B. Its old bridges and riverside cafés"
+      },
+      {
+        "kind": "p",
+        "text": "C. Its large international airport"
+      },
+      {
+        "kind": "p",
+        "text": "D. Its modern shopping centres"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. What can be found in the Douro Valley?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Green hills covered with vineyards"
+      },
+      {
+        "kind": "p",
+        "text": "B. Long, sandy ocean beaches"
+      },
+      {
+        "kind": "p",
+        "text": "C. Busy factories and offices"
+      },
+      {
+        "kind": "p",
+        "text": "D. High, snowy mountains"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. What was Maria's favourite moment of the trip?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Tasting the local food in Porto"
+      },
+      {
+        "kind": "p",
+        "text": "B. Walking through the narrow streets"
+      },
+      {
+        "kind": "p",
+        "text": "C. A boat trip on the river at sunset"
+      },
+      {
+        "kind": "p",
+        "text": "D. Driving through the green hills"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "B",
+      "18": "B",
+      "19": "A",
+      "20": "C"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "book pack passport map words helpful food train visit enjoy ticket airport luggage photo expensive"
+      },
+      {
+        "kind": "p",
+        "text": "Planning a holiday can be exciting, but a few simple tips will help your trip go smoothly. First, try to (21) ...... your flights and hotels early, because prices often rise closer to the travel date. Always check the weather so that you can (22) ...... the right clothes. It is also wise to keep a copy of your (23) ...... and other important documents in a safe place. When you arrive, buy a local (24) ...... or use an app to find your way around the city. Learning a few (25) ...... in the local language, such as 'hello' and 'thank you', is always (26) ....... Try the local (27) ...... instead of eating at the same restaurants you have at home. If you travel by (28) ......, remember to arrive at the station early. Finally, do not try to (29) ...... too many places in one day; it is better to relax and truly (30) ...... each moment."
+      }
+    ],
+    "s4_answers": {
+      "21": "book",
+      "22": "pack",
+      "23": "passport",
+      "24": "map",
+      "25": "words",
+      "26": "helpful",
+      "27": "food",
+      "28": "train",
+      "29": "visit",
+      "30": "enjoy"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "The travel agency booked our hotel rooms last week."
+      },
+      {
+        "kind": "p",
+        "text": "Our hotel rooms ______"
+      },
+      {
+        "kind": "p",
+        "text": "The suitcase was very heavy, so I could not carry it."
+      },
+      {
+        "kind": "p",
+        "text": "The suitcase was too ______"
+      },
+      {
+        "kind": "p",
+        "text": "Travelling by train is more comfortable than travelling by bus."
+      },
+      {
+        "kind": "p",
+        "text": "Travelling by bus is not ______"
+      },
+      {
+        "kind": "p",
+        "text": "This is the first time I have visited a foreign country."
+      },
+      {
+        "kind": "p",
+        "text": "I have never ______"
+      },
+      {
+        "kind": "p",
+        "text": "Although it was raining, we continued our city tour."
+      },
+      {
+        "kind": "p",
+        "text": "Despite ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "Our hotel rooms were booked by the travel agency last week.",
+      "2": "The suitcase was too heavy for me to carry.",
+      "3": "Travelling by bus is not as comfortable as travelling by train.",
+      "4": "I have never visited a foreign country before.",
+      "5": "Despite the rain, we continued our city tour."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have received a letter from your English penfriend, Alex, who is planning to travel around your country next summer."
+      },
+      {
+        "kind": "p",
+        "text": "Alex asks: Which places in your country should I visit? What is the best way to travel between the cities?"
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words replying to Alex and answering both of Alex's questions."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9005",
+    "topic": "Mối quan hệ",
+    "s1": {
+      "1": {
+        "stem": "My best friend told me that she ...... move to a new city the following month.",
+        "options": {
+          "A": "will",
+          "B": "would",
+          "C": "is going to",
+          "D": "has to"
+        },
+        "answer": "B"
+      },
+      "2": {
+        "stem": "I have known my neighbour ...... we were children, so we are very close friends.",
+        "options": {
+          "A": "for",
+          "B": "since",
+          "C": "in",
+          "D": "at"
+        },
+        "answer": "B"
+      },
+      "3": {
+        "stem": "When they were younger, the two brothers ...... argue a lot, but now they get along well.",
+        "options": {
+          "A": "use to",
+          "B": "used to",
+          "C": "are used to",
+          "D": "were used to"
+        },
+        "answer": "B"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Family visiting hours: weekdays only, from four to six in the evening. Please bring your visitor pass. A. Visitors can come at any time during the week. B. You can visit family members on weekday evenings if you bring a pass. C. Visitors are welcome on weekends without a pass. 12. Hi Lan, I can't make our coffee date tomorrow because my sister is arriving from abroad. Can we meet on Friday instead? - Mai A. Mai wants to cancel their friendship for good. B. Mai is asking to move their meeting to a different day. C. Mai's sister will join them for coffee tomorrow. 13. Wedding rehearsal dinner tonight. Close friends and family members only. Kindly leave your gifts on the front table. A. Everyone in the neighbourhood is invited tonight. B. Only people close to the couple should come, and gifts go on the front table. C. Guests must hand their gifts directly to the couple. 14. Community club notice: our 'New Neighbours' meetup helps people who have just moved here to make friends. Sign up at the front desk before Saturday. A. The meetup is for people who want to move away. B. The event helps newcomers meet others and make new friends. C. You must sign up after the weekend to take part."
+      }
+    ],
+    "s2_answers": {
+      "11": "B",
+      "12": "B",
+      "13": "B",
+      "14": "B"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Minh and Hoa have been best friends for more than ten years. They first met at secondary school, where they sat next to each other in every class. At first, Minh was very shy and rarely spoke, but Hoa was cheerful and always started conversations. Over time, they discovered that they both loved reading and playing badminton. Now they live in different cities because of their jobs, yet they still call each other every weekend. Whenever one of them has a problem, the other listens carefully and gives honest advice. They believe that a good friendship needs trust, patience, and time. For them, distance has never weakened their close bond."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. Where did Minh and Hoa first meet?"
+      },
+      {
+        "kind": "p",
+        "text": "A. At university"
+      },
+      {
+        "kind": "p",
+        "text": "B. At secondary school"
+      },
+      {
+        "kind": "p",
+        "text": "C. At a badminton club"
+      },
+      {
+        "kind": "p",
+        "text": "D. At their workplace"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. What was Minh like when they first met?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Cheerful and talkative"
+      },
+      {
+        "kind": "p",
+        "text": "B. Shy and quiet"
+      },
+      {
+        "kind": "p",
+        "text": "C. Rude and impatient"
+      },
+      {
+        "kind": "p",
+        "text": "D. Lazy and careless"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. Which hobby do both friends enjoy?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Swimming"
+      },
+      {
+        "kind": "p",
+        "text": "B. Painting"
+      },
+      {
+        "kind": "p",
+        "text": "C. Playing badminton"
+      },
+      {
+        "kind": "p",
+        "text": "D. Cooking"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. How do the two friends keep in touch now?"
+      },
+      {
+        "kind": "p",
+        "text": "A. They call each other every weekend"
+      },
+      {
+        "kind": "p",
+        "text": "B. They meet in person every day"
+      },
+      {
+        "kind": "p",
+        "text": "C. They send letters once a year"
+      },
+      {
+        "kind": "p",
+        "text": "D. They no longer contact each other"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. According to the passage, what does a good friendship need?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Money and expensive gifts"
+      },
+      {
+        "kind": "p",
+        "text": "B. Trust, patience, and time"
+      },
+      {
+        "kind": "p",
+        "text": "C. Fame and success"
+      },
+      {
+        "kind": "p",
+        "text": "D. Living in the same city"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "B",
+      "18": "C",
+      "19": "A",
+      "20": "B"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "listen valued honest smile difficult use forgive time accept stronger money ignore quickly alone expensive"
+      },
+      {
+        "kind": "p",
+        "text": "Good relationships do not happen by accident; they need effort from both people. One of the most important skills is to (21) ...... carefully when the other person is talking. When you truly pay attention, your friend or partner feels (22) ...... and understood. It also helps to be (23) ...... about your own feelings instead of hiding them. Small actions matter too, because a kind message or a warm (24) ...... can make someone's day much better. Of course, every relationship has (25) ...... moments, and arguments are quite normal. The secret is to stay calm and never (26) ...... hurtful words during a fight. You should also learn to (27) ...... mistakes, since nobody in the world is perfect. Spending (28) ...... together, such as sharing meals or taking a walk, keeps people close. Above all, always show that you (29) ...... the other person for who they really are. With patience and respect, any relationship can grow (30) ...... and last for many years."
+      }
+    ],
+    "s4_answers": {
+      "21": "listen",
+      "22": "valued",
+      "23": "honest",
+      "24": "smile",
+      "25": "difficult",
+      "26": "use",
+      "27": "forgive",
+      "28": "time",
+      "29": "accept",
+      "30": "stronger"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "In the past, we visited our grandparents every summer."
+      },
+      {
+        "kind": "p",
+        "text": "We used to ______"
+      },
+      {
+        "kind": "p",
+        "text": "Tom said, 'I am meeting my girlfriend tonight.'"
+      },
+      {
+        "kind": "p",
+        "text": "Tom said that ______"
+      },
+      {
+        "kind": "p",
+        "text": "My sister is friendlier than my brother."
+      },
+      {
+        "kind": "p",
+        "text": "My brother is not ______"
+      },
+      {
+        "kind": "p",
+        "text": "I last saw my old classmate two years ago."
+      },
+      {
+        "kind": "p",
+        "text": "I haven't ______"
+      },
+      {
+        "kind": "p",
+        "text": "If you do not trust your friends, your relationships will suffer."
+      },
+      {
+        "kind": "p",
+        "text": "Unless you ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "We used to visit our grandparents every summer.",
+      "2": "Tom said that he was meeting his girlfriend that night.",
+      "3": "My brother is not as friendly as my sister.",
+      "4": "I haven't seen my old classmate for two years.",
+      "5": "Unless you trust your friends, your relationships will suffer."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have a new penfriend named Alex from Canada."
+      },
+      {
+        "kind": "p",
+        "text": "In a recent letter, Alex asked about the important people in your life."
+      },
+      {
+        "kind": "p",
+        "text": "Tell Alex who you are closest to in your family and why."
+      },
+      {
+        "kind": "p",
+        "text": "Describe your best friend and explain how the two of you met."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9006",
+    "topic": "Sức khỏe",
+    "s1": {
+      "1": {
+        "stem": "Fresh fruit is ...... for your health than fast food.",
+        "options": {
+          "A": "good",
+          "B": "better",
+          "C": "best",
+          "D": "more good"
+        },
+        "answer": "B"
+      },
+      "2": {
+        "stem": "If you want to lose weight, you should ...... sugary drinks such as soda.",
+        "options": {
+          "A": "cut down on",
+          "B": "look after",
+          "C": "get over",
+          "D": "take up"
+        },
+        "answer": "A"
+      },
+      "3": {
+        "stem": "My grandmother ...... every morning to keep her heart healthy.",
+        "options": {
+          "A": "walks",
+          "B": "is walking",
+          "C": "walk",
+          "D": "walking"
+        },
+        "answer": "A"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Please switch off your mobile phone before entering the doctor's room. A. You can use your phone quietly inside the doctor's room. B. You should leave your phone at the reception desk. C. You must turn off your phone before you go in to see the doctor. 12. Take one tablet twice a day after meals. Do not take on an empty stomach. A. Take two tablets before eating. B. Take one tablet in the morning and one in the evening, after eating. C. Take the medicine only when you feel hungry. 13. Free health check-ups for people over 60 this Saturday at the community center. A. Older people can have their health checked for free this Saturday. B. Everyone can get a free health check on Saturday. C. You must pay for a health check if you are over 60. 14. Visiting hours end at 8 pm. Only two visitors are allowed for each patient. A. No more than two people may visit each patient, and visits finish in the evening. B. Patients can have as many visitors as they like until late at night. C. Visitors must leave the hospital in the morning."
+      }
+    ],
+    "s2_answers": {
+      "11": "C",
+      "12": "B",
+      "13": "A",
+      "14": "A"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Many people today spend hours sitting at a desk or looking at their phones. Doctors say this way of living can be bad for our health. When we sit for too long, our muscles become weak and we may put on weight. Sitting all day can also make us feel tired and stressed. The good news is that small changes can help a lot. Experts suggest standing up and walking around for a few minutes every hour. Drinking enough water and taking the stairs instead of the lift are also useful. Doing light exercise, such as stretching, keeps the body active. If we build these healthy habits into our daily routine, we will feel better and have more energy."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. What is the passage mainly about?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Why sitting too much is harmful and how to stay active"
+      },
+      {
+        "kind": "p",
+        "text": "B. How to lose weight quickly"
+      },
+      {
+        "kind": "p",
+        "text": "C. The best exercises for professional athletes"
+      },
+      {
+        "kind": "p",
+        "text": "D. How doctors treat serious illnesses"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. According to the passage, what can happen when we sit for too long?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Our muscles become stronger."
+      },
+      {
+        "kind": "p",
+        "text": "B. We drink more water."
+      },
+      {
+        "kind": "p",
+        "text": "C. We may put on weight and feel tired."
+      },
+      {
+        "kind": "p",
+        "text": "D. We sleep better at night."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What do experts suggest doing every hour?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Standing up and walking around for a few minutes"
+      },
+      {
+        "kind": "p",
+        "text": "B. Drinking a cup of coffee"
+      },
+      {
+        "kind": "p",
+        "text": "C. Sleeping for a short time"
+      },
+      {
+        "kind": "p",
+        "text": "D. Eating a small meal"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. Which of these is mentioned as a useful habit?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Taking the lift instead of the stairs"
+      },
+      {
+        "kind": "p",
+        "text": "B. Sitting quietly for a whole hour"
+      },
+      {
+        "kind": "p",
+        "text": "C. Skipping breakfast every day"
+      },
+      {
+        "kind": "p",
+        "text": "D. Taking the stairs instead of the lift"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. What will happen if we build healthy habits into our routine?"
+      },
+      {
+        "kind": "p",
+        "text": "A. We will need more medicine."
+      },
+      {
+        "kind": "p",
+        "text": "B. We will feel better and have more energy."
+      },
+      {
+        "kind": "p",
+        "text": "C. We will spend more money on doctors."
+      },
+      {
+        "kind": "p",
+        "text": "D. We will feel more tired."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "A",
+      "17": "C",
+      "18": "A",
+      "19": "D",
+      "20": "B"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "diet quickly healthy cause exercise medicine drink habits relax sleep doctor fruit bad carefully avoid"
+      },
+      {
+        "kind": "p",
+        "text": "Good health is very important for everyone. To stay (21) ......, we need to eat a balanced (22) ...... with plenty of fruit and vegetables. We should also (23) ...... enough water every day. Regular (24) ......, such as running or swimming, makes our body strong. It is important to (25) ...... at least seven hours each night so that our body can rest. Too much stress is (26) ...... for our health, so we should learn to relax. Smoking and drinking alcohol can (27) ...... serious diseases. If we feel sick, we should visit a (28) ...... as soon as possible. Washing our hands often helps us to (29) ...... getting an illness. By following these simple (30) ......, we can live a longer and happier life."
+      }
+    ],
+    "s4_answers": {
+      "21": "healthy",
+      "22": "diet",
+      "23": "drink",
+      "24": "exercise",
+      "25": "sleep",
+      "26": "bad",
+      "27": "cause",
+      "28": "doctor",
+      "29": "avoid",
+      "30": "habits"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "This medicine is more effective than that one."
+      },
+      {
+        "kind": "p",
+        "text": "That medicine is ______"
+      },
+      {
+        "kind": "p",
+        "text": "You should do exercise regularly to stay healthy."
+      },
+      {
+        "kind": "p",
+        "text": "You ought ______"
+      },
+      {
+        "kind": "p",
+        "text": "Nam started going to the gym three months ago."
+      },
+      {
+        "kind": "p",
+        "text": "Nam has ______"
+      },
+      {
+        "kind": "p",
+        "text": "It is important to wash your hands before eating."
+      },
+      {
+        "kind": "p",
+        "text": "You should ______"
+      },
+      {
+        "kind": "p",
+        "text": "She was too tired to finish the race."
+      },
+      {
+        "kind": "p",
+        "text": "She was so ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "That medicine is less effective than this one.",
+      "2": "You ought to do exercise regularly to stay healthy.",
+      "3": "Nam has been going to the gym for three months.",
+      "4": "You should wash your hands before eating.",
+      "5": "She was so tired that she couldn't finish the race."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have received a letter from your English penfriend, Alex, who wants to know how you keep fit and healthy."
+      },
+      {
+        "kind": "p",
+        "text": "Write a reply of about 100 words. In your letter, you should answer Alex's two questions:"
+      },
+      {
+        "kind": "p",
+        "text": "- What do you do to stay healthy?"
+      },
+      {
+        "kind": "p",
+        "text": "- What new healthy habit would you like to start in the future?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9007",
+    "topic": "Giáo dục",
+    "s1": {
+      "1": {
+        "stem": "It is a school rule that all students ...... wear a uniform every day.",
+        "options": {
+          "A": "have to",
+          "B": "don't have to",
+          "C": "can",
+          "D": "would"
+        },
+        "answer": "A"
+      },
+      "2": {
+        "stem": "I really enjoy ...... new subjects at school because it is interesting.",
+        "options": {
+          "A": "to learn",
+          "B": "learning",
+          "C": "learn",
+          "D": "learned"
+        },
+        "answer": "B"
+      },
+      "3": {
+        "stem": "Ms. Lan ...... at our school since 2015, and she is a great teacher.",
+        "options": {
+          "A": "taught",
+          "B": "has taught",
+          "C": "teaches",
+          "D": "is teaching"
+        },
+        "answer": "B"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. The school library will close at 5 pm today. Please return all borrowed books before then. A. Bring back your books before the library closes at 5 pm today. B. The library will stay open until midnight tonight. C. You do not need to return any books today. 12. No eating or drinking is allowed in the computer room. A. You may bring snacks into the computer room. B. Food and drinks are not permitted in the computer room. C. Only cold drinks are allowed in the computer room. 13. English Club meeting moved to Room 12 this Friday at 3 pm. A. The English Club will not meet this Friday. B. The English Club will meet in Room 12 on Friday afternoon. C. The meeting will be held in the usual room this week. 14. Exam results will be posted on the notice board next Monday. A. Students will receive their results by email today. B. The results are already available at the school office. C. You can check your exam results on the notice board on Monday."
+      }
+    ],
+    "s2_answers": {
+      "11": "A",
+      "12": "B",
+      "13": "B",
+      "14": "C"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Many schools around the world now use technology to help students learn. In the past, teachers wrote everything on the blackboard, and students copied it into their notebooks. Today, many classrooms have computers, projectors, and fast internet. Students can watch videos, take online quizzes, and read digital books. Some students even study at home using their laptops. This is called online learning, and it has become very popular in recent years. Online learning is useful because students can study at any time and review lessons whenever they want. However, it also has problems. Some students feel lonely without their classmates, and others find it hard to focus at home. Most teachers believe that a mix of both methods works best."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. What did teachers usually do in the past, according to the passage?"
+      },
+      {
+        "kind": "p",
+        "text": "A. They used computers in every lesson."
+      },
+      {
+        "kind": "p",
+        "text": "B. They wrote everything on the blackboard."
+      },
+      {
+        "kind": "p",
+        "text": "C. They gave every student a laptop."
+      },
+      {
+        "kind": "p",
+        "text": "D. They made short online videos."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. What does the passage say 'online learning' means?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Studying at home using a computer."
+      },
+      {
+        "kind": "p",
+        "text": "B. Writing in notebooks at school."
+      },
+      {
+        "kind": "p",
+        "text": "C. Reading printed books in class."
+      },
+      {
+        "kind": "p",
+        "text": "D. Copying lessons from the blackboard."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. According to the passage, one advantage of online learning is that students can ......"
+      },
+      {
+        "kind": "p",
+        "text": "A. never review their lessons again"
+      },
+      {
+        "kind": "p",
+        "text": "B. study at any time they want"
+      },
+      {
+        "kind": "p",
+        "text": "C. meet many more classmates"
+      },
+      {
+        "kind": "p",
+        "text": "D. stop using computers completely"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. Which problem of online learning is mentioned in the passage?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Digital books are too expensive."
+      },
+      {
+        "kind": "p",
+        "text": "B. The school internet is always slow."
+      },
+      {
+        "kind": "p",
+        "text": "C. Some students feel lonely at home."
+      },
+      {
+        "kind": "p",
+        "text": "D. Teachers do not like computers."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. What do most teachers think is the best way to learn?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Using only online learning."
+      },
+      {
+        "kind": "p",
+        "text": "B. Using only traditional classrooms."
+      },
+      {
+        "kind": "p",
+        "text": "C. Using a mix of both methods."
+      },
+      {
+        "kind": "p",
+        "text": "D. Using no technology at all."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "A",
+      "18": "B",
+      "19": "C",
+      "20": "C"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "wake eat subject kind lesson friends attend homework study university sleep drink teacher playground forget"
+      },
+      {
+        "kind": "p",
+        "text": "My name is Minh, and I am a student at a high school in Hanoi. Every morning, I (21) ...... up at six o'clock and get ready for school. I usually (22) ...... my breakfast quickly and then ride my bike to class. My favourite (23) ...... is English because I love learning new words. Our teacher is very (24) ......, and she always helps us when we have questions. During the (25) ......, we read books, write essays, and do exercises. At lunchtime, I eat with my (26) ...... in the school canteen. In the afternoon, I (27) ...... extra classes to improve my skills. When I get home, I do my (28) ...... before dinner. I always try to (29) ...... hard because I want to pass my exams and go to a good (30) ......."
+      }
+    ],
+    "s4_answers": {
+      "21": "wake",
+      "22": "eat",
+      "23": "subject",
+      "24": "kind",
+      "25": "lesson",
+      "26": "friends",
+      "27": "attend",
+      "28": "homework",
+      "29": "study",
+      "30": "university"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "This exam is more difficult than the last one."
+      },
+      {
+        "kind": "p",
+        "text": "The last exam was not ______"
+      },
+      {
+        "kind": "p",
+        "text": "She started learning French five years ago."
+      },
+      {
+        "kind": "p",
+        "text": "She has ______"
+      },
+      {
+        "kind": "p",
+        "text": "I am not old enough to enter the university."
+      },
+      {
+        "kind": "p",
+        "text": "I am too ______"
+      },
+      {
+        "kind": "p",
+        "text": "Teachers give students a lot of homework."
+      },
+      {
+        "kind": "p",
+        "text": "Students ______"
+      },
+      {
+        "kind": "p",
+        "text": "If you don't study hard, you won't pass the exam."
+      },
+      {
+        "kind": "p",
+        "text": "Unless ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "The last exam was not as difficult as this one.",
+      "2": "She has learned French for five years.",
+      "3": "I am too young to enter the university.",
+      "4": "Students are given a lot of homework.",
+      "5": "Unless you study hard, you won't pass the exam."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have just received a letter from Alex, your new penfriend from England, who would like to know about your school life."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words replying to Alex."
+      },
+      {
+        "kind": "p",
+        "text": "In your letter, answer these two questions: Which subject do you like best and why? What activities does your school have after class?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9008",
+    "topic": "Mua bán",
+    "s1": {
+      "1": {
+        "stem": "The shop ...... sells fresh bread is next to my house.",
+        "options": {
+          "A": "who",
+          "B": "which",
+          "C": "where",
+          "D": "whose"
+        },
+        "answer": "B"
+      },
+      "2": {
+        "stem": "How ...... money do you need to buy the new phone?",
+        "options": {
+          "A": "many",
+          "B": "some",
+          "C": "much",
+          "D": "any"
+        },
+        "answer": "C"
+      },
+      "3": {
+        "stem": "If the price ...... too high, we will not buy the television.",
+        "options": {
+          "A": "is",
+          "B": "will be",
+          "C": "was",
+          "D": "be"
+        },
+        "answer": "A"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. BUY ONE, GET ONE FREE. Offer ends on Sunday. A. If you buy one item, you receive a second one at no cost. B. You must pay for two items to get a free one. C. Everything in the shop is free until Sunday. 12. SALE: All winter coats now half price. A. Winter coats cost twice as much as before. B. You can buy winter coats at fifty percent off. C. Only half of the winter coats are for sale. 13. Please keep your receipt. No refund without it. A. The shop never gives money back to customers. B. You need to pay extra to receive a receipt. C. You cannot get your money back if you lose the receipt. 14. CLOSING DOWN SALE. Everything must go by the end of the month. A. The shop is opening a new branch this month. B. The shop is selling all its goods before it shuts for good. C. Customers must leave the shop by the end of the month."
+      }
+    ],
+    "s2_answers": {
+      "11": "A",
+      "12": "B",
+      "13": "C",
+      "14": "B"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Lan loves shopping, but she does it in two different ways. On weekdays, she is very busy at work, so she buys clothes and books online. She thinks online shopping is fast and cheap because there are many discounts on the internet. However, she cannot try the clothes on before they arrive, and sometimes they are too small. At the weekend, Lan goes to the local market with her mother. She enjoys talking to the sellers and choosing fresh fruit and vegetables. The market is often crowded and noisy, but the food is cheaper than in the supermarket. Lan believes that both ways of shopping have their own advantages."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. How does Lan usually buy clothes during the week?"
+      },
+      {
+        "kind": "p",
+        "text": "A. At the local market."
+      },
+      {
+        "kind": "p",
+        "text": "B. On the internet."
+      },
+      {
+        "kind": "p",
+        "text": "C. In a supermarket."
+      },
+      {
+        "kind": "p",
+        "text": "D. From her mother."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. Why does Lan think online shopping is cheap?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Because there are many discounts online."
+      },
+      {
+        "kind": "p",
+        "text": "B. Because she buys a lot of things."
+      },
+      {
+        "kind": "p",
+        "text": "C. Because the sellers are friendly."
+      },
+      {
+        "kind": "p",
+        "text": "D. Because she never pays for delivery."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What is one problem with buying clothes online, according to the passage?"
+      },
+      {
+        "kind": "p",
+        "text": "A. The clothes are always expensive."
+      },
+      {
+        "kind": "p",
+        "text": "B. She cannot try them on before they arrive."
+      },
+      {
+        "kind": "p",
+        "text": "C. The website is very slow."
+      },
+      {
+        "kind": "p",
+        "text": "D. The clothes never arrive."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. Where does Lan go shopping at the weekend?"
+      },
+      {
+        "kind": "p",
+        "text": "A. To a large shopping mall."
+      },
+      {
+        "kind": "p",
+        "text": "B. To an online shop."
+      },
+      {
+        "kind": "p",
+        "text": "C. To the local market."
+      },
+      {
+        "kind": "p",
+        "text": "D. To a bookshop in town."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. What does Lan think about the two ways of shopping?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Online shopping is always better."
+      },
+      {
+        "kind": "p",
+        "text": "B. Going to the market is a waste of time."
+      },
+      {
+        "kind": "p",
+        "text": "C. Both of them have their own advantages."
+      },
+      {
+        "kind": "p",
+        "text": "D. She does not really like either of them."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "A",
+      "18": "B",
+      "19": "C",
+      "20": "C"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "online cash quality heavy market return delicious lower reviews friendly order wait empty easier loud"
+      },
+      {
+        "kind": "p",
+        "text": "Shopping habits have changed a lot in recent years. In the past, most people went to a local (21) ...... to buy food and clothes. They paid with (22) ...... and carried everything home in bags. Today, many people prefer to shop (23) ...... because it is more convenient. They can (24) ...... products on their phones and pay with a card. Prices are often (25) ...... on the internet, and there are many special offers. However, customers must (26) ...... for a few days before the goods arrive. Some people still worry about the (27) ...... of things they cannot see or touch. Before they buy, they read (28) ...... written by other shoppers. If a product is not good, they can (29) ...... it and get their money back. In the future, shopping will probably become even (30) ......."
+      }
+    ],
+    "s4_answers": {
+      "21": "market",
+      "22": "cash",
+      "23": "online",
+      "24": "order",
+      "25": "lower",
+      "26": "wait",
+      "27": "quality",
+      "28": "reviews",
+      "29": "return",
+      "30": "easier"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "The jacket was so expensive that I could not buy it."
+      },
+      {
+        "kind": "p",
+        "text": "The jacket was too ______"
+      },
+      {
+        "kind": "p",
+        "text": "The market is cheaper than the supermarket."
+      },
+      {
+        "kind": "p",
+        "text": "The supermarket is more ______"
+      },
+      {
+        "kind": "p",
+        "text": "I last bought new shoes two years ago."
+      },
+      {
+        "kind": "p",
+        "text": "I have not ______"
+      },
+      {
+        "kind": "p",
+        "text": "If you do not have the receipt, you cannot get a refund."
+      },
+      {
+        "kind": "p",
+        "text": "You cannot get a refund unless ______"
+      },
+      {
+        "kind": "p",
+        "text": "This is the cheapest phone in the shop."
+      },
+      {
+        "kind": "p",
+        "text": "There is no ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "The jacket was too expensive for me to buy.",
+      "2": "The supermarket is more expensive than the market.",
+      "3": "I have not bought new shoes for two years.",
+      "4": "You cannot get a refund unless you have the receipt.",
+      "5": "There is no cheaper phone in the shop."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have a penfriend from England called Tom. In his last letter, he told you that he is planning to visit Vietnam and wants to buy some souvenirs for his family."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words to Tom. In your letter, you should answer his two questions:"
+      },
+      {
+        "kind": "p",
+        "text": "- Where is a good place to go shopping for souvenirs in your city?"
+      },
+      {
+        "kind": "p",
+        "text": "- What should he buy for his family, and about how much money will he need?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9009",
+    "topic": "Thực phẩm-đồ uống",
+    "s1": {
+      "1": {
+        "stem": "I usually have ...... egg and a cup of tea for breakfast.",
+        "options": {
+          "A": "a",
+          "B": "an",
+          "C": "the",
+          "D": "any"
+        },
+        "answer": "B"
+      },
+      "2": {
+        "stem": "We chose that restaurant ...... it serves delicious vegetarian food.",
+        "options": {
+          "A": "because",
+          "B": "although",
+          "C": "so",
+          "D": "unless"
+        },
+        "answer": "A"
+      },
+      "3": {
+        "stem": "If she ...... more free time, she would bake a cake every weekend.",
+        "options": {
+          "A": "has",
+          "B": "had",
+          "C": "will have",
+          "D": "would have"
+        },
+        "answer": "B"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Buy one coffee and get the second one free - today only! A. You can get two coffees today but pay for only one of them. B. Every coffee in the shop is completely free today. C. You must buy two coffees before you get one free. 12. Please order and pay at the counter before you sit down. A. Find a seat first, and a waiter will come to take your order. B. Pay for your food at the counter before taking a seat. C. Customers are not allowed to sit down in this cafe. 13. Fresh juice is made to order. Please allow ten minutes. A. The juice is already prepared and ready to take away at once. B. Fresh juice is not sold in this shop. C. You should wait about ten minutes for your fresh juice. 14. Our kitchen closes at 9 pm. Please place your last food order by 8:30 pm. A. You can order food at any time during the whole night. B. The last time to order food is half past eight in the evening. C. The kitchen is open only in the morning."
+      }
+    ],
+    "s2_answers": {
+      "11": "A",
+      "12": "B",
+      "13": "C",
+      "14": "B"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Tom works at a small cafe in the city centre. Every morning, he arrives at seven o'clock to prepare fresh bread and make the first pot of coffee. The cafe is popular with students because it is cheap and the staff are friendly. Tom's favourite job is making sandwiches. He uses brown bread, fresh vegetables, and local cheese. Many customers say his sandwiches are the best in town. In the afternoon, the cafe becomes quieter, so Tom cleans the tables and orders food for the next day. Although the work is tiring, he enjoys it because he loves meeting new people and talking about food."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. What time does Tom arrive at the cafe every morning?"
+      },
+      {
+        "kind": "p",
+        "text": "A. At six o'clock"
+      },
+      {
+        "kind": "p",
+        "text": "B. At seven o'clock"
+      },
+      {
+        "kind": "p",
+        "text": "C. At eight o'clock"
+      },
+      {
+        "kind": "p",
+        "text": "D. At nine o'clock"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. Why is the cafe popular with students?"
+      },
+      {
+        "kind": "p",
+        "text": "A. It is far from the city centre."
+      },
+      {
+        "kind": "p",
+        "text": "B. It sells only expensive coffee."
+      },
+      {
+        "kind": "p",
+        "text": "C. It is cheap and the staff are friendly."
+      },
+      {
+        "kind": "p",
+        "text": "D. It is open all night long."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What does Tom use to make his sandwiches?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Brown bread, fresh vegetables, and local cheese"
+      },
+      {
+        "kind": "p",
+        "text": "B. White rice and fried fish"
+      },
+      {
+        "kind": "p",
+        "text": "C. Eggs and butter only"
+      },
+      {
+        "kind": "p",
+        "text": "D. Imported cheese and meat"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. What does Tom do in the afternoon?"
+      },
+      {
+        "kind": "p",
+        "text": "A. He goes home immediately."
+      },
+      {
+        "kind": "p",
+        "text": "B. He cleans the tables and orders food for the next day."
+      },
+      {
+        "kind": "p",
+        "text": "C. He only makes coffee for students."
+      },
+      {
+        "kind": "p",
+        "text": "D. He closes the cafe for the day."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. How does Tom feel about his job?"
+      },
+      {
+        "kind": "p",
+        "text": "A. He finds it boring and too easy."
+      },
+      {
+        "kind": "p",
+        "text": "B. He dislikes meeting new customers."
+      },
+      {
+        "kind": "p",
+        "text": "C. He enjoys it, even though it is tiring."
+      },
+      {
+        "kind": "p",
+        "text": "D. He wants to find a different job soon."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "C",
+      "18": "A",
+      "19": "B",
+      "20": "C"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "healthy energy eat illness drink tasty home money skip changes expensive slowly table sugar cold"
+      },
+      {
+        "kind": "p",
+        "text": "Eating well is one of the best ways to stay (21) ....... A good diet gives your body the (22) ...... it needs to work and play. Doctors say we should (23) ...... a lot of fruit and vegetables every day. These foods are full of vitamins and help us fight (24) ....... It is also important to (25) ...... enough water, especially when the weather is hot. Many young people love fast food because it is cheap and (26) ......, but it often contains too much salt and fat. Cooking meals at (27) ...... is usually healthier and can also save (28) ....... Try not to eat too many sweets, and never (29) ...... breakfast. With a few simple (30) ......, you can enjoy your food and feel great."
+      }
+    ],
+    "s4_answers": {
+      "21": "healthy",
+      "22": "energy",
+      "23": "eat",
+      "24": "illness",
+      "25": "drink",
+      "26": "tasty",
+      "27": "home",
+      "28": "money",
+      "29": "skip",
+      "30": "changes"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "This is the best coffee I have ever tasted."
+      },
+      {
+        "kind": "p",
+        "text": "I have never ______"
+      },
+      {
+        "kind": "p",
+        "text": "The soup was too hot for me to drink."
+      },
+      {
+        "kind": "p",
+        "text": "The soup was not ______"
+      },
+      {
+        "kind": "p",
+        "text": "They serve breakfast until ten o'clock in this hotel."
+      },
+      {
+        "kind": "p",
+        "text": "Breakfast ______"
+      },
+      {
+        "kind": "p",
+        "text": "The cake was so sweet that nobody could finish it."
+      },
+      {
+        "kind": "p",
+        "text": "It was ______"
+      },
+      {
+        "kind": "p",
+        "text": "If you don't eat vegetables, you won't stay healthy."
+      },
+      {
+        "kind": "p",
+        "text": "You won't stay healthy unless ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "I have never tasted better coffee than this.",
+      "2": "The soup was not cool enough for me to drink.",
+      "3": "Breakfast is served until ten o'clock in this hotel.",
+      "4": "It was such a sweet cake that nobody could finish it.",
+      "5": "You won't stay healthy unless you eat vegetables."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Your English penfriend, Alex, wants to learn about food and drink in your country."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words replying to Alex. In your letter, answer these two questions:"
+      },
+      {
+        "kind": "p",
+        "text": "1) What is your favourite traditional dish, and how is it cooked?"
+      },
+      {
+        "kind": "p",
+        "text": "2) What do people in your country usually drink at special celebrations?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9010",
+    "topic": "Các dịch vụ",
+    "s1": {
+      "1": {
+        "stem": "The bank opens ...... 8 o'clock every morning, so you can go there early.",
+        "options": {
+          "A": "at",
+          "B": "in",
+          "C": "on",
+          "D": "since"
+        },
+        "answer": "A"
+      },
+      "2": {
+        "stem": "People ...... to send letters by post before email became popular.",
+        "options": {
+          "A": "used",
+          "B": "use",
+          "C": "are used",
+          "D": "using"
+        },
+        "answer": "A"
+      },
+      "3": {
+        "stem": "Our internet connection ...... by the technician yesterday afternoon.",
+        "options": {
+          "A": "was repaired",
+          "B": "repaired",
+          "C": "has repaired",
+          "D": "is repairing"
+        },
+        "answer": "A"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Clothes not collected from the dry cleaner within 30 days will be donated to charity. A. You must collect your clothes within 30 days or they will be given away. B. The shop gives free clothes to every customer after 30 days. C. You can only leave clothes here for charity, not for cleaning. 12. This cash machine is out of service — please use the machine inside the branch. A. This machine is not working, so use another one indoors. B. The bank branch is closed for the whole day. C. You cannot take out any money at this bank. 13. We tried to deliver your parcel but no one was home, so please collect it from the post office within 14 days. A. Your parcel was left with your neighbour next door. B. You need to pick up your parcel at the post office because delivery failed. C. Your parcel will be delivered again tomorrow morning. 14. Booking required — walk-in customers may have to wait a long time. A. The salon never accepts customers without a booking. B. Customers without a booking might have to wait. C. You must pay in full before you can make a booking."
+      }
+    ],
+    "s2_answers": {
+      "11": "A",
+      "12": "A",
+      "13": "B",
+      "14": "B"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "The Greenfield Public Library offers much more than books. Members can borrow films, music, and even board games for free. The library also runs a delivery service for people who cannot leave their homes. Twice a week, a volunteer brings books to elderly readers and collects the ones they have finished. On Saturdays, the library holds free computer classes for beginners, where older adults learn to send emails and shop online safely. Parents often bring young children to the morning story time. Because the library depends on the town's support, it asks members to return items on time so that other people can enjoy the same services."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. What is the main purpose of the passage?"
+      },
+      {
+        "kind": "p",
+        "text": "A. To describe the different services a library offers"
+      },
+      {
+        "kind": "p",
+        "text": "B. To explain how to become a librarian"
+      },
+      {
+        "kind": "p",
+        "text": "C. To advertise a new bookshop in the town"
+      },
+      {
+        "kind": "p",
+        "text": "D. To complain about high library fees"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. Who receives books at home from the library?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Young children at story time"
+      },
+      {
+        "kind": "p",
+        "text": "B. Elderly readers who cannot leave their homes"
+      },
+      {
+        "kind": "p",
+        "text": "C. The computer teachers"
+      },
+      {
+        "kind": "p",
+        "text": "D. New members of the library"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What can members borrow for free besides books?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Films, music and board games"
+      },
+      {
+        "kind": "p",
+        "text": "B. Computers and mobile phones"
+      },
+      {
+        "kind": "p",
+        "text": "C. Food and hot drinks"
+      },
+      {
+        "kind": "p",
+        "text": "D. Newspapers only"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. What do older adults learn in the Saturday classes?"
+      },
+      {
+        "kind": "p",
+        "text": "A. How to repair broken computers"
+      },
+      {
+        "kind": "p",
+        "text": "B. How to write their own books"
+      },
+      {
+        "kind": "p",
+        "text": "C. How to send emails and shop online safely"
+      },
+      {
+        "kind": "p",
+        "text": "D. How to teach young children"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. Why does the library ask members to return items on time?"
+      },
+      {
+        "kind": "p",
+        "text": "A. So that other people can enjoy the same services"
+      },
+      {
+        "kind": "p",
+        "text": "B. Because members must pay a large fine"
+      },
+      {
+        "kind": "p",
+        "text": "C. Because the library wants to close early"
+      },
+      {
+        "kind": "p",
+        "text": "D. So that the volunteers can take a holiday"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "A",
+      "17": "B",
+      "18": "A",
+      "19": "C",
+      "20": "A"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "send deliver service read reliable careful check treats happy tasks buy phone money slow angry"
+      },
+      {
+        "kind": "p",
+        "text": "These days, many useful services are available on our phones. Instead of going to the bank, we can (21) ...... money to friends in just a few seconds. When we are hungry, a delivery app can (22) ...... hot food to our door in less than an hour. If something goes wrong, most companies have a customer (23) ...... team that we can call at any time. Before we buy anything, it is wise to (24) ...... the reviews that other customers have written. Good reviews usually mean the service is (25) ...... and worth the money. However, we should be (26) ...... with our personal information and never share our passwords. Some websites are not safe, so we must (27) ...... them carefully before we share any details. A reliable company always (28) ...... its customers politely and solves problems quickly. If you are not (29) ...... with a product, you can often ask for your money back. In this way, technology has made everyday (30) ...... much easier than before."
+      }
+    ],
+    "s4_answers": {
+      "21": "send",
+      "22": "deliver",
+      "23": "service",
+      "24": "read",
+      "25": "reliable",
+      "26": "careful",
+      "27": "check",
+      "28": "treats",
+      "29": "happy",
+      "30": "tasks"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "A local company delivers our post every morning."
+      },
+      {
+        "kind": "p",
+        "text": "Our post ______"
+      },
+      {
+        "kind": "p",
+        "text": "In the past, people wrote letters instead of sending emails."
+      },
+      {
+        "kind": "p",
+        "text": "People used ______"
+      },
+      {
+        "kind": "p",
+        "text": "The repair shop is so busy that it cannot fix my phone today."
+      },
+      {
+        "kind": "p",
+        "text": "The repair shop is too ______"
+      },
+      {
+        "kind": "p",
+        "text": "Online banking is more convenient than going to the bank."
+      },
+      {
+        "kind": "p",
+        "text": "Going to the bank is not ______"
+      },
+      {
+        "kind": "p",
+        "text": "The delivery company started using electric vans two years ago."
+      },
+      {
+        "kind": "p",
+        "text": "The delivery company has ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "Our post is delivered by a local company every morning.",
+      "2": "People used to write letters instead of sending emails.",
+      "3": "The repair shop is too busy to fix my phone today.",
+      "4": "Going to the bank is not as convenient as online banking.",
+      "5": "The delivery company has used electric vans for two years."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have received a letter from your English penfriend, Alex, who wants to know about the services in your neighbourhood."
+      },
+      {
+        "kind": "p",
+        "text": "Alex asks: Which services do you use most often near your home? How do you think these services could be improved?"
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words replying to Alex, and answer both of the questions."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9011",
+    "topic": "Địa điểm-địa danh",
+    "s1": {
+      "1": {
+        "stem": "We ...... at six in the morning so we could reach the mountain village before noon.",
+        "options": {
+          "A": "set off",
+          "B": "set up",
+          "C": "put off",
+          "D": "get off"
+        },
+        "answer": "A"
+      },
+      "2": {
+        "stem": "Right now, thousands of visitors ...... photos in front of the famous cathedral.",
+        "options": {
+          "A": "take",
+          "B": "are taking",
+          "C": "takes",
+          "D": "took"
+        },
+        "answer": "B"
+      },
+      "3": {
+        "stem": "The guide told us that the museum ...... at five o'clock that day.",
+        "options": {
+          "A": "closes",
+          "B": "will close",
+          "C": "would close",
+          "D": "is closing"
+        },
+        "answer": "C"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Castle closed to visitors on Mondays for cleaning. Please plan your trip on another day. A. The castle never opens to visitors. B. Visitors cannot enter the castle on Mondays. C. The castle is closed every day for cleaning. 12. Keep to the marked path. Walking on the old ruins is not allowed. A. Visitors may climb on the ancient ruins. B. Visitors should stay on the marked path only. C. The path is closed to all walkers. 13. Free guided tour of the lighthouse starts at the main gate every hour. A. You must pay for the lighthouse tour. B. The tour begins only once each day. C. A guided tour leaves the main gate every hour for free. 14. Photography without flash is welcome inside the temple. Please switch off your flash. A. Visitors may take photos if they turn the flash off. B. Taking photos inside the temple is forbidden. C. Visitors can use their flash freely inside the temple."
+      }
+    ],
+    "s2_answers": {
+      "11": "B",
+      "12": "B",
+      "13": "C",
+      "14": "A"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Ha Long Bay is one of the most beautiful places in northern Vietnam. It is famous for its thousands of small limestone islands that rise out of the green water. Many of the islands have caves inside them, and visitors can explore these caves by boat. The best way to see the bay is to take a boat trip that lasts one or two days. During the trip, tourists can swim, go kayaking, and watch the sun set over the water. The weather is usually warm, but it can be foggy in winter. Because so many people visit every year, the local government works hard to keep the water clean and protect the natural beauty of the area."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. What is Ha Long Bay most famous for?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Its tall mountains"
+      },
+      {
+        "kind": "p",
+        "text": "B. Its thousands of limestone islands"
+      },
+      {
+        "kind": "p",
+        "text": "C. Its large modern cities"
+      },
+      {
+        "kind": "p",
+        "text": "D. Its long wide rivers"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. How can visitors explore the caves?"
+      },
+      {
+        "kind": "p",
+        "text": "A. By car"
+      },
+      {
+        "kind": "p",
+        "text": "B. On foot along a road"
+      },
+      {
+        "kind": "p",
+        "text": "C. By boat"
+      },
+      {
+        "kind": "p",
+        "text": "D. By plane"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. How long does the best boat trip last?"
+      },
+      {
+        "kind": "p",
+        "text": "A. One or two hours"
+      },
+      {
+        "kind": "p",
+        "text": "B. One or two days"
+      },
+      {
+        "kind": "p",
+        "text": "C. A whole week"
+      },
+      {
+        "kind": "p",
+        "text": "D. Half a day"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. What can the weather be like in winter, according to the passage?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Very hot"
+      },
+      {
+        "kind": "p",
+        "text": "B. Snowy"
+      },
+      {
+        "kind": "p",
+        "text": "C. Foggy"
+      },
+      {
+        "kind": "p",
+        "text": "D. Windy and dry"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. Why does the local government work hard?"
+      },
+      {
+        "kind": "p",
+        "text": "A. To build more hotels on the islands"
+      },
+      {
+        "kind": "p",
+        "text": "B. To keep the water clean and protect the area"
+      },
+      {
+        "kind": "p",
+        "text": "C. To stop tourists from visiting the bay"
+      },
+      {
+        "kind": "p",
+        "text": "D. To make the small islands bigger"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "C",
+      "18": "B",
+      "19": "C",
+      "20": "B"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "visit travelled beautiful walked see friendly ate took forget return arrived expensive bought quickly remember"
+      },
+      {
+        "kind": "p",
+        "text": "Last summer, my family decided to (21) ...... a small town in the mountains. We (22) ...... there by train through green mountains and forests. The town was very (23) ...... and quiet, with old wooden houses along narrow streets. On the first day, we (24) ...... to the top of a hill to see an ancient temple. From there, we could (25) ...... the whole valley below us. The local people were very (26) ...... and showed us the best places to eat. In the evening, we (27) ...... delicious food at a small restaurant near the river. The next morning, we (28) ...... some photos of the beautiful bridge in the town centre. I will never (29) ...... this wonderful trip, and I hope to (30) ...... there again next year."
+      }
+    ],
+    "s4_answers": {
+      "21": "visit",
+      "22": "travelled",
+      "23": "beautiful",
+      "24": "walked",
+      "25": "see",
+      "26": "friendly",
+      "27": "ate",
+      "28": "took",
+      "29": "forget",
+      "30": "return"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "People built this bridge two hundred years ago."
+      },
+      {
+        "kind": "p",
+        "text": "This bridge ______"
+      },
+      {
+        "kind": "p",
+        "text": "This is the tallest tower in the city."
+      },
+      {
+        "kind": "p",
+        "text": "No other tower in the city ______"
+      },
+      {
+        "kind": "p",
+        "text": "The path was too steep for us to climb."
+      },
+      {
+        "kind": "p",
+        "text": "The path was so ______"
+      },
+      {
+        "kind": "p",
+        "text": "I started living in this town five years ago."
+      },
+      {
+        "kind": "p",
+        "text": "I have ______"
+      },
+      {
+        "kind": "p",
+        "text": "The journey to the island lasts three hours by boat."
+      },
+      {
+        "kind": "p",
+        "text": "It takes ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "This bridge was built two hundred years ago.",
+      "2": "No other tower in the city is as tall as this one.",
+      "3": "The path was so steep that we could not climb it.",
+      "4": "I have lived in this town for five years.",
+      "5": "It takes three hours to travel to the island by boat."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have a penfriend named Alex who lives in Canada."
+      },
+      {
+        "kind": "p",
+        "text": "Alex wants to know about a famous place in your country."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words. In your letter, tell Alex about the place and answer these two questions:"
+      },
+      {
+        "kind": "p",
+        "text": "What can visitors see and do there, and why do you think Alex should visit it?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9012",
+    "topic": "Ngôn ngữ",
+    "s1": {
+      "1": {
+        "stem": "Many students enjoy ...... new languages because it helps them make foreign friends.",
+        "options": {
+          "A": "learning",
+          "B": "to learn",
+          "C": "learn",
+          "D": "learned"
+        },
+        "answer": "A"
+      },
+      "2": {
+        "stem": "I ...... my old English teacher since I left secondary school.",
+        "options": {
+          "A": "did not see",
+          "B": "have not seen",
+          "C": "do not see",
+          "D": "was not seeing"
+        },
+        "answer": "B"
+      },
+      "3": {
+        "stem": "For me, English grammar is ...... than Vietnamese grammar, but I practise it every day.",
+        "options": {
+          "A": "more difficult",
+          "B": "the most difficult",
+          "C": "difficult",
+          "D": "as difficult"
+        },
+        "answer": "A"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Free English speaking club every Friday afternoon in the school library. All levels welcome. No booking needed. A. You must book a place before joining the club. B. The club is open to learners of any level. C. The club meets on Friday mornings. 12. Please return your borrowed language books within two weeks. Late returns cost extra money each day. A. You can keep the books for as long as you like. B. You pay more money for each day a book is late. C. Language books cannot be borrowed here. 13. Quiet, please. Language exam in progress. Turn off your mobile phone before you enter the hall. A. You may use your phone quietly inside the hall. B. Switch off your phone before you go into the hall. C. The exam has already finished. 14. Download our vocabulary app and learn ten new English words every day. The first month is free. A. The app teaches ten new words each day. B. You must pay to use the app in the first month. C. The app only works in English-speaking countries."
+      }
+    ],
+    "s2_answers": {
+      "11": "B",
+      "12": "B",
+      "13": "B",
+      "14": "A"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Learning a foreign language is not always easy, but it can be very useful. Maria comes from Spain, and she started learning English when she was ten years old. At first, she found grammar boring and difficult. However, she loved watching English films and singing English songs. These activities helped her learn many new words without much effort. Today Maria works as a tour guide in Madrid. She meets visitors from many countries and speaks to them in English every day. She says that speaking a second language has changed her life. Now she wants to learn a third language, Italian, because she thinks it sounds beautiful."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. When did Maria start learning English?"
+      },
+      {
+        "kind": "p",
+        "text": "A. When she was ten years old."
+      },
+      {
+        "kind": "p",
+        "text": "B. When she became a tour guide."
+      },
+      {
+        "kind": "p",
+        "text": "C. When she moved to Madrid."
+      },
+      {
+        "kind": "p",
+        "text": "D. When she was a small baby."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. At first, what did Maria think about grammar?"
+      },
+      {
+        "kind": "p",
+        "text": "A. It was easy and fun."
+      },
+      {
+        "kind": "p",
+        "text": "B. It was boring and difficult."
+      },
+      {
+        "kind": "p",
+        "text": "C. It was beautiful."
+      },
+      {
+        "kind": "p",
+        "text": "D. It was useful for her job."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. What helped Maria learn many new words easily?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Reading grammar books."
+      },
+      {
+        "kind": "p",
+        "text": "B. Watching films and singing songs."
+      },
+      {
+        "kind": "p",
+        "text": "C. Working as a tour guide."
+      },
+      {
+        "kind": "p",
+        "text": "D. Living in England."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. What is Maria's job now?"
+      },
+      {
+        "kind": "p",
+        "text": "A. She is an English teacher."
+      },
+      {
+        "kind": "p",
+        "text": "B. She is a singer."
+      },
+      {
+        "kind": "p",
+        "text": "C. She is a tour guide."
+      },
+      {
+        "kind": "p",
+        "text": "D. She is a film maker."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. Why does Maria want to learn Italian?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Because she thinks it sounds beautiful."
+      },
+      {
+        "kind": "p",
+        "text": "B. Because she needs it for her job."
+      },
+      {
+        "kind": "p",
+        "text": "C. Because her family is Italian."
+      },
+      {
+        "kind": "p",
+        "text": "D. Because it is very easy to learn."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "A",
+      "17": "B",
+      "18": "B",
+      "19": "C",
+      "20": "A"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "languages money communicate afraid skills easy practise talk slowly widely speaking books learn happy difficult"
+      },
+      {
+        "kind": "p",
+        "text": "Language is one of the most important (21) ...... that humans have. We use it every day to (22) ...... with other people, to share our ideas and to ask for help. There are thousands of different (23) ...... in the world, and each one has its own words and rules. Some children grow up (24) ...... two languages at the same time because their parents come from different countries. Learning a new language can be (25) ......, but it is also fun. When you travel to another country, you can (26) ...... to local people and understand their culture better. Many people study English because it is (27) ...... used in business and science. To improve quickly, you should (28) ...... a little every day and not be (29) ...... of making mistakes. Mistakes help you (30) ...... and become more confident."
+      }
+    ],
+    "s4_answers": {
+      "21": "skills",
+      "22": "communicate",
+      "23": "languages",
+      "24": "speaking",
+      "25": "difficult",
+      "26": "talk",
+      "27": "widely",
+      "28": "practise",
+      "29": "afraid",
+      "30": "learn"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "English is more difficult than French for me."
+      },
+      {
+        "kind": "p",
+        "text": "French ______"
+      },
+      {
+        "kind": "p",
+        "text": "I started learning Japanese three years ago."
+      },
+      {
+        "kind": "p",
+        "text": "I have ______"
+      },
+      {
+        "kind": "p",
+        "text": "She speaks English very well."
+      },
+      {
+        "kind": "p",
+        "text": "She is ______"
+      },
+      {
+        "kind": "p",
+        "text": "Learning grammar is not as interesting as speaking."
+      },
+      {
+        "kind": "p",
+        "text": "Speaking ______"
+      },
+      {
+        "kind": "p",
+        "text": "Nobody in my class can write Chinese better than Lan."
+      },
+      {
+        "kind": "p",
+        "text": "Lan ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "French is easier than English for me.",
+      "2": "I have learned Japanese for three years.",
+      "3": "She is very good at speaking English.",
+      "4": "Speaking is more interesting than learning grammar.",
+      "5": "Lan writes Chinese the best in my class."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "You have a new penfriend from Canada named Emma."
+      },
+      {
+        "kind": "p",
+        "text": "In her last letter, she told you that she is learning Vietnamese and wants to know about languages in your country."
+      },
+      {
+        "kind": "p",
+        "text": "Write a letter of about 100 words to Emma. In your letter, answer her two questions:"
+      },
+      {
+        "kind": "p",
+        "text": "- Which languages do people speak in Vietnam? - What is the best way for her to learn Vietnamese?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  },
+  {
+    "ma_de": "EB1.9013",
+    "topic": "Thời tiết",
+    "s1": {
+      "1": {
+        "stem": "How ...... rain did we get during the storm last night?",
+        "options": {
+          "A": "much",
+          "B": "many",
+          "C": "some",
+          "D": "any"
+        },
+        "answer": "A"
+      },
+      "2": {
+        "stem": "If it ...... tomorrow, we will stay at home and watch a film.",
+        "options": {
+          "A": "rains",
+          "B": "will rain",
+          "C": "rain",
+          "D": "raining"
+        },
+        "answer": "A"
+      },
+      "3": {
+        "stem": "Drivers ...... use their headlights in thick fog because it is the law in our country.",
+        "options": {
+          "A": "have to",
+          "B": "would",
+          "C": "could",
+          "D": "might"
+        },
+        "answer": "A"
+      }
+    },
+    "s2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 Questions 11-14 (4 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Look at the text in each question. What does it say? Circle the letter next to the correct explanation (A, B or C)."
+      },
+      {
+        "kind": "tbl",
+        "text": "11. Storm warning: strong winds are expected this afternoon. Please close all windows and stay indoors. A. The storm has already passed and it is safe outside. B. People should remain inside because of the strong winds. C. All windows must be kept wide open during the storm. 12. Beach closed today because of high waves and a rough sea. Swimming is not allowed. A. Visitors can still swim if they are careful. B. The beach is open for swimming as usual. C. Nobody is permitted to swim here today. 13. School buses may run late this morning because of the heavy snow. Please wait at your usual stop. A. The snow might delay the school buses. B. The buses have been cancelled for the whole week. C. Students should find another way to get to school. 14. Free umbrellas are available at the front desk. Please return them when the rain stops. A. You must pay some money to borrow an umbrella. B. You can borrow an umbrella here at no cost. C. The umbrellas are only for members of staff."
+      }
+    ],
+    "s2_answers": {
+      "11": "B",
+      "12": "C",
+      "13": "A",
+      "14": "B"
+    },
+    "s3_raw": [
+      {
+        "kind": "p",
+        "text": "Section 3 Questions 16-20 (5 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text and questions below. For each question, circle the letter next to the correct answer (A, B, C or D)."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Linda lives in a small town near the mountains, where the weather changes very quickly. In the morning, the sky is often clear and the sun is warm, so many people go outside to work in their gardens. However, by the afternoon, dark clouds sometimes appear and bring heavy rain. Because of this, Linda always carries a small umbrella in her bag. She also checks the weather forecast on her phone every day before she leaves home. Last winter, it was extremely cold and snow covered the streets for a week. The children were very happy because their school was closed, but the adults found it difficult to drive to work."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "16. Where does Linda live?"
+      },
+      {
+        "kind": "p",
+        "text": "A. In a big city by the sea"
+      },
+      {
+        "kind": "p",
+        "text": "B. In a small town near the mountains"
+      },
+      {
+        "kind": "p",
+        "text": "C. In a village in the desert"
+      },
+      {
+        "kind": "p",
+        "text": "D. On a farm far from any town"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "17. What is the weather often like in the morning?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Clear and warm"
+      },
+      {
+        "kind": "p",
+        "text": "B. Dark and rainy"
+      },
+      {
+        "kind": "p",
+        "text": "C. Cold and snowy"
+      },
+      {
+        "kind": "p",
+        "text": "D. Windy and foggy"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "18. Why does Linda always carry an umbrella?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Because it snows every morning"
+      },
+      {
+        "kind": "p",
+        "text": "B. Because heavy rain sometimes comes in the afternoon"
+      },
+      {
+        "kind": "p",
+        "text": "C. Because she does not like the warm sun"
+      },
+      {
+        "kind": "p",
+        "text": "D. Because her school tells her to"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "19. What does Linda do every day before she leaves home?"
+      },
+      {
+        "kind": "p",
+        "text": "A. She waters all the plants in her garden"
+      },
+      {
+        "kind": "p",
+        "text": "B. She calls her friends on the phone"
+      },
+      {
+        "kind": "p",
+        "text": "C. She checks the weather forecast on her phone"
+      },
+      {
+        "kind": "p",
+        "text": "D. She buys a new umbrella at the shop"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "20. Why were the children happy last winter?"
+      },
+      {
+        "kind": "p",
+        "text": "A. Because they were given new warm coats"
+      },
+      {
+        "kind": "p",
+        "text": "B. Because the sun was warm every day"
+      },
+      {
+        "kind": "p",
+        "text": "C. Because their school was closed"
+      },
+      {
+        "kind": "p",
+        "text": "D. Because they were able to drive to work"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      }
+    ],
+    "s3_answers": {
+      "16": "B",
+      "17": "A",
+      "18": "B",
+      "19": "C",
+      "20": "C"
+    },
+    "s4_raw": [
+      {
+        "kind": "p",
+        "text": "Section 4 Questions 21-30 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Read the text below and fill each of the blanks with ONE suitable word from the box."
+      },
+      {
+        "kind": "tbl",
+        "text": "lives shining friends stay weather carefully much forecast wear improve raining cold many sunny snow"
+      },
+      {
+        "kind": "p",
+        "text": "The weather has a big effect on our daily (21) ....... When the sun is (22) ......, most people feel happy and full of energy. They go outside to walk, play sports, or meet (23) ....... On rainy days, however, many people prefer to (24) ...... at home and read a book. In some countries, the (25) ...... is hot all year round, while in others it changes with the seasons. Farmers watch the sky very (26) ...... because they need enough rain for their crops. If there is too (27) ...... rain, the plants may die. Many people listen to the weather (28) ...... every morning so they know what to (29) ...... before they go out. In general, good weather can really (30) ...... our mood."
+      }
+    ],
+    "s4_answers": {
+      "21": "lives",
+      "22": "shining",
+      "23": "friends",
+      "24": "stay",
+      "25": "weather",
+      "26": "carefully",
+      "27": "much",
+      "28": "forecast",
+      "29": "wear",
+      "30": "improve"
+    },
+    "w1_raw": [
+      {
+        "kind": "p",
+        "text": "Section 1 (10 points)"
+      },
+      {
+        "kind": "p",
+        "text": "Finish each of the following sentences so that it means the same as the sentence before it."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "It is raining heavily, so we cannot play football outside."
+      },
+      {
+        "kind": "p",
+        "text": "We cannot play football outside because ______"
+      },
+      {
+        "kind": "p",
+        "text": "The weather was so cold that the lake froze completely."
+      },
+      {
+        "kind": "p",
+        "text": "It was such ______"
+      },
+      {
+        "kind": "p",
+        "text": "I have never seen such a strong storm before."
+      },
+      {
+        "kind": "p",
+        "text": "This is the strongest storm ______"
+      },
+      {
+        "kind": "p",
+        "text": "If you do not take an umbrella, you will get wet."
+      },
+      {
+        "kind": "p",
+        "text": "Take an umbrella, ______"
+      },
+      {
+        "kind": "p",
+        "text": "The rain was very heavy, but they continued their journey."
+      },
+      {
+        "kind": "p",
+        "text": "Despite ______"
+      }
+    ],
+    "w1_answers": {
+      "1": "We cannot play football outside because it is raining heavily.",
+      "2": "It was such cold weather that the lake froze completely.",
+      "3": "This is the strongest storm I have ever seen.",
+      "4": "Take an umbrella, or you will get wet.",
+      "5": "Despite the heavy rain, they continued their journey."
+    },
+    "w2_raw": [
+      {
+        "kind": "p",
+        "text": "Section 2 (20 points)"
+      },
+      {
+        "kind": "p",
+        "text": "You are Nam. This is part of a letter you have received from Alex, your English pen-friend."
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Your penfriend Alex from Canada has sent you a letter asking about the weather where you live."
+      },
+      {
+        "kind": "p",
+        "text": "Write a reply of about 100 words describing the weather in your area."
+      },
+      {
+        "kind": "p",
+        "text": "In your letter, answer these two questions: Which season do you like best and why? What do you usually do on rainy days?"
+      },
+      {
+        "kind": "p",
+        "text": ""
+      },
+      {
+        "kind": "p",
+        "text": "Now write a letter to this pen-friend on the answer sheet. You should write about 100 words."
+      },
+      {
+        "kind": "p",
+        "text": "--- The end ---"
+      }
+    ]
+  }
+]
