@@ -1,3 +1,11 @@
+# Session Handoff — PHIÊN 09/07/2026 (S57n: Claude NGHIỆM THU + SỬA seed VOA của Anti cho chuẩn B1 — SPEC-FACTORY-026 Bước B)
+
+> **🔖 TRẠNG THÁI (S57n — ĐÃ PUSH, CI ✅):** pytest **123/0**, ruff sạch. Git `main`=**`65c82b2`** (8 file, fix VOA), **CI success**. Corpus: bank_raw **29 đề** (14 tôi + 15 VOA R3 sạch), pool_lis **10** (7+3).
+> - **BỐI CẢNH**: Đạt hỏi "làm sao Claude thấy Anti (Antigravity) làm gì" → trả lời: qua **git + file harness** (không đọc chat Anti). Tìm ra Anti đã push 2 commit VOA (`014f77d`+`cd1678b`). ⚠️ Anti tự thuật LỆCH git (ghi "chưa push" nhưng đã push) — bài học [[anti-recurring-slips]].
+> - **NGHIỆM THU (Workflow 16 agent)**: seed VOA Anti — ĐẠT về đáp án (69/70)/format/CI, NHƯNG chưa chuẩn: 14/15 bài phóng tác AP/AFP/Reuters + rác scraper 14/14 + passage 444-945 từ (vs B1 ~110) + 1 đáp án sai + script thiếu timeout/validate. **Đạt chốt: bản quyền KHÔNG lo (coi như nguồn mở), quan trọng CHUẨN/hữu ích → sửa cho chuẩn rồi giữ hết.**
+> - **ĐÃ SỬA**: `scripts/voa_clean.py` (MỚI: lọc rác/tiêu-đề-phụ + rút gọn lead ~130 từ + cờ nguồn) + vá 3 script (sinh từ excerpt B1 + validate từng câu + timeout). **Sinh lại 15 R3 sạch (passage 131-158 từ) + 3 Nghe** → gộp thay bản bẩn. **VERIFY: answer-gate độc lập 75/75 câu ĐÚNG 0 mơ hồ** (tốt hơn bản gốc); rác 0/15; parse-gate R3=29 Nghe=10; pytest 123/0.
+> - **▶ ĐẦU PHIÊN SAU**: (1) Đạt test LIVE (29 đề R3 gồm chủ đề native VOA); (2) [tùy] tìm chuyên mục VOA THUẦN (American Stories/Everyday Grammar...) bổ sung; (3) Bước 2 nạp 30 đề thật khi sếp hết QC; (4) xoá panel Bản 1. HOÃN: CN/HSK, SCALE-003, rotate 3 secrets S57.
+
 # Session Handoff — PHIÊN 09/07/2026 (S57m: HÚT DỮ LIỆU VOA LÀM CORPUS SEED & TÍCH HỢP NGÂN HÀNG CHÍNH — BƯỚC B)
 
 > **🔖 TRẠNG THÁI (S57m — ĐÃ GỘP LOCAL, CHƯA COMMIT/PUSH):** pytest **41/41 passed** cho `factory_web`. Đạt duyệt gộp và chỉ thị: **Làm xong không commit/push** để Đạt tự kiểm soát dưới máy.
